@@ -14,7 +14,7 @@ enum class PriceEntryMode {
  * (see §26 of the spec — no credentials, no scraping); everything here is typed in by the user.
  *
  * All values are in cents. Any of them may be null: a missing price must be surfaced as
- * "Standby-Preis fehlt" rather than silently treated as 0 €.
+ * reported as a missing standby price rather than silently treated as 0 EUR.
  */
 data class StandbyPrice(
     val destinationIata: String,

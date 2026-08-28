@@ -1,5 +1,6 @@
 package com.condorino.weekend.data.source
 
+import com.condorino.weekend.R
 import com.condorino.weekend.data.reference.AirportReferenceCatalog
 import com.condorino.weekend.domain.model.DataProvenance
 import kotlinx.coroutines.Dispatchers
@@ -26,27 +27,28 @@ class HttpFeedFlightDataSource(
     private val client: OkHttpClient,
     private val configProvider: suspend () -> FeedConfig,
     private val airportCatalog: AirportReferenceCatalog,
+    override val strings: SourceStrings,
     private val parser: FeedParser = FeedParser(),
 ) : FlightDataSource {
 
     override val id: String = "http-feed"
-    override val displayName: String = "Eigener Flight-Feed (HTTPS)"
+    override val displayName: String get() = strings.get(R.string.src_feed_name)
     override val bestProvenance: DataProvenance = DataProvenance.LIVE
 
     override suspend fun status(): SourceStatus {
         val config = configProvider()
         return when {
             !config.enabled -> SourceStatus.NotConfigured(
-                reason = "Eigener Flight-Feed ist deaktiviert.",
-                howToFix = "In den Einstellungen unter „Datenquellen“ aktivieren.",
+                reason = strings.get(R.string.src_feed_disabled),
+                howToFix = strings.get(R.string.src_feed_disabled_fix),
             )
             config.url.isBlank() -> SourceStatus.NotConfigured(
-                reason = "Es ist keine Feed-URL hinterlegt.",
-                howToFix = "Feed-URL in den Einstellungen eintragen (JSON nach dem Condorino-Feed-Schema).",
+                reason = strings.get(R.string.src_feed_no_url),
+                howToFix = strings.get(R.string.src_feed_no_url_fix),
             )
             !config.url.startsWith("https://") -> SourceStatus.NotConfigured(
-                reason = "Die Feed-URL muss HTTPS verwenden.",
-                howToFix = "URL in den Einstellungen auf https:// ändern.",
+                reason = strings.get(R.string.src_https_required),
+                howToFix = strings.get(R.string.src_https_required_fix),
             )
             else -> SourceStatus.Ready
         }
@@ -71,19 +73,19 @@ class HttpFeedFlightDataSource(
                 client.newCall(requestBuilder.build()).execute().use { response ->
                     if (response.code == 429) {
                         return@withContext FlightSearchResult.Failure(
-                            "Der Feed hat das Anfragelimit erreicht. Bitte später erneut versuchen.",
+                            strings.get(R.string.src_feed_rate_limited),
                             "HTTP 429",
                         )
                     }
                     if (!response.isSuccessful) {
                         return@withContext FlightSearchResult.Failure(
-                            "Feed antwortet mit HTTP ${response.code}.",
+                            strings.get(R.string.src_feed_http, response.code),
                             response.message,
                         )
                     }
                     val body = response.body?.string()
                     if (body.isNullOrBlank()) {
-                        return@withContext FlightSearchResult.Failure("Der Feed hat eine leere Antwort geliefert.")
+                        return@withContext FlightSearchResult.Failure(strings.get(R.string.src_feed_empty))
                     }
 
                     val parsed = parser.parse(body, referenceAirports = airportCatalog.airports())
@@ -96,23 +98,17 @@ class HttpFeedFlightDataSource(
                         provenance = parsed.provenance,
                         retrievedAt = Instant.now(),
                         note = buildString {
-                            append("Quelle: ${parsed.source}")
+                            append(strings.get(R.string.src_feed_note, parsed.source))
                             if (parsed.skipped.isNotEmpty()) {
-                                append(" · ${parsed.skipped.size} Datensätze unvollständig und übersprungen")
+                                append(strings.get(R.string.src_feed_note_skipped, parsed.skipped.size))
                             }
                         },
                     )
                 }
             } catch (e: IOException) {
-                FlightSearchResult.Failure(
-                    "Feed nicht erreichbar – bist du offline?",
-                    e.message,
-                )
+                FlightSearchResult.Failure(strings.get(R.string.src_feed_offline), e.message)
             } catch (e: Exception) {
-                FlightSearchResult.Failure(
-                    "Die Feed-Antwort konnte nicht gelesen werden (ungültiges Format).",
-                    e.message,
-                )
+                FlightSearchResult.Failure(strings.get(R.string.src_feed_parse_failed), e.message)
             }
         }
 

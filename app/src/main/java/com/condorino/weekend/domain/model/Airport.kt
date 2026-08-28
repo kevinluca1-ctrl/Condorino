@@ -26,7 +26,7 @@ data class Airport(
         get() = runCatching {
             java.util.Locale("", countryCode).getDisplayCountry(java.util.Locale.getDefault())
         }.getOrNull()?.takeIf { it.isNotBlank() && !it.equals(countryCode, ignoreCase = true) }
-            ?: country
+            ?: country.ifBlank { countryCode }
 
     /** Unicode regional-indicator flag derived from the ISO-3166 alpha-2 country code. */
     val flag: String
@@ -45,7 +45,7 @@ data class Airport(
             iata = "FRA",
             name = "Frankfurt Airport",
             city = "Frankfurt",
-            country = "Deutschland",
+            country = "Germany",
             countryCode = "DE",
             timeZoneId = "Europe/Berlin",
         )

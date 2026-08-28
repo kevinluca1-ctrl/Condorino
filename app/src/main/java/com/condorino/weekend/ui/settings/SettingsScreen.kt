@@ -11,11 +11,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -35,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.condorino.weekend.R
 import com.condorino.weekend.data.source.SourceStatus
+import com.condorino.weekend.data.source.SourceTestResult
 import com.condorino.weekend.domain.model.Cabin
 import com.condorino.weekend.domain.model.DestinationType
 import com.condorino.weekend.domain.model.ScoreComponent
@@ -124,7 +127,10 @@ fun SettingsScreen(
             stringResource(R.string.settings_sources_body),
         ) {
             state.sources.forEach { source ->
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                Row(
+                    Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                    verticalAlignment = Alignment.Top,
+                ) {
                     Column(Modifier.weight(1f)) {
                         Text(source.name, color = CondorinoColors.TextPrimary, fontSize = 13.sp)
                         Text(
@@ -139,6 +145,38 @@ fun SettingsScreen(
                             },
                             fontSize = 11.sp,
                             lineHeight = 15.sp,
+                        )
+                        // The self-test is the honest answer to "are my credentials working?":
+                        // it calls the real endpoint and repeats what came back, verbatim.
+                        state.sourceTests[source.id]?.let { result ->
+                            Text(
+                                when (result) {
+                                    is SourceTestResult.Ok -> result.message
+                                    is SourceTestResult.Problem -> result.message
+                                },
+                                color = when (result) {
+                                    is SourceTestResult.Ok -> CondorinoColors.Mint
+                                    is SourceTestResult.Problem -> CondorinoColors.Warning
+                                },
+                                fontSize = 11.sp,
+                                lineHeight = 15.sp,
+                                modifier = Modifier.padding(top = 4.dp),
+                            )
+                        }
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    OutlinedButton(
+                        onClick = { viewModel.testSource(source.id) },
+                        enabled = state.testingSourceId == null,
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                    ) {
+                        Text(
+                            stringResource(
+                                if (state.testingSourceId == source.id) R.string.settings_source_testing
+                                else R.string.settings_source_test,
+                            ),
+                            color = CondorinoColors.Amber,
+                            fontSize = 12.sp,
                         )
                     }
                 }

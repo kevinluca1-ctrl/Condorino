@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,10 +38,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import com.condorino.weekend.R
+import com.condorino.weekend.core.MoneyInput
 import com.condorino.weekend.domain.model.Destination
 import com.condorino.weekend.domain.model.PriceEntryMode
 import com.condorino.weekend.domain.model.StandbyPrice
+import com.condorino.weekend.ui.components.AirportSearch
 import com.condorino.weekend.ui.components.EmptyState
+import com.condorino.weekend.ui.components.SearchField
 import com.condorino.weekend.ui.text.label
 import com.condorino.weekend.ui.theme.CondorinoColors
 
@@ -56,12 +60,35 @@ fun StandbyPricesScreen(
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(state.focusPriceIata) }
+    var query by rememberSaveable { mutableStateOf("") }
 
-    // Destinations known from flight data, plus any destination that already has a saved price.
-    val entries: List<Pair<String, Destination?>> = remember(state.destinations, state.prices) {
+    // Reachable destinations and anything that already has a price come first; the search reaches
+    // across the whole public reference, so a destination the app has not seen yet can still get a
+    // price entered ahead of time.
+    val entries: List<Pair<String, Destination?>> = remember(state.destinations, state.prices, state.allAirports, query) {
         val known = state.destinations.associateBy { it.iata }
-        val iatas = (known.keys + state.prices.keys).sorted()
-        iatas.map { it to known[it] }
+        val priced = state.prices.filterValues { it.hasAnyPrice }.keys
+
+        if (query.isBlank()) {
+            (known.keys + priced).sortedWith(
+                compareByDescending<String> { it in priced }
+                    .thenBy { known[it]?.airport?.city ?: it },
+            ).map { it to known[it] }
+        } else {
+            val pool = state.allAirports.ifEmpty { known.values.map { it.airport } }
+            AirportSearch.rank(
+                airports = pool,
+                query = query,
+                limit = 60,
+                boost = { airport ->
+                    when {
+                        airport.iata in priced -> 120
+                        airport.iata in known -> 60
+                        else -> 0
+                    }
+                },
+            ).map { it.iata to (known[it.iata] ?: Destination(airport = it)) }
+        }
     }
 
     Box(modifier.fillMaxSize().background(CondorinoColors.Background)) {
@@ -97,15 +124,28 @@ fun StandbyPricesScreen(
                     fontSize = 12.sp,
                     lineHeight = 17.sp,
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(12.dp))
+                SearchField(
+                    value = query,
+                    onValueChange = { query = it },
+                    placeholder = stringResource(R.string.prices_search_hint),
+                    clearContentDescription = stringResource(R.string.action_clear_search),
+                )
+                Spacer(Modifier.height(4.dp))
             }
 
             if (entries.isEmpty()) {
                 item {
                     EmptyState(
                         emoji = "💶",
-                        title = stringResource(R.string.prices_empty_title),
-                        message = stringResource(R.string.prices_empty_body),
+                        title = stringResource(
+                            if (query.isBlank()) R.string.prices_empty_title
+                            else R.string.prices_no_match_title,
+                        ),
+                        message = stringResource(
+                            if (query.isBlank()) R.string.prices_empty_body
+                            else R.string.prices_no_match_body,
+                        ),
                     )
                 }
             }
@@ -247,12 +287,11 @@ private fun PriceCard(
 
 @Composable
 private fun EuroField(label: String, cents: Long?, onChange: (Long?) -> Unit) {
-    val text = cents?.let { (it / 100).toString() } ?: ""
-    NumberField(
+    DecimalField(
         label = label,
-        value = text,
+        value = MoneyInput.formatCentsForEditing(cents),
         suffix = "€",
-        onValueChange = { raw -> onChange(raw.toLongOrNull()?.times(100)) },
+        onValueChange = { raw -> onChange(MoneyInput.parseEuroToCents(raw)) },
         modifier = Modifier.padding(vertical = 3.dp),
     )
 }

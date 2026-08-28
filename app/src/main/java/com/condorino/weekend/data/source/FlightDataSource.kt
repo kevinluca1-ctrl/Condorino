@@ -1,5 +1,6 @@
 package com.condorino.weekend.data.source
 
+import com.condorino.weekend.R
 import com.condorino.weekend.domain.model.Airport
 import com.condorino.weekend.domain.model.DataProvenance
 import com.condorino.weekend.domain.model.Flight
@@ -22,6 +23,9 @@ interface FlightDataSource {
     /** What kind of data this source can produce at best. */
     val bestProvenance: DataProvenance
 
+    /** Localised copy for this source's diagnostics. */
+    val strings: SourceStrings
+
     /**
      * Whether the source can be used right now. A source that needs credentials or a URL the user
      * has not supplied must report [SourceStatus.NotConfigured] rather than pretending to work.
@@ -29,6 +33,33 @@ interface FlightDataSource {
     suspend fun status(): SourceStatus
 
     suspend fun search(query: FlightSearchQuery): FlightSearchResult
+
+    /**
+     * Checks the source end to end and reports what happened in one sentence.
+     *
+     * The default runs a real search over the coming fortnight, which is the honest test: it
+     * exercises the same code path the app uses. Sources with a cheaper or more specific check
+     * (OpenSky verifies its token separately) override it.
+     */
+    suspend fun selfTest(): SourceTestResult {
+        val today = LocalDate.now()
+        return when (val result = search(FlightSearchQuery(from = today, to = today.plusDays(14)))) {
+            is FlightSearchResult.Success -> SourceTestResult.Ok(
+                strings.get(R.string.src_test_ok, result.flights.size) +
+                    (result.note?.let { " · $it" } ?: ""),
+            )
+            is FlightSearchResult.NotConfigured -> SourceTestResult.Problem("${result.reason} ${result.howToFix}")
+            is FlightSearchResult.Failure -> SourceTestResult.Problem(
+                result.userMessage + (result.technicalDetail?.let { " ($it)" } ?: ""),
+            )
+        }
+    }
+}
+
+/** Outcome of [FlightDataSource.selfTest], shown verbatim under the source in Settings. */
+sealed interface SourceTestResult {
+    data class Ok(val message: String) : SourceTestResult
+    data class Problem(val message: String) : SourceTestResult
 }
 
 data class FlightSearchQuery(

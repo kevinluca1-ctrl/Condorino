@@ -9,6 +9,20 @@ import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeParseException
 
+/**
+ * A row the parser had to drop, as a value rather than a sentence.
+ *
+ * [FeedParser] stays free of Android so it can be unit-tested directly; the UI turns these into
+ * the reader's language.
+ */
+sealed interface SkippedRow {
+    data class UnknownTimeZone(val iata: String, val timeZone: String) : SkippedRow
+    data class UnknownOrigin(val flightNumber: String?, val code: String) : SkippedRow
+    data class UnknownDestination(val flightNumber: String?, val code: String) : SkippedRow
+    data class UnreadableTime(val flightNumber: String?) : SkippedRow
+    data class ArrivalNotAfterDeparture(val flightNumber: String?) : SkippedRow
+}
+
 /** Result of turning a raw feed document into domain objects. */
 data class ParsedFeed(
     val flights: List<Flight>,
@@ -17,7 +31,7 @@ data class ParsedFeed(
     val provenance: DataProvenance,
     val generatedAt: Instant?,
     /** Rows that had to be dropped, with the reason — surfaced as a warning, never swallowed. */
-    val skipped: List<String>,
+    val skipped: List<SkippedRow>,
 )
 
 /**
@@ -32,7 +46,8 @@ class FeedParser(
 ) {
 
     /**
-     * @param referenceAirports the bundled public airport reference, used for any airport a feed
+     * @param referenceAirports the bundled public airport reference. It supplies the canonical
+     *   name, country and time zone for every airport it knows, and covers any airport a feed
      *   references but does not declare. A feed may therefore be a bare list of IATA codes and
      *   times; it no longer has to repeat name, country and time zone for every airport.
      */
@@ -42,12 +57,12 @@ class FeedParser(
         referenceAirports: Map<String, Airport> = emptyMap(),
     ): ParsedFeed {
         val feed = json.decodeFromString(FlightFeed.serializer(), raw)
-        val skipped = mutableListOf<String>()
+        val skipped = mutableListOf<SkippedRow>()
 
         val airports = feed.airports.mapNotNull { fa ->
             val zone = runCatching { ZoneId.of(fa.timeZone) }.getOrNull()
             if (zone == null) {
-                skipped += "Flughafen ${fa.iata}: unbekannte Zeitzone '${fa.timeZone}'"
+                skipped += SkippedRow.UnknownTimeZone(fa.iata, fa.timeZone)
                 null
             } else {
                 fa.iata.uppercase() to Airport(
@@ -69,10 +84,16 @@ class FeedParser(
 
         val retrievedAt = feed.generatedAt?.let { parseInstantOrNull(it) }
 
-        // A feed's own declaration wins; anything it leaves out is looked up in the reference.
+        // The bundled public reference wins over a feed's own declaration for airports it knows.
+        // Feeds label airports in whatever language their operator happened to write them in, and
+        // mixing those with reference names gives one list two spellings of the same place; the
+        // reference is one consistent, publicly checkable source. A feed's declaration still
+        // carries any airport the reference does not have, so arbitrary feeds keep working.
         fun resolve(code: String): Airport? {
             val key = code.uppercase()
-            return airports[key] ?: referenceAirports[key]?.also { airports[key] = it }
+            val resolved = referenceAirports[key] ?: airports[key] ?: return null
+            airports[key] = resolved
+            return resolved
         }
 
         val flights = feed.flights.mapNotNull { ff ->
@@ -80,23 +101,21 @@ class FeedParser(
             val destination = resolve(ff.destination)
             when {
                 origin == null -> {
-                    skipped += "Flug ${ff.flightNumber ?: "?"}: Abflughafen ${ff.origin} " +
-                        "weder im Feed deklariert noch im Referenzdatensatz gefunden"
+                    skipped += SkippedRow.UnknownOrigin(ff.flightNumber, ff.origin)
                     null
                 }
                 destination == null -> {
-                    skipped += "Flug ${ff.flightNumber ?: "?"}: Zielflughafen ${ff.destination} " +
-                        "weder im Feed deklariert noch im Referenzdatensatz gefunden"
+                    skipped += SkippedRow.UnknownDestination(ff.flightNumber, ff.destination)
                     null
                 }
                 else -> {
                     val dep = parseInstantOrNull(ff.departure)
                     val arr = parseInstantOrNull(ff.arrival)
                     if (dep == null || arr == null) {
-                        skipped += "Flug ${ff.flightNumber ?: "?"}: ungültiges Zeitformat"
+                        skipped += SkippedRow.UnreadableTime(ff.flightNumber)
                         null
                     } else if (!arr.isAfter(dep)) {
-                        skipped += "Flug ${ff.flightNumber ?: "?"}: Ankunft liegt nicht nach dem Abflug"
+                        skipped += SkippedRow.ArrivalNotAfterDeparture(ff.flightNumber)
                         null
                     } else {
                         Flight(

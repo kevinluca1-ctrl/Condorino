@@ -202,7 +202,7 @@ fun RandomScreen(
 
                 trip.destination.profile?.note?.let { note ->
                     Text(
-                        "„$note“",
+                        stringResource(R.string.quoted, note),
                         color = CondorinoColors.TextSecondary,
                         fontSize = 14.sp,
                         lineHeight = 20.sp,

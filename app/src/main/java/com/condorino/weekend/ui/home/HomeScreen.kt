@@ -50,7 +50,7 @@ import com.condorino.weekend.ui.search.FilterSheet
 import com.condorino.weekend.ui.theme.CondorinoColors
 
 /**
- * The screen that has to answer "Wohin kann ich dieses Wochenende fliegen?" within two seconds:
+ * The screen that has to answer "where can I fly this weekend?" within two seconds:
  * weekend picker at the top, then the ranked trips, with the surprise button always in reach.
  */
 @Composable

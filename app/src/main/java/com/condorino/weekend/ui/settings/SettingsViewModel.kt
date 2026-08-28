@@ -10,6 +10,8 @@ import com.condorino.weekend.data.source.FeedConfig
 import com.condorino.weekend.data.source.OpenSkyConfig
 import com.condorino.weekend.data.source.FlightDataSource
 import com.condorino.weekend.data.source.SourceStatus
+import com.condorino.weekend.data.source.SourceTestResult
+import com.condorino.weekend.domain.model.Airport
 import com.condorino.weekend.domain.model.StandbyPrice
 import com.condorino.weekend.domain.model.ThemeMode
 import com.condorino.weekend.domain.model.UserPreferences
@@ -40,6 +42,11 @@ data class SettingsUiState(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     /** How many airports the bundled public reference covers. */
     val referenceAirportCount: Int = 0,
+    /** The whole public reference, so the price screen can search beyond reachable destinations. */
+    val allAirports: List<Airport> = emptyList(),
+    /** Latest self-test outcome per source id. */
+    val sourceTests: Map<String, SourceTestResult> = emptyMap(),
+    val testingSourceId: String? = null,
     /** Destination whose price card the prices screen should open expanded, if any. */
     val focusPriceIata: String? = null,
 )
@@ -87,9 +94,11 @@ class SettingsViewModel(
             preferencesStore.themeMode.collectLatest { _state.value = _state.value.copy(themeMode = it) }
         }
         viewModelScope.launch {
+            val reference = airportReferenceCatalog.airports()
             _state.value = _state.value.copy(
                 destinations = tripRepository.destinations(),
-                referenceAirportCount = airportReferenceCatalog.airports().size,
+                referenceAirportCount = reference.size,
+                allAirports = reference.values.sortedBy { it.city },
             )
         }
         refreshSourceStates()
@@ -129,6 +138,22 @@ class SettingsViewModel(
 
     fun focusPrice(iata: String?) {
         _state.value = _state.value.copy(focusPriceIata = iata)
+    }
+
+    /** Runs one source's self-test and keeps the result for display. */
+    fun testSource(id: String) {
+        val source = sources.firstOrNull { it.id == id } ?: return
+        viewModelScope.launch {
+            _state.value = _state.value.copy(testingSourceId = id)
+            val result = runCatching { source.selfTest() }.getOrElse {
+                SourceTestResult.Problem(it.message ?: it::class.simpleName.orEmpty())
+            }
+            _state.value = _state.value.copy(
+                sourceTests = _state.value.sourceTests + (id to result),
+                testingSourceId = null,
+            )
+            refreshSourceStates()
+        }
     }
 
     fun savePrice(price: StandbyPrice) {

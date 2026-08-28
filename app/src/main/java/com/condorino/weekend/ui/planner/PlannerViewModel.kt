@@ -110,8 +110,21 @@ data class PlannerUiState(
     val selectedTrip: WeekendTrip?
         get() = selectedTripId?.let { id -> allTrips.firstOrNull { it.id == id } }
 
+    /**
+     * One trip per destination, best first.
+     *
+     * A destination usually has several candidate trips — one per weekend pattern — and offering
+     * all of them made the compare picker list "Budapest" three times over. Comparing is a question
+     * about destinations, so each one appears once, represented by its best-scoring trip.
+     */
+    val comparableTrips: List<WeekendTrip>
+        get() = trips
+            .groupBy { it.iata }
+            .mapNotNull { (_, group) -> group.maxByOrNull { it.score.total } }
+            .sortedByDescending { it.score.total }
+
     val comparedTrips: List<WeekendTrip>
-        get() = compareSelection.mapNotNull { iata -> trips.firstOrNull { it.iata == iata } }
+        get() = compareSelection.mapNotNull { iata -> comparableTrips.firstOrNull { it.iata == iata } }
 }
 
 class PlannerViewModel(
@@ -243,7 +256,7 @@ class PlannerViewModel(
     }
 
     companion object {
-        const val MAX_COMPARE = 4
+        const val MAX_COMPARE = 6
 
         fun factory(
             repository: TripRepository,

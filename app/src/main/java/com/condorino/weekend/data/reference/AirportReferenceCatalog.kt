@@ -22,7 +22,7 @@ private data class ReferenceFile(
 )
 
 /**
- * The app's airport reference data: **6.400+ Flughäfen aus öffentlich einsehbaren Datensätzen.**
+ * The app's airport reference data: **6,400+ airports from publicly inspectable datasets.**
  *
  * Built from three public sources (see `assets/airports_reference.json` and
  * docs/CONDOR_DATA_SOURCES.md):

@@ -45,7 +45,7 @@ class TimeCompatibilityCalculator(private val prefs: UserPreferences) {
         return ScoringMath.clamp(minutesEarly / fullWorkdayMinutes)
     }
 
-    /** Working minutes lost by leaving early — shown as "Arbeitszeit verloren" on the detail page. */
+    /** Working minutes lost by leaving early — shown as working time lost on the detail page. */
     fun workingMinutesLost(departureLocal: ZonedDateTime, isWorkingDay: Boolean = true): Long {
         if (!isWorkingDay) return 0L
         val earliest = earliestReachableDeparture()

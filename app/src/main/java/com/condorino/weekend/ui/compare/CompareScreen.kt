@@ -23,6 +23,11 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,7 +39,9 @@ import androidx.compose.ui.res.stringResource
 import com.condorino.weekend.R
 import com.condorino.weekend.core.Formatting
 import com.condorino.weekend.domain.model.WeekendTrip
+import com.condorino.weekend.ui.components.AirportSearch
 import com.condorino.weekend.ui.components.EmptyState
+import com.condorino.weekend.ui.components.SearchField
 import com.condorino.weekend.ui.planner.PlannerUiState
 import com.condorino.weekend.ui.planner.PlannerViewModel
 import com.condorino.weekend.ui.text.label
@@ -51,6 +58,19 @@ fun CompareScreen(
     modifier: Modifier = Modifier,
 ) {
     val selected = state.comparedTrips
+    val candidates = state.comparableTrips
+    var query by rememberSaveable { mutableStateOf("") }
+
+    val matches = remember(candidates, query) {
+        if (query.isBlank()) {
+            candidates
+        } else {
+            val byIata = candidates.associateBy { it.iata }
+            AirportSearch
+                .rank(candidates.map { it.destination.airport }, query, limit = 30)
+                .mapNotNull { byIata[it.iata] }
+        }
+    }
 
     Column(
         modifier
@@ -78,30 +98,60 @@ fun CompareScreen(
 
         Spacer(Modifier.height(12.dp))
 
-        if (state.trips.isEmpty()) {
+        if (candidates.isEmpty()) {
             EmptyState(
-                emoji = "⚖️",
+                emoji = "\u2696\uFE0F",
                 title = stringResource(R.string.compare_nothing_title),
                 message = state.emptyReason.text(),
             )
             return@Column
         }
 
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            state.trips.take(20).forEach { trip ->
-                FilterChip(
-                    selected = trip.iata in state.compareSelection,
-                    onClick = { viewModel.toggleCompare(trip.iata) },
-                    label = {
-                        Text("${trip.destination.airport.flag} ${trip.destination.airport.city}", fontSize = 12.sp)
-                    },
-                    colors = FilterChipDefaults.filterChipColors(
-                        containerColor = CondorinoColors.SurfaceElevated,
-                        labelColor = CondorinoColors.TextSecondary,
-                        selectedContainerColor = CondorinoColors.Amber,
-                        selectedLabelColor = CondorinoColors.Background,
-                    ),
-                )
+        SearchField(
+            value = query,
+            onValueChange = { query = it },
+            placeholder = stringResource(R.string.compare_search_hint),
+            clearContentDescription = stringResource(R.string.action_clear_search),
+        )
+
+        Spacer(Modifier.height(10.dp))
+
+        Text(
+            stringResource(R.string.compare_selected_count, selected.size, PlannerViewModel.MAX_COMPARE),
+            color = CondorinoColors.TextTertiary,
+            fontSize = 11.sp,
+        )
+
+        Spacer(Modifier.height(6.dp))
+
+        if (matches.isEmpty()) {
+            Text(
+                stringResource(R.string.compare_no_match, query),
+                color = CondorinoColors.TextSecondary,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(vertical = 12.dp),
+            )
+        } else {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                matches.forEach { trip ->
+                    val isSelected = trip.iata in state.compareSelection
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { viewModel.toggleCompare(trip.iata) },
+                        label = {
+                            Text(
+                                "${trip.destination.airport.flag} ${trip.destination.airport.city}",
+                                fontSize = 12.sp,
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = CondorinoColors.SurfaceElevated,
+                            labelColor = CondorinoColors.TextSecondary,
+                            selectedContainerColor = CondorinoColors.Amber,
+                            selectedLabelColor = CondorinoColors.Background,
+                        ),
+                    )
+                }
             }
         }
 

@@ -137,7 +137,7 @@ fun RandomMode.description(): String = stringResource(
     },
 )
 
-/** "2 Nächte" / "2 nights". */
+/** "2 nights" / "2 Nächte" — pluralised by the resource table. */
 @Composable
 fun nightsLabel(count: Int): String =
     pluralStringResource(R.plurals.nights, count, count)

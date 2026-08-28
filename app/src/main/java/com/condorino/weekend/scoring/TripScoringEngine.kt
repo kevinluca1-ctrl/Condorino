@@ -68,7 +68,7 @@ class TripScoringEngine(
         )
     }
 
-    // ---------------------------------------------------------------- 25 % Flugzeit-Komfort
+    // ---------------------------------------------------------------- 25 % flight-time comfort
 
     /**
      * Rewards late outbound departures (no working time lost, plenty of buffer after work) and
@@ -161,7 +161,7 @@ class TripScoringEngine(
         return ScoringMath.clamp100(value)
     }
 
-    // ---------------------------------------------------------------- 20 % Aufenthaltsqualität
+    // ---------------------------------------------------------------- 20 % stay quality
 
     internal fun stayQuality(
         effectiveTime: Duration,
@@ -201,7 +201,7 @@ class TripScoringEngine(
             ComponentDetail.StayQuality(hours.roundToInt(), nights)
     }
 
-    // ---------------------------------------------------------------- 20 % Wochenend-Kompatibilität
+    // ---------------------------------------------------------------- 20 % weekend compatibility
 
     /**
      * How well the trip fits a weekend *without spending time off*.
@@ -241,7 +241,7 @@ class TripScoringEngine(
             ComponentDetail.WeekendFit(pattern, extraLeaveDays, preferred)
     }
 
-    // ---------------------------------------------------------------- 10 % Logistik
+    // ---------------------------------------------------------------- 10 % logistics
 
     internal fun logistics(
         outbound: Flight,
@@ -284,7 +284,7 @@ class TripScoringEngine(
             ComponentDetail.Logistics(avgMinutes.roundToInt().toLong(), destination.transferMinutes)
     }
 
-    // ---------------------------------------------------------------- 15 % Kosten
+    // ---------------------------------------------------------------- 15 % cost
 
     internal fun cost(
         standbyPrice: StandbyPrice?,
@@ -306,7 +306,7 @@ class TripScoringEngine(
         return ScoringMath.clamp100(value) to ComponentDetail.Cost(price, prefs.preferredCabin)
     }
 
-    // ---------------------------------------------------------------- 10 % Destination Quality
+    // ---------------------------------------------------------------- 10 % destination quality
 
     internal fun destinationQuality(destination: Destination): Pair<Double, ComponentDetail> {
         val profile = destination.profile

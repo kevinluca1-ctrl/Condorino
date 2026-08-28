@@ -1,6 +1,6 @@
 package com.condorino.weekend.domain.model
 
-/** Coarse categories used by the "Zieltyp" filter and by the surprise-me modes. */
+/** Coarse categories used by the destination-type filter and by the surprise-me modes. */
 enum class DestinationType {
     CITY,
     BEACH,
@@ -37,7 +37,7 @@ data class DestinationProfile(
         DestinationType.NATURE -> nature
     }
 
-    /** Types this destination is genuinely good for (used by the "Zieltyp" filter). */
+    /** Types this destination is genuinely good for (used by the destination-type filter). */
     val types: Set<DestinationType>
         get() = DestinationType.entries.filter { factorFor(it) >= 7 }.toSet()
 

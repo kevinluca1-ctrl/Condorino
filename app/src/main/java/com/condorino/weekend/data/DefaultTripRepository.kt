@@ -7,10 +7,12 @@ import com.condorino.weekend.data.local.RefreshStateEntity
 import com.condorino.weekend.data.mapper.toDomain
 import com.condorino.weekend.data.mapper.toEntity
 import com.condorino.weekend.data.prefs.PreferencesStore
+import com.condorino.weekend.R
 import com.condorino.weekend.data.reference.AirportReferenceCatalog
 import com.condorino.weekend.data.source.FlightDataSource
 import com.condorino.weekend.data.source.FlightSearchQuery
 import com.condorino.weekend.data.source.FlightSearchResult
+import com.condorino.weekend.data.source.SourceStrings
 import com.condorino.weekend.domain.model.Airport
 import com.condorino.weekend.domain.model.DataProvenance
 import com.condorino.weekend.domain.model.Destination
@@ -53,12 +55,13 @@ class DefaultTripRepository(
     private val standbyPriceRepository: StandbyPriceRepository,
     private val favoriteRepository: FavoriteRepository,
     private val airportReferenceCatalog: AirportReferenceCatalog,
+    private val strings: SourceStrings,
 ) : TripRepository {
 
     private val refreshing = MutableStateFlow(false)
     private val refreshMutex = Mutex()
 
-    /** Live data older than this is shown as "kürzlich aktualisiert" rather than "LIVE". */
+    /** Live data older than this is shown as recently updated rather than "LIVE". */
     private val liveWindow: Duration = Duration.ofMinutes(30)
 
     override val dataStatus: Flow<DataStatus> =
@@ -221,7 +224,7 @@ class DefaultTripRepository(
                     when (val result = source.search(query)) {
                         is FlightSearchResult.Success -> {
                             if (result.flights.isEmpty()) {
-                                problems += "${source.displayName}: keine Flüge für diesen Zeitraum."
+                                problems += strings.get(R.string.repo_no_flights, source.displayName)
                                 continue
                             }
                             persist(source.id, result)
@@ -278,7 +281,7 @@ class DefaultTripRepository(
                 val previous = refreshStateDao.get()
                 val message = problems.firstOrNull()
                     ?: hint
-                    ?: "Keine Datenquelle konfiguriert."
+                    ?: strings.get(R.string.repo_no_source)
                 refreshStateDao.upsert(
                     RefreshStateEntity(
                         lastSuccessEpochMillis = previous?.lastSuccessEpochMillis,

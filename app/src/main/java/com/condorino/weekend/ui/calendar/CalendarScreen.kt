@@ -60,7 +60,7 @@ private enum class RangePreset(@StringRes val label: Int, val months: Long?) {
 
 /**
  * Calendar + multi-weekend search in one screen (spec §15/§16): a star-rated list of every
- * weekend in the chosen range, plus a "Beste Wochenenden" ranking on top.
+ * weekend in the chosen range, plus a best-weekends ranking on top.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

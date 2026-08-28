@@ -350,5 +350,89 @@
     <string name="prices_total">Gesamtpreis Roundtrip</string>
     <string name="prices_total_value">Economy: %1$s   ·   Business: %2$s</string>
     <string name="value_dash">–</string>
-</resources>
 
+    <!-- Datenquellen: Namen, Konfigurationsfehler und Selbsttest -->
+    <string name="src_demo_name">Beispieldaten (kein echter Condor-Flugplan)</string>
+    <string name="src_demo_note">Beispieldaten – keine echten Condor-Flugzeiten.</string>
+    <string name="src_demo_read_failed">Beispieldaten konnten nicht gelesen werden.</string>
+
+    <string name="src_opensky_name">OpenSky Network (beobachtete Flüge)</string>
+    <string name="src_opensky_disabled">OpenSky-Abgleich ist deaktiviert.</string>
+    <string name="src_opensky_disabled_fix">In den Einstellungen aktivieren. Funktioniert ohne Konto; mit kostenlosem OpenSky-Zugang sind die Limits höher.</string>
+    <string name="src_opensky_no_icao">Für den Heimatflughafen ist kein ICAO-Code hinterlegt.</string>
+    <string name="src_opensky_no_icao_fix">ICAO-Code eintragen (Frankfurt = EDDF).</string>
+    <string name="src_opensky_no_secret">Zur OpenSky-Client-ID fehlt das Secret.</string>
+    <string name="src_opensky_no_secret_fix">Secret eintragen oder Client-ID leer lassen (anonymer Zugriff).</string>
+    <string name="src_opensky_home_unknown">Heimatflughafen %1$s steht nicht im Flughafen-Referenzdatensatz.</string>
+    <string name="src_opensky_auth_failed">OpenSky-Anmeldung fehlgeschlagen: %1$s</string>
+    <string name="src_opensky_no_flights">OpenSky hat für die letzten %1$d Wochen keine %2$s-Flüge ab %3$s gemeldet.</string>
+    <string name="src_opensky_no_timetable">Aus den OpenSky-Beobachtungen ließ sich kein Flugplan für diesen Zeitraum ableiten.</string>
+    <string name="src_opensky_note">OpenSky Network · aus %1$d tatsächlich beobachteten %2$s-Flügen der letzten %3$d Wochen abgeleitet</string>
+    <string name="src_opensky_offline">OpenSky nicht erreichbar – bist du offline?</string>
+    <string name="src_opensky_parse_failed">OpenSky-Antwort konnte nicht verarbeitet werden.</string>
+    <string name="src_opensky_denied">OpenSky lehnte den Zugriff ab (HTTP %1$d).</string>
+    <string name="src_opensky_token_rejected">Client-ID oder Secret wurde abgelehnt (HTTP %1$d).</string>
+    <string name="src_opensky_token_404">Der Token-Endpunkt wurde nicht gefunden (HTTP 404).</string>
+    <string name="src_opensky_http">OpenSky antwortet mit HTTP %1$d.</string>
+    <string name="src_opensky_token_not_json">Die Token-Antwort war kein lesbares JSON.</string>
+    <string name="src_opensky_token_no_access">Die Token-Antwort enthielt kein access_token.</string>
+    <string name="src_auth_signed_in">angemeldet</string>
+    <string name="src_auth_anonymous">anonym</string>
+    <string name="src_opensky_test_ok">OpenSky erreichbar (%1$s): %2$d Abflüge ab %3$s in 24 Stunden, davon %4$d mit Präfix %5$s.</string>
+    <string name="src_opensky_test_nodata">OpenSky erreichbar (%1$s), meldet aber für diesen Zeitraum keine Daten.</string>
+    <string name="src_opensky_test_denied">OpenSky lehnte den Zugriff ab (HTTP %1$d) – Client-ID und Secret prüfen.</string>
+    <string name="src_opensky_rate_limited">OpenSky-Anfragelimit erreicht. Später erneut versuchen.</string>
+    <string name="src_test_unreachable">Nicht erreichbar: %1$s</string>
+    <string name="src_network_error">Netzwerkfehler</string>
+    <string name="src_test_failed">Test fehlgeschlagen: %1$s</string>
+    <string name="src_test_ok">Antwort erhalten: %1$d Flüge in den nächsten 14 Tagen.</string>
+
+    <string name="src_condor_disabled">Die Condor Developer API ist nicht eingerichtet.</string>
+    <string name="src_condor_disabled_fix">Zugang auf developer.condor.com beantragen und Basis-URL, Pfad und API-Key in den Einstellungen eintragen. Die App rät keine Endpunkte.</string>
+    <string name="src_condor_no_url">Basis-URL oder Endpunkt-Pfad fehlt.</string>
+    <string name="src_condor_no_url_fix">Beides aus der offiziellen Condor-API-Dokumentation eintragen.</string>
+    <string name="src_https_required">Die Basis-URL muss HTTPS verwenden.</string>
+    <string name="src_https_required_fix">URL in den Einstellungen korrigieren.</string>
+    <string name="src_condor_no_key">Für den konfigurierten Auth-Header fehlt der Schlüssel.</string>
+    <string name="src_condor_no_key_fix">API-Key in den Einstellungen hinterlegen.</string>
+    <string name="src_condor_denied">Condor-API hat den Zugriff abgelehnt – API-Key prüfen.</string>
+    <string name="src_condor_rate_limited">Condor-API-Limit erreicht. Später erneut versuchen.</string>
+    <string name="src_condor_http">Condor-API antwortet mit HTTP %1$d.</string>
+    <string name="src_condor_empty">Condor-API lieferte eine leere Antwort.</string>
+    <string name="src_condor_unmapped">Die Condor-API-Antwort enthielt keine auswertbaren Flüge. Feld-Zuordnung in den Einstellungen prüfen.</string>
+    <string name="src_condor_offline">Condor-API nicht erreichbar – bist du offline?</string>
+    <string name="src_condor_parse_failed">Condor-API-Antwort konnte nicht verarbeitet werden.</string>
+
+    <string name="src_feed_name">Eigener Flight-Feed (HTTPS)</string>
+    <string name="src_feed_disabled">Eigener Flight-Feed ist deaktiviert.</string>
+    <string name="src_feed_disabled_fix">In den Einstellungen unter „Datenquellen“ aktivieren.</string>
+    <string name="src_feed_no_url">Es ist keine Feed-URL hinterlegt.</string>
+    <string name="src_feed_no_url_fix">Feed-URL in den Einstellungen eintragen (JSON nach dem Condorino-Feed-Schema).</string>
+    <string name="src_feed_rate_limited">Der Feed hat das Anfragelimit erreicht. Bitte später erneut versuchen.</string>
+    <string name="src_feed_http">Feed antwortet mit HTTP %1$d.</string>
+    <string name="src_feed_empty">Der Feed hat eine leere Antwort geliefert.</string>
+    <string name="src_feed_note">Quelle: %1$s</string>
+    <string name="src_feed_note_skipped"> · %1$d Datensätze unvollständig und übersprungen</string>
+    <string name="src_feed_offline">Feed nicht erreichbar – bist du offline?</string>
+    <string name="src_feed_parse_failed">Die Feed-Antwort konnte nicht gelesen werden (ungültiges Format).</string>
+
+    <string name="repo_no_flights">%1$s: keine Flüge für diesen Zeitraum.</string>
+    <string name="repo_no_source">Keine Datenquelle konfiguriert.</string>
+
+    <!-- Suchfelder -->
+    <string name="action_clear_search">Suche löschen</string>
+    <string name="prices_search_hint">Ziel suchen (Stadt, Land oder IATA-Code)</string>
+    <string name="prices_no_match_title">Kein Treffer</string>
+    <string name="prices_no_match_body">Kein Flughafen passt zu dieser Suche. Versuche eine andere Stadt, ein anderes Land oder einen IATA-Code.</string>
+    <string name="compare_search_hint">Ziel suchen und zum Vergleich hinzufügen</string>
+    <string name="compare_selected_count">%1$d von maximal %2$d Zielen ausgewählt</string>
+    <string name="compare_no_match">Kein gefundenes Ziel passt zu „%1$s“.</string>
+
+    <string name="quoted">„%1$s“</string>
+    <plurals name="src_opensky_observed_days">
+        <item quantity="one">beobachtet an %1$d Tag</item>
+        <item quantity="other">beobachtet an %1$d Tagen</item>
+    </plurals>
+    <string name="settings_source_test">Testen</string>
+    <string name="settings_source_testing">Test läuft…</string>
+</resources>

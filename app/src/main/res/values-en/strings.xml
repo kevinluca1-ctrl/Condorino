@@ -306,4 +306,89 @@
         <item quantity="one">%1$s day of leave</item>
         <item quantity="other">%1$s days of leave</item>
     </plurals>
+
+    <!-- Data sources: names, configuration problems and self-test -->
+    <string name="src_demo_name">Sample data (not a real Condor timetable)</string>
+    <string name="src_demo_note">Sample data — not real Condor flight times.</string>
+    <string name="src_demo_read_failed">The sample data could not be read.</string>
+
+    <string name="src_opensky_name">OpenSky Network (observed flights)</string>
+    <string name="src_opensky_disabled">The OpenSky cross-check is switched off.</string>
+    <string name="src_opensky_disabled_fix">Switch it on in Settings. It works without an account; a free OpenSky login raises the rate limits.</string>
+    <string name="src_opensky_no_icao">No ICAO code is set for the home airport.</string>
+    <string name="src_opensky_no_icao_fix">Enter the ICAO code (Frankfurt = EDDF).</string>
+    <string name="src_opensky_no_secret">The OpenSky client ID has no secret.</string>
+    <string name="src_opensky_no_secret_fix">Enter the secret, or clear the client ID to use anonymous access.</string>
+    <string name="src_opensky_home_unknown">Home airport %1$s is not in the airport reference data.</string>
+    <string name="src_opensky_auth_failed">OpenSky sign-in failed: %1$s</string>
+    <string name="src_opensky_no_flights">OpenSky reported no %2$s flights from %3$s in the past %1$d weeks.</string>
+    <string name="src_opensky_no_timetable">No timetable for this date range could be derived from the OpenSky observations.</string>
+    <string name="src_opensky_note">OpenSky Network · derived from %1$d actually observed %2$s flights over the past %3$d weeks</string>
+    <string name="src_opensky_offline">OpenSky is unreachable — are you offline?</string>
+    <string name="src_opensky_parse_failed">The OpenSky response could not be processed.</string>
+    <string name="src_opensky_denied">OpenSky refused access (HTTP %1$d).</string>
+    <string name="src_opensky_token_rejected">The client ID or secret was rejected (HTTP %1$d).</string>
+    <string name="src_opensky_token_404">The token endpoint was not found (HTTP 404).</string>
+    <string name="src_opensky_http">OpenSky answered with HTTP %1$d.</string>
+    <string name="src_opensky_token_not_json">The token response was not readable JSON.</string>
+    <string name="src_opensky_token_no_access">The token response contained no access_token.</string>
+    <string name="src_auth_signed_in">signed in</string>
+    <string name="src_auth_anonymous">anonymous</string>
+    <string name="src_opensky_test_ok">OpenSky reachable (%1$s): %2$d departures from %3$s in 24 hours, %4$d of them with prefix %5$s.</string>
+    <string name="src_opensky_test_nodata">OpenSky reachable (%1$s), but it has no data for this period.</string>
+    <string name="src_opensky_test_denied">OpenSky refused access (HTTP %1$d) — check the client ID and secret.</string>
+    <string name="src_opensky_rate_limited">OpenSky rate limit reached. Try again later.</string>
+    <string name="src_test_unreachable">Unreachable: %1$s</string>
+    <string name="src_network_error">network error</string>
+    <string name="src_test_failed">Test failed: %1$s</string>
+    <string name="src_test_ok">Answered: %1$d flights over the next 14 days.</string>
+
+    <string name="src_condor_disabled">The Condor Developer API is not set up.</string>
+    <string name="src_condor_disabled_fix">Request access at developer.condor.com, then enter the base URL, path and API key in Settings. The app never guesses endpoints.</string>
+    <string name="src_condor_no_url">The base URL or the endpoint path is missing.</string>
+    <string name="src_condor_no_url_fix">Enter both from the official Condor API documentation.</string>
+    <string name="src_https_required">The base URL must use HTTPS.</string>
+    <string name="src_https_required_fix">Correct the URL in Settings.</string>
+    <string name="src_condor_no_key">The configured auth header has no key.</string>
+    <string name="src_condor_no_key_fix">Store the API key in Settings.</string>
+    <string name="src_condor_denied">The Condor API refused access — check the API key.</string>
+    <string name="src_condor_rate_limited">Condor API rate limit reached. Try again later.</string>
+    <string name="src_condor_http">The Condor API answered with HTTP %1$d.</string>
+    <string name="src_condor_empty">The Condor API returned an empty response.</string>
+    <string name="src_condor_unmapped">The Condor API response contained no readable flights. Check the field mapping in Settings.</string>
+    <string name="src_condor_offline">The Condor API is unreachable — are you offline?</string>
+    <string name="src_condor_parse_failed">The Condor API response could not be processed.</string>
+
+    <string name="src_feed_name">Custom flight feed (HTTPS)</string>
+    <string name="src_feed_disabled">The custom flight feed is switched off.</string>
+    <string name="src_feed_disabled_fix">Switch it on under “Data sources” in Settings.</string>
+    <string name="src_feed_no_url">No feed URL is stored.</string>
+    <string name="src_feed_no_url_fix">Enter a feed URL in Settings (JSON in the Condorino feed schema).</string>
+    <string name="src_feed_rate_limited">The feed reached its request limit. Please try again later.</string>
+    <string name="src_feed_http">The feed answered with HTTP %1$d.</string>
+    <string name="src_feed_empty">The feed returned an empty response.</string>
+    <string name="src_feed_note">Source: %1$s</string>
+    <string name="src_feed_note_skipped"> · %1$d records incomplete and skipped</string>
+    <string name="src_feed_offline">The feed is unreachable — are you offline?</string>
+    <string name="src_feed_parse_failed">The feed response could not be read (invalid format).</string>
+
+    <string name="repo_no_flights">%1$s: no flights for this date range.</string>
+    <string name="repo_no_source">No data source is configured.</string>
+
+    <!-- Search fields -->
+    <string name="action_clear_search">Clear search</string>
+    <string name="prices_search_hint">Search a destination (city, country or IATA code)</string>
+    <string name="prices_no_match_title">No match</string>
+    <string name="prices_no_match_body">No airport matches this search. Try another city, another country or an IATA code.</string>
+    <string name="compare_search_hint">Search a destination to add to the comparison</string>
+    <string name="compare_selected_count">%1$d of at most %2$d destinations selected</string>
+    <string name="compare_no_match">No reachable destination matches “%1$s”.</string>
+
+    <string name="quoted">“%1$s”</string>
+    <plurals name="src_opensky_observed_days">
+        <item quantity="one">observed on %1$d day</item>
+        <item quantity="other">observed on %1$d days</item>
+    </plurals>
+    <string name="settings_source_test">Test</string>
+    <string name="settings_source_testing">Testing…</string>
 </resources>

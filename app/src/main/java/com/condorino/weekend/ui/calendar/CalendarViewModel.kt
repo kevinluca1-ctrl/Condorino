@@ -26,7 +26,7 @@ data class CalendarUiState(
     /** Same provenance/freshness contract as every other data-bearing screen (spec §4). */
     val status: DataStatus = DataStatus.EMPTY,
 ) {
-    /** Weekends that produced at least one trip, best first — the "Beste Wochenenden" list. */
+    /** Weekends that produced at least one trip, best first — the best-weekends list. */
     val ranked: List<WeekendSearchResult>
         get() = weekends.filter { it.trips.isNotEmpty() }.sortedByDescending { it.topScore }
 

@@ -1,6 +1,7 @@
 package com.condorino.weekend.data.source
 
 import android.content.Context
+import com.condorino.weekend.R
 import com.condorino.weekend.data.reference.AirportReferenceCatalog
 import com.condorino.weekend.domain.model.DataProvenance
 import com.condorino.weekend.domain.model.Flight
@@ -25,12 +26,13 @@ import java.time.temporal.ChronoUnit
 class AssetDemoFlightDataSource(
     private val context: Context,
     private val airportCatalog: AirportReferenceCatalog,
+    override val strings: SourceStrings,
     private val parser: FeedParser = FeedParser(),
     private val assetName: String = ASSET,
 ) : FlightDataSource {
 
     override val id: String = "demo-asset"
-    override val displayName: String = "Beispieldaten (kein echter Condor-Flugplan)"
+    override val displayName: String get() = strings.get(R.string.src_demo_name)
     override val bestProvenance: DataProvenance = DataProvenance.DEMO
 
     override suspend fun status(): SourceStatus = SourceStatus.Ready
@@ -61,11 +63,11 @@ class AssetDemoFlightDataSource(
                     flights = filtered,
                     provenance = DataProvenance.DEMO,
                     retrievedAt = Instant.now(),
-                    note = "Beispieldaten – keine echten Condor-Flugzeiten.",
+                    note = strings.get(R.string.src_demo_note),
                 )
             } catch (e: Exception) {
                 FlightSearchResult.Failure(
-                    userMessage = "Beispieldaten konnten nicht gelesen werden.",
+                    userMessage = strings.get(R.string.src_demo_read_failed),
                     technicalDetail = e.message,
                 )
             }

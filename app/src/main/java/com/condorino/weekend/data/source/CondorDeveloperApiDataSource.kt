@@ -1,5 +1,6 @@
 package com.condorino.weekend.data.source
 
+import com.condorino.weekend.R
 import com.condorino.weekend.domain.model.Airport
 import com.condorino.weekend.domain.model.DataProvenance
 import com.condorino.weekend.domain.model.Flight
@@ -44,6 +45,7 @@ class CondorDeveloperApiDataSource(
     private val client: OkHttpClient,
     private val configProvider: suspend () -> CondorApiConfig,
     private val airportCatalog: suspend () -> Map<String, Airport>,
+    override val strings: SourceStrings,
     private val json: Json = Json { ignoreUnknownKeys = true; isLenient = true },
 ) : FlightDataSource {
 
@@ -55,21 +57,20 @@ class CondorDeveloperApiDataSource(
         val config = configProvider()
         return when {
             !config.enabled -> SourceStatus.NotConfigured(
-                reason = "Die Condor Developer API ist nicht eingerichtet.",
-                howToFix = "Zugang auf developer.condor.com beantragen und Basis-URL, Pfad und API-Key " +
-                    "in den Einstellungen eintragen. Die App rät keine Endpunkte.",
+                reason = strings.get(R.string.src_condor_disabled),
+                howToFix = strings.get(R.string.src_condor_disabled_fix),
             )
             config.baseUrl.isBlank() || config.path.isBlank() -> SourceStatus.NotConfigured(
-                reason = "Basis-URL oder Endpunkt-Pfad fehlt.",
-                howToFix = "Beides aus der offiziellen Condor-API-Dokumentation eintragen.",
+                reason = strings.get(R.string.src_condor_no_url),
+                howToFix = strings.get(R.string.src_condor_no_url_fix),
             )
             !config.baseUrl.startsWith("https://") -> SourceStatus.NotConfigured(
-                reason = "Die Basis-URL muss HTTPS verwenden.",
-                howToFix = "URL in den Einstellungen korrigieren.",
+                reason = strings.get(R.string.src_https_required),
+                howToFix = strings.get(R.string.src_https_required_fix),
             )
             config.apiKeyHeader.isNotBlank() && config.apiKey.isBlank() -> SourceStatus.NotConfigured(
-                reason = "Für den konfigurierten Auth-Header fehlt der Schlüssel.",
-                howToFix = "API-Key in den Einstellungen hinterlegen.",
+                reason = strings.get(R.string.src_condor_no_key),
+                howToFix = strings.get(R.string.src_condor_no_key_fix),
             )
             else -> SourceStatus.Ready
         }
@@ -106,25 +107,27 @@ class CondorDeveloperApiDataSource(
                 client.newCall(builder.build()).execute().use { response ->
                     when {
                         response.code == 401 || response.code == 403 -> return@withContext FlightSearchResult.Failure(
-                            "Condor-API hat den Zugriff abgelehnt – API-Key prüfen.", "HTTP ${response.code}",
+                            strings.get(R.string.src_condor_denied),
+                            "HTTP ${response.code}",
                         )
                         response.code == 429 -> return@withContext FlightSearchResult.Failure(
-                            "Condor-API-Limit erreicht. Später erneut versuchen.", "HTTP 429",
+                            strings.get(R.string.src_condor_rate_limited),
+                            "HTTP 429",
                         )
                         !response.isSuccessful -> return@withContext FlightSearchResult.Failure(
-                            "Condor-API antwortet mit HTTP ${response.code}.", response.message,
+                            strings.get(R.string.src_condor_http, response.code),
+                            response.message,
                         )
                     }
                     val body = response.body?.string().orEmpty()
                     if (body.isBlank()) {
-                        return@withContext FlightSearchResult.Failure("Condor-API lieferte eine leere Antwort.")
+                        return@withContext FlightSearchResult.Failure(strings.get(R.string.src_condor_empty))
                     }
                     val airports = airportCatalog()
                     val flights = mapFlights(body, config, airports)
                     if (flights.isEmpty()) {
                         return@withContext FlightSearchResult.Failure(
-                            "Die Condor-API-Antwort enthielt keine auswertbaren Flüge. " +
-                                "Feld-Zuordnung in den Einstellungen prüfen.",
+                            strings.get(R.string.src_condor_unmapped),
                         )
                     }
                     FlightSearchResult.Success(
@@ -135,9 +138,9 @@ class CondorDeveloperApiDataSource(
                     )
                 }
             } catch (e: IOException) {
-                FlightSearchResult.Failure("Condor-API nicht erreichbar – bist du offline?", e.message)
+                FlightSearchResult.Failure(strings.get(R.string.src_condor_offline), e.message)
             } catch (e: Exception) {
-                FlightSearchResult.Failure("Condor-API-Antwort konnte nicht verarbeitet werden.", e.message)
+                FlightSearchResult.Failure(strings.get(R.string.src_condor_parse_failed), e.message)
             }
         }
 

@@ -15,6 +15,7 @@ import com.condorino.weekend.data.source.CondorDeveloperApiDataSource
 import com.condorino.weekend.data.source.FlightDataSource
 import com.condorino.weekend.data.source.HttpFeedFlightDataSource
 import com.condorino.weekend.data.source.OpenSkyFlightDataSource
+import com.condorino.weekend.data.source.SourceStrings
 import com.condorino.weekend.domain.model.Airport
 import com.condorino.weekend.domain.repository.FavoriteRepository
 import com.condorino.weekend.domain.repository.StandbyPriceRepository
@@ -40,6 +41,14 @@ class AppContainer(context: Context) {
     val preferencesStore: PreferencesStore by lazy { PreferencesStore(appContext) }
 
     private val destinationCatalog: DestinationCatalog by lazy { DestinationCatalog(appContext) }
+
+    /**
+     * Localised text for the data layer.
+     *
+     * Sources speak to the user ("OpenSky refused access"), so they need the resource table;
+     * the domain and scoring layers deliberately do not, and emit structured values instead.
+     */
+    private val sourceStrings: SourceStrings by lazy { SourceStrings(appContext) }
 
     /** Public airport reference (OurAirports + OpenFlights + tzdata), shared by every source. */
     val airportReferenceCatalog: AirportReferenceCatalog by lazy { AirportReferenceCatalog(appContext) }
@@ -67,7 +76,7 @@ class AppContainer(context: Context) {
     }
 
     private val demoSource: FlightDataSource by lazy {
-        AssetDemoFlightDataSource(appContext, airportReferenceCatalog)
+        AssetDemoFlightDataSource(appContext, airportReferenceCatalog, sourceStrings)
     }
 
     /**
@@ -86,11 +95,13 @@ class AppContainer(context: Context) {
                     airportReferenceCatalog.airports() + cached +
                         mapOf(Airport.HOME_IATA to Airport.FRANKFURT)
                 },
+                strings = sourceStrings,
             ),
             HttpFeedFlightDataSource(
                 client = httpClient,
                 configProvider = { preferencesStore.feedConfig.first() },
                 airportCatalog = airportReferenceCatalog,
+                strings = sourceStrings,
             ),
             // Ranked last of the real sources: OpenSky describes flights that *were* flown, which
             // is an excellent cross-check but never a statement about availability.
@@ -98,6 +109,7 @@ class AppContainer(context: Context) {
                 client = httpClient,
                 configProvider = { preferencesStore.openSkyConfig.first() },
                 airportCatalog = airportReferenceCatalog,
+                strings = sourceStrings,
             ),
         )
     }
@@ -114,6 +126,7 @@ class AppContainer(context: Context) {
             standbyPriceRepository = standbyPriceRepository,
             favoriteRepository = favoriteRepository,
             airportReferenceCatalog = airportReferenceCatalog,
+            strings = sourceStrings,
         )
     }
 

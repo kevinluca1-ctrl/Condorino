@@ -35,7 +35,11 @@ data class FeedAirport(
     val iata: String,
     val name: String,
     val city: String,
-    val country: String,
+    /**
+     * Optional: the display name is derived from [countryCode] in the reader's language, so a
+     * feed only has to supply it for the rare code Java has no name for.
+     */
+    val country: String = "",
     @SerialName("country_code") val countryCode: String,
     /** IANA zone id, e.g. "Europe/Lisbon". Required — the app will not guess. */
     @SerialName("time_zone") val timeZone: String,

@@ -1,6 +1,7 @@
 package com.condorino.weekend.data
 
 import com.condorino.weekend.data.source.FeedParser
+import com.condorino.weekend.data.source.SkippedRow
 import com.condorino.weekend.domain.model.DataProvenance
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -99,7 +100,9 @@ class FeedParserTest {
         )
         assertEquals(1, parsed.flights.size)
         assertEquals(3, parsed.skipped.size)
-        assertTrue(parsed.skipped.any { it.contains("ZZZ") })
+        assertTrue(parsed.skipped.any { it is SkippedRow.UnknownDestination && it.code == "ZZZ" })
+        assertTrue(parsed.skipped.any { it is SkippedRow.UnreadableTime })
+        assertTrue(parsed.skipped.any { it is SkippedRow.ArrivalNotAfterDeparture })
     }
 
     @Test
@@ -110,7 +113,11 @@ class FeedParserTest {
             ],"flights":[]}
         """.trimIndent()
         val parsed = parser.parse(raw)
-        assertTrue(parsed.skipped.any { it.contains("Zeitzone") })
+        assertTrue(
+            parsed.skipped.any {
+                it is SkippedRow.UnknownTimeZone && it.iata == "XXX" && it.timeZone == "Nope/Nope"
+            },
+        )
         // FRA is always available as the home airport.
         assertEquals(setOf("FRA"), parsed.airports.keys)
     }
