@@ -1,63 +1,65 @@
-# Architektur
+# Architecture
 
-## Überblick
+## Overview
 
-Eine Single-Module-App mit sauber getrennten Schichten. Die Abhängigkeiten zeigen ausschließlich
-nach innen: `ui → domain ← data`. `domain` und `scoring` enthalten **keine** Android-Imports und
-sind vollständig als reine JVM-Unit-Tests prüfbar — was auch der Grund ist, warum die gesamte
-Bewertungslogik dort liegt und nicht in ViewModels.
+A single-module app with cleanly separated layers. Dependencies point inwards only:
+`ui → domain ← data`. `domain` and `scoring` contain **no** Android imports and are fully testable
+as plain JVM unit tests — which is also why all of the scoring logic lives there and not in
+ViewModels.
 
 ```
 com.condorino.weekend
 │
-├── domain                     ← reine Kotlin-Modelle, kein Android
+├── domain                     ← pure Kotlin models, no Android
 │   ├── model                  Airport, Flight, WeekendPattern, WeekendTrip,
 │   │                          Destination, StandbyPrice, Money, TripScore,
 │   │                          UserPreferences, ScoreWeights, DataProvenance
 │   └── repository             TripRepository, StandbyPriceRepository,
 │                              FavoriteRepository, DataStatus
 │
-├── scoring                    ← das Herz der App, kein Android
-│   ├── TimeCompatibilityCalculator   Workday-Penalty, effektive Zeit, Nächte
-│   ├── TripScoringEngine             sechs gewichtete Komponenten → 0..100
-│   ├── TripBuilder                   Legs → bewertete Trips + Ablehnungsgründe
-│   ├── WeekendCalendar               Ankertag-Logik (welcher Freitag?)
-│   ├── RandomDestinationSelector     „Surprise me“
-│   └── ScoringMath                   clamp / stückweise Interpolation
+├── scoring                    ← the heart of the app, no Android
+│   ├── TimeCompatibilityCalculator   workday penalty, effective time, nights
+│   ├── TripScoringEngine             six weighted components → 0..100
+│   ├── TripBuilder                   legs → scored trips + rejection reasons
+│   ├── WeekendCalendar               anchor-day logic (which Friday?)
+│   ├── RandomDestinationSelector     “Surprise me”
+│   └── ScoringMath                   clamp / piecewise interpolation
 │
 ├── data
-│   ├── source                 FlightDataSource + drei Implementierungen
-│   ├── local                  Room: Entities, DAOs, CondorinoDatabase
+│   ├── source                 FlightDataSource + four implementations
+│   ├── reference              AirportReferenceCatalog (6,442 public airports)
+│   ├── local                  Room: entities, DAOs, CondorinoDatabase
 │   ├── prefs                  PreferencesStore (DataStore)
-│   ├── mapper                 Entity ↔ Domain
-│   ├── DestinationCatalog     redaktionelle Metadaten aus assets/
-│   ├── DefaultTripRepository  Cache → Quellen → Scoring
+│   ├── mapper                 entity ↔ domain
+│   ├── DestinationCatalog     editorial metadata from assets/
+│   ├── DefaultTripRepository  cache → sources → scoring
 │   └── DefaultStandbyPriceRepository / DefaultFavoriteRepository
 │
 ├── ui
-│   ├── theme / components     Dark-Theme, TripCard, ScoreBadge,
-│   │                          ProvenancePill, DataStatusBar, EmptyState
-│   ├── planner                PlannerViewModel (Home/Detail/Compare/Random/Favoriten)
-│   ├── calendar               CalendarViewModel + Screen (Kalender + Multi-Weekend)
-│   ├── settings               SettingsViewModel + Settings- und Preis-Screen
+│   ├── theme / components     light+dark theme, TripCard, ScoreBadge,
+│   │                          ProvenancePill, DataStatusBar, EmptyState,
+│   │                          SearchField, AirportSearch
+│   ├── planner                PlannerViewModel (home/detail/compare/random/favourites)
+│   ├── calendar               CalendarViewModel + screen (calendar + multi-weekend)
+│   ├── settings               SettingsViewModel + settings and price screens
+│   ├── text                   turns domain values into localised sentences
 │   └── home / search / tripdetail / compare / random / favorites
 │
-├── work                       WeekendRefreshWorker (täglicher Cache-Vorlauf)
-├── navigation                 Routen + Bottom-Navigation
-├── di                         AppContainer (manuelle DI)
-└── core                       Formatting
+├── work                       WeekendRefreshWorker (daily cache warm-up)
+├── navigation                 routes + bottom navigation
+├── di                         AppContainer (manual DI)
+└── core                       Formatting, MoneyInput
 ```
 
-## Warum manuelle DI statt Hilt
+## Why manual DI instead of Hilt
 
-Bei einem Single-Module-Projekt ohne Runtime-Austausch von Implementierungen kauft ein
-DI-Framework wenig und kostet einen zusätzlichen Annotation-Processor. `di/AppContainer.kt` macht
-stattdessen die eine Entscheidung, auf die es hier wirklich ankommt — **die Reihenfolge der
-Datenquellen** — an einer einzigen, lesbaren Stelle explizit.
+In a single-module project with no runtime swapping of implementations, a DI framework buys little
+and costs an extra annotation processor. `di/AppContainer.kt` instead makes the one decision that
+really matters here — **the order of the data sources** — explicit in a single readable place.
 
-Room braucht ohnehin KSP; das ist der einzige Annotation-Processor im Build.
+Room needs KSP anyway; that is the only annotation processor in the build.
 
-## Datenfluss
+## Data flow
 
 ```
    PlannerViewModel
@@ -65,106 +67,124 @@ Room braucht ohnehin KSP; das ist der einzige Annotation-Processor im Build.
         ▼
    DefaultTripRepository
         │
-        ├─1─► Room-Cache lesen  ──────────────► sofort anzeigen (Provenance CACHED)
+        ├─1─► read Room cache  ───────────────► show immediately (provenance CACHED)
         │
-        ├─2─► FlightDataSource-Kette:
-        │       CondorDeveloperApiDataSource   (nur wenn konfiguriert)
-        │       HttpFeedFlightDataSource       (nur wenn konfiguriert)
-        │       └ sonst: AssetDemoFlightDataSource, falls erlaubt → DEMO
+        ├─2─► FlightDataSource chain:
+        │       CondorDeveloperApiDataSource   (only when configured)
+        │       HttpFeedFlightDataSource       (only when configured)
+        │       OpenSkyFlightDataSource        (cross-check, always SCHEDULE)
+        │       └ otherwise: AssetDemoFlightDataSource, if allowed → DEMO
         │
-        ├─3─► erfolgreiche Antwort in Room persistieren + RefreshState schreiben
+        ├─3─► persist a successful answer in Room + write RefreshState
         │
         └─4─► TripBuilder(prefs).build(flights, friday, destinations, prices)
-                  └─► TripScoringEngine pro Kandidat
-                          └─► WeekendTrip mit TripScore + Begründungen
+                  └─► TripScoringEngine per candidate
+                          └─► WeekendTrip with TripScore + reasoning
 ```
 
-Der erste Schritt macht die App offline-tauglich: der Cache wird immer zuerst gerendert, der
-Netzabruf läuft danach und aktualisiert nur den Zustand. Ein Fehlschlag löscht nie den Cache.
+The first step is what makes the app work offline: the cache is always rendered first, the network
+call runs afterwards and only updates the state. A failure never clears the cache.
 
-### Bereichssuche
+### Range search
 
-`searchWeekend` deckt ein Wochenende ab, `refreshRange` den ganzen Kalenderzeitraum. Letzteres ist
-kein Luxus: der Cache enthält nur Wochenenden, die der Nutzer schon geöffnet hat — ohne
-`refreshRange` wäre eine Drei-Monats-Übersicht konstruktionsbedingt leer. Weil jede Datenquelle
-ohnehin einen Zeitraum entgegennimmt, kostet die Übersicht **eine** Anfrage, nicht dreizehn.
+`searchWeekend` covers one weekend, `refreshRange` the whole calendar period. The latter is not a
+luxury: the cache only holds weekends the user has already opened — without `refreshRange` a
+three-month overview would be empty by construction. Because every data source takes a date range
+anyway, the overview costs **one** request, not thirteen.
 
-`WeekendRefreshWorker` ruft dieselbe Methode einmal täglich im WLAN für die nächsten acht
-Wochenenden auf. Er füllt ausschließlich den Cache: keine Benachrichtigungen, keine Aktionen.
+`WeekendRefreshWorker` calls the same method once a day on Wi-Fi for the next eight weekends. It
+fills the cache and nothing else: no notifications, no actions.
 
-## Zeitzonen
+## Time zones
 
-Der Kern der Korrektheit dieser App.
+The core of this app's correctness.
 
-* `Flight.departure` / `Flight.arrival` sind `java.time.Instant` — absolut, UTC, zonenlos.
-* Jeder `Airport` trägt seine IANA-Zone (`Europe/London`, `Atlantic/Madeira`, …).
-* Wanduhrzeiten entstehen ausschließlich über `departureLocal` / `arrivalLocal`, die die Zone des
-  jeweiligen Flughafens anwenden — Abflug in der Zone des Origin, Ankunft in der des Ziels.
-* In Room werden Epoch-Millis gespeichert, nie lokale Strings.
-* Ein Flughafen ohne auflösbare Zone wird verworfen statt geraten (`FeedParser`), und beim
-  Zurücklesen aus dem Cache wird ein Flug übersprungen, dessen Flughafen nicht mehr bekannt ist —
-  eine geratene Zone würde jede angezeigte Uhrzeit verfälschen.
-* `minSdk 26` wurde genau deshalb gewählt: `java.time` ohne Desugaring.
+* `Flight.departure` / `Flight.arrival` are `java.time.Instant` — absolute, UTC, zoneless.
+* Every `Airport` carries its IANA zone (`Europe/London`, `Atlantic/Madeira`, …).
+* Wall-clock times only ever arise through `departureLocal` / `arrivalLocal`, which apply the zone
+  of the airport in question — departure in the origin's zone, arrival in the destination's.
+* Room stores epoch millis, never local strings.
+* An airport with no resolvable zone is discarded rather than guessed (`FeedParser`), and when
+  reading back from the cache a flight whose airport is no longer known is skipped — a guessed zone
+  would corrupt every time the app displays.
+* `minSdk 26` was chosen for exactly this reason: `java.time` without desugaring.
 
-Getestet u. a. für Großbritannien (−1 h), Madeira (−1 h), Griechenland (+1 h) und für die
-Sommer-/Winterzeit-Verschiebung derselben Wanduhrzeit.
+Tested for, among others, the United Kingdom (−1 h), Madeira (−1 h), Greece (+1 h) and for the
+summer/winter shift of the same wall-clock time.
 
-## Das Scoring
+## The scoring
 
-`TripScoringEngine.score()` erzeugt sechs `ComponentScore`s. Jeder hat einen 0..100-Wert, das
-angewandte Gewicht und eine Erklärung; der Gesamtwert ist die gewichtsnormalisierte Summe. Weil
-normalisiert wird, kann der Nutzer einen einzelnen Regler verschieben, ohne dass sich die Skala
-der übrigen still verändert.
+`TripScoringEngine.score()` produces six `ComponentScore`s. Each has a 0..100 value, the weight
+applied and an explanation; the total is the weight-normalised sum. Because it is normalised, the
+user can move a single slider without silently changing the scale of the others.
 
-| Komponente | Standard | Was hinein zählt |
+| Component | Default | What goes into it |
 | --- | --- | --- |
-| Flugzeit-Komfort | 25 % | Workday-Penalty des Hinflugs, Puffer nach Feierabend, Nachtankunft, Spätheit des Rückflugs |
-| Aufenthaltsqualität | 20 % | effektive Stunden vor Ort, Nächte gegen Min/Max |
-| Wochenend-Kompatibilität | 20 % | Muster-Priorität **und** tatsächlich verlorene Arbeitszeit |
-| Logistik | 10 % | Flugdauer gegen Maximum, Transferzeit, Nonstop, späte Heimkehr |
-| Kosten | 15 % | Standby-Roundtrip der bevorzugten Klasse gegen Budget |
-| Destination Quality | 10 % | redaktionelle Faktoren, gefiltert auf die gewählten Zieltypen |
+| Flight-time comfort | 25 % | outbound workday penalty, buffer after work, night arrival, lateness of the return |
+| Stay quality | 20 % | effective hours on site, nights against min/max |
+| Weekend compatibility | 20 % | pattern priority **and** working time actually lost |
+| Logistics | 10 % | flight duration against the maximum, transfer time, non-stop, late arrival home |
+| Cost | 15 % | standby round trip in the preferred cabin against the budget |
+| Destination quality | 10 % | editorial factors, filtered to the selected destination types |
 
-### Die zwei zentralen Größen
+### The two central quantities
 
-**Workday-Penalty.** Der früheste Abflug, der keine Arbeitszeit kostet, ist
-`Arbeitsende + Fahrzeit zum FRA + Flughafenpuffer` (Standard 17:00 + 45 + 90 = **19:15**). Jede
-Minute davor ist verlorene Arbeitszeit; ein voller Arbeitstag (8 h) entspricht der Penalty 1,0.
-Sie wirkt zweifach: sie senkt den Flugzeit-Komfort *und* sie erhöht den effektiven Urlaubsbedarf
-in der Wochenend-Kompatibilität. Das ist der Grund, warum ein Freitag-13:00-Flug deutlich
-abstürzt und nicht nur „etwas unbequemer“ ist.
+**Workday penalty.** The earliest departure that costs no working time is
+`end of work + travel time to FRA + airport buffer` (by default 17:00 + 45 + 90 = **19:15**). Every
+minute before that is working time lost; a full working day (8 h) corresponds to a penalty of 1.0.
+It acts twice: it lowers flight-time comfort *and* it raises the effective holiday requirement in
+weekend compatibility. That is why a Friday 13:00 departure falls sharply rather than being merely
+“a bit less convenient”.
 
-**Effektive Zeit vor Ort.**
+**Effective time on site.**
 
 ```
-nutzbarer Beginn = Ankunft            + Transfer Flughafen → Stadt
-nutzbares Ende   = Rückflug-Abflug    − Flughafenpuffer − Transfer Stadt → Flughafen
+usable start = arrival             + transfer airport → city
+usable end   = return departure    − airport buffer − transfer city → airport
 ```
 
-Für das Beispiel aus dem Briefing (FRA 18:15 → LGW 18:35, zurück So 19:35, Transfer 45 min,
-Puffer 90 min) ergibt das exakt die dort genannten **46 h**.
+For the example in the brief (FRA 18:15 → LGW 18:35, back Sun 19:35, transfer 45 min, buffer
+90 min) this yields exactly the **46 h** quoted there.
 
-### Urlaubstage als Ordnungsprinzip
+### Holiday days as the ordering principle
 
-Die vom Briefing vorgegebene Prioritätsreihenfolge Fr→So, Do→So, Fr→Mo, Do→Mo ist im Modell nicht
-willkürlich hinterlegt, sondern folgt daraus, was ein Muster an Urlaub kostet: die beiden
-Sonntags-Muster kosten null Tage, die beiden Montags-Muster je einen. Deshalb trägt
-`WeekendPattern` ein Feld `vacationDaysRequired`, das in der UI direkt angezeigt wird.
+The priority order the brief prescribes — Fri→Sun, Thu→Sun, Fri→Mon, Thu→Mon — is not stored
+arbitrarily in the model; it follows from what each pattern costs in holiday: the two Sunday
+patterns cost zero days, the two Monday patterns one each. `WeekendPattern` therefore carries a
+`vacationDaysRequired` field, which is shown directly in the UI.
 
-## Fehlerbehandlung
+## Error handling
 
-Eine leere Liste ist nie eine Antwort. `TripBuilder` zählt Ablehnungsgründe mit
-(`RejectionReason`) und wählt den **aussagekräftigsten** für die Anzeige — nicht den häufigsten.
-Sonst würde „kein Hinflug am Donnerstag“ jedes Mal die viel nützlichere Meldung „Standby-Preis
-über deinem Budget“ übertönen.
+An empty list is never an answer. `TripBuilder` counts rejection reasons (`RejectionReason`) and
+picks the **most informative** one for display — not the most frequent. Otherwise “no outbound
+flight on Thursday” would drown out the far more useful “standby price is over your budget” every
+time.
 
-Netz- und Konfigurationsfehler sind im Typsystem getrennt: `FlightSearchResult.NotConfigured`
-(kein Fehler, sondern eine Einrichtungsaufgabe) gegen `FlightSearchResult.Failure`. Die
-Repository-Kette probiert die Quellen der Reihe nach und sammelt beide Arten ein, damit der Banner
-sagen kann, was zu tun ist.
+Network and configuration errors are separated in the type system: `FlightSearchResult.NotConfigured`
+(not an error but a setup task) versus `FlightSearchResult.Failure`. The repository chain tries the
+sources in order and collects both kinds, so the banner can say what to do.
 
-## Erweiterbarkeit
+Data sources also expose `selfTest()`, wired to a **Test** button per source in Settings. It calls
+the real endpoint and repeats what came back, so “my credentials do not work” has an answer rather
+than an inference — an OpenSky token rejection is reported as a failure instead of silently falling
+back to anonymous access.
 
-`FlightDataSource` kennt das Wort „Condor“ nicht. Eine weitere Airline anzubinden heißt: eine
-Implementierung schreiben und sie in `AppContainer.liveSources` einhängen. `Flight` trägt
-`airline` und `airlineCode` bereits mit, `Money` trägt die Währung explizit.
+## Localisation
+
+`domain` and `scoring` emit structured values, never sentences: `TripInsight`, `ComponentDetail`,
+`RejectionReason`, `EmptyReason`, `CalendarMessage`, `SkippedRow`. The `ui/text` layer turns those
+into the reader's language. That keeps the scoring engine free of Android and of any one language,
+and it is why adding English (US) touched no scoring code.
+
+Data sources are the deliberate exception: they already do I/O and hold a `Context`, and their
+messages are diagnostics full of HTTP codes and counts, so they resolve strings through
+`SourceStrings` instead.
+
+Airport names come from the bundled public reference, and country names are derived from the ISO
+code at render time, so they follow the device language rather than being frozen into a data file.
+
+## Extensibility
+
+`FlightDataSource` does not know the word “Condor”. Adding another airline means: write an
+implementation and hook it into `AppContainer.liveSources`. `Flight` already carries `airline` and
+`airlineCode`, and `Money` carries the currency explicitly.

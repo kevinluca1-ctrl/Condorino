@@ -1,93 +1,92 @@
 # Condorino ✈️
 
-**Wochenendtrip-Planer ab Frankfurt (FRA).**
+**Weekend-trip planner from Frankfurt (FRA).**
 
-Condorino beantwortet eine einzige Frage, und die möglichst gut:
+Condorino answers a single question, and tries to answer it well:
 
-> „Wohin kann ich dieses Wochenende fliegen, ohne Urlaubstage zu brauchen — und welcher Trip ist
-> insgesamt am attraktivsten?“
+> “Where can I fly this weekend without spending holiday — and which trip is the most attractive
+> overall?”
 
-Die App zeigt keine Flüge, sie **bewertet Wochenenden**. Aus Abflugzeiten, Rückflugzeiten,
-Aufenthaltsdauer, Fahrzeit zum Flughafen, Reisemuster, Standby-Preisen und Zielprofilen berechnet
-sie pro Trip einen nachvollziehbaren Score von 0 bis 100. Die wichtigste Kennzahl ist nicht der
-Ticketpreis, sondern: *wie gut passt dieser Trip in eine normale Arbeitswoche?*
-
----
-
-## ⚠️ Zuerst: die Sache mit den Live-Daten
-
-**Die App liefert keine echten Condor-Flugdaten aus, solange du keine Datenquelle einrichtest.**
-
-Condor betreibt ein Entwicklerportal (`developer.condor.com`) mit einer Flight Information API,
-deren konkreter Vertrag aber registrierungspflichtig ist und beim Bau dieser App nicht eingesehen
-werden konnte. Endpunkte zu raten hätte eine App ergeben, die scheinbar funktioniert und still
-nichts findet. Stattdessen:
-
-* die Datenschicht ist vollständig gebaut und austauschbar,
-* der Condor-API-Vertrag wird **in den Einstellungen eingetragen**, sobald du ihn hast,
-* alternativ lädt die App jeden HTTPS-Feed nach einem dokumentierten JSON-Schema,
-* **OpenSky Network** liefert kostenlos und ohne Konto, welche `CFG`-Flüge ab FRA in den letzten
-  Wochen *tatsächlich* geflogen sind – daraus leitet die App einen beobachteten Flugplan ab,
-* und ohne konfigurierte Quelle zeigt sie **Beispieldaten hinter einem permanenten roten Banner**,
-  mit Flugnummern, die mit `DEMO` beginnen.
-
-Die Details — was es gibt, was nicht geprüft werden konnte, und wie du echte Daten einspeist —
-stehen in **[docs/CONDOR_DATA_SOURCES.md](docs/CONDOR_DATA_SOURCES.md)**.
+The app does not list flights, it **scores weekends**. From departure times, return times, length
+of stay, travel time to the airport, trip pattern, standby prices and destination profiles it
+computes a transparent score from 0 to 100 per trip. The headline figure is not the ticket price
+but: *how well does this trip fit into an ordinary working week?*
 
 ---
 
-## Was die App kann
+## ⚠️ First: the thing about live data
 
-**Wochenend-Scoring.** Vier Reisemuster in der Prioritätsreihenfolge des Briefings:
-Fr → So, Do → So, Fr → Mo, Do → Mo. Die Reihenfolge folgt daraus, was ein Muster an Urlaub kostet
-(0, 0, 1, 1 Tage) — das steht auf jeder Karte.
+**The app ships no real Condor flight data until you configure a data source.**
 
-**Arbeitszeit als Leitgröße.** Aus Arbeitsende (17:00), Fahrzeit zum FRA (45 min) und
-Flughafenpuffer (90 min) berechnet die App den frühesten Abflug, der *keine* Arbeitszeit kostet —
-standardmäßig **19:15**. Alles davor ist verlorene Arbeitszeit und wird doppelt bestraft: im
-Flugzeit-Komfort und im effektiven Urlaubsbedarf.
+Condor runs a developer portal (`developer.condor.com`) with a Flight Information API, but its
+actual contract requires registration and could not be inspected while this app was built. Guessing
+endpoints would have produced an app that appears to work and quietly finds nothing. Instead:
 
-**Effektive Zeit vor Ort.** Nicht die reine Zeitdifferenz, sondern Ankunft + Transfer bis
-Rückflug − Flughafenpuffer − Transfer. Für das London-Beispiel des Briefings ergibt das exakt die
-dort genannten 46 Stunden.
+* the data layer is fully built and swappable,
+* the Condor API contract is **entered in Settings** as soon as you have it,
+* alternatively the app reads any HTTPS feed following a documented JSON schema,
+* **OpenSky Network** reports for free and without an account which `CFG` flights from FRA
+  *actually* flew over the past few weeks — the app derives an observed timetable from that,
+* and with no source configured it shows **sample data behind a permanent red banner**, with flight
+  numbers that start with `DEMO`.
 
-**Weitere Screens.** Kalender mit Sterne-Bewertung pro Wochenende und einer „Beste Wochenenden“-
-Rangliste über bis zu sechs Monate · Zielvergleich (bis zu vier nebeneinander) · „Surprise me“ mit
-sechs Modi (zufällig, Top 10, unter Budget, Sonnenziel, Citytrip, bester Score) · Favoriten ·
-Filter nach Reisetagen, Klasse, Preis, Mindestscore und Zieltyp.
-
-**Standby-Preise.** Pro Ziel eintragbar, Economy/Business, Hin-/Rückflug getrennt, wahlweise pro
-Segment oder als Roundtrip, mit optionalen Steuern. Die App fragt MyID Travel **nicht** ab und
-speichert **keine** Zugangsdaten.
-
-**Flughafen-Referenz.** 6.442 Flughäfen aus öffentlichen Datensätzen (OurAirports, OpenFlights,
-IANA tzdata), jeder mit belegter Zeitzone. Flughäfen, deren Zone sich nicht belegen ließ, sind
-bewusst nicht enthalten – die App rät keine Zeitzone. Ein Feed muss deshalb nur IATA-Codes liefern.
-
-**Zweisprachig.** Deutsch und Englisch (US). Datumsformate sind in beiden Sprachen Tag-vor-Monat,
-**MM/DD/YYYY wird nirgends verwendet**, Uhrzeiten sind durchgängig 24-Stunden. Ab Android 13 pro App
-umstellbar.
-
-**Hell und dunkel.** System / Hell / Dunkel, umschaltbar ohne Neustart.
-
-**Ehrliche Zustände.** Jede Angabe trägt ihre Herkunft: `LIVE`, `KÜRZLICH AKTUALISIERT`,
-`FLUGPLAN`, `GECACHT`, `MANUELL` oder `BEISPIELDATEN`, dazu immer „Zuletzt aktualisiert: HH:MM“.
-Ohne Netz zeigt die App den Cache statt abzustürzen. Leere Listen gibt es nicht — stattdessen den
-Grund, warum nichts passt.
+The details — what exists, what could not be verified, and how to feed in real data — are in
+**[docs/CONDOR_DATA_SOURCES.md](docs/CONDOR_DATA_SOURCES.md)**.
 
 ---
 
-## APK bekommen
+## What the app does
 
-**Release:** Die jeweils aktuelle Alpha liegt unter
-[Releases](https://github.com/kevinluca1-ctrl/Condorino/releases) – `condorino-alpha-01.apk`
-herunterladen und auf dem Telefon öffnen.
+**Weekend scoring.** Four trip patterns, in the priority order from the brief: Fri → Sun,
+Thu → Sun, Fri → Mon, Thu → Mon. The order follows from what each pattern costs in holiday
+(0, 0, 1, 1 days) — and that is printed on every card.
 
-**Fertig gebaut aus CI:** Der Workflow `Build APK` baut bei jedem Push Debug- und Release-APK.
-Unter *Actions → Build APK → letzter Lauf → Artifacts* liegen `condorino-debug-apk` und
+**Working time as the guiding measure.** From end of work (17:00), travel time to FRA (45 min) and
+airport buffer (90 min), the app computes the earliest departure that costs *no* working time —
+**19:15** by default. Anything earlier is working time lost, and is penalised twice: in flight-time
+comfort and in the effective holiday requirement.
+
+**Effective time on site.** Not the raw difference, but arrival + transfer through to the return
+flight − airport buffer − transfer. For the London example in the brief this yields exactly the
+46 hours quoted there.
+
+**More screens.** Calendar with a star rating per weekend and a best-weekends ranking across up to
+six months · destination comparison (up to six side by side) · “Surprise me” with six modes
+(random, top 10, under budget, sun destination, city break, best score) · favourites · filters by
+travel days, cabin, price, minimum score and destination type.
+
+**Standby prices.** Enterable per destination, economy/business, outbound and inbound separately,
+either per segment or as a round trip, with optional taxes. The app does **not** query MyID Travel
+and stores **no** credentials.
+
+**Airport reference.** 6,442 airports from public datasets (OurAirports, OpenFlights, IANA tzdata),
+each with a documented time zone. Airports whose zone could not be established are deliberately
+absent — the app never guesses a time zone. A feed therefore only has to supply IATA codes.
+
+**Bilingual.** German and English (US). Date formats are day-before-month in both languages,
+**MM/DD/YYYY is used nowhere**, and times are 24-hour throughout. Switchable per app from
+Android 13 on.
+
+**Light and dark.** System / Light / Dark, switchable without a restart.
+
+**Honest states.** Every figure carries its provenance: `LIVE`, `RECENTLY UPDATED`, `TIMETABLE`,
+`CACHED`, `MANUAL` or `SAMPLE DATA`, always alongside “Last updated: HH:MM”. With no network the
+app shows the cache instead of crashing. There are no empty lists — instead you get the reason why
+nothing matched.
+
+---
+
+## Getting the APK
+
+**Release:** the current alpha is under
+[Releases](https://github.com/kevinluca1-ctrl/Condorino/releases) — download
+`condorino-alpha-01.apk` and open it on the phone.
+
+**Prebuilt from CI:** the `Build APK` workflow builds a debug and a release APK on every push.
+Under *Actions → Build APK → latest run → Artifacts* you will find `condorino-debug-apk` and
 `condorino-release-apk`.
 
-**Selbst bauen:** siehe **[docs/BUILD.md](docs/BUILD.md)**. Kurzfassung:
+**Build it yourself:** see **[docs/BUILD.md](docs/BUILD.md)**. In short:
 
 ```bash
 git clone https://github.com/kevinluca1-ctrl/Condorino.git
@@ -96,64 +95,65 @@ cd Condorino
 # → app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Voraussetzungen: JDK 17 und das Android SDK (Platform 35). Auf dem Telefon „Installation aus
-unbekannten Quellen“ erlauben.
+Requirements: JDK 17 and the Android SDK (Platform 35). On the phone, allow installation from
+unknown sources.
 
 ---
 
-## Erste Schritte in der App
+## First steps in the app
 
-1. **Öffnen.** Home zeigt sofort das kommende Wochenende mit den bestbewerteten Trips.
-2. **Einstellungen → Arbeitszeiten** an dein Leben anpassen (Arbeitsende, Fahrzeit, Puffer). Der
-   berechnete „früheste sinnvolle Abflug“ wird direkt darunter angezeigt.
-3. **Einstellungen → Standby-Preise**: für deine Stammziele die MyID-Travel-Preise eintragen.
-   Ohne Preis wird die Kostenkomponente neutral bewertet und die App sagt das auch.
-4. **Einstellungen → Datenquellen**: echte Datenquelle einrichten und Beispieldaten abschalten.
-5. **Score-Gewichtung** verschieben, wenn dir z. B. Kosten wichtiger sind als Aufenthaltsdauer.
+1. **Open it.** Home immediately shows the coming weekend with the best-scoring trips.
+2. **Settings → Working hours**: adapt them to your life (end of work, travel time, buffer). The
+   resulting “earliest sensible departure” is shown directly underneath.
+3. **Settings → Standby prices**: enter the MyID Travel prices for your regular destinations.
+   Without a price the cost component is scored neutrally, and the app says so.
+4. **Settings → Data sources**: set up a real data source and switch the sample data off. Each
+   source has a **Test** button that calls the real endpoint and repeats the answer verbatim.
+5. **Score weighting**: shift it if, say, cost matters more to you than length of stay.
 
 ---
 
-## Technik
+## Technology
 
 Kotlin · Jetpack Compose · Material 3 · MVVM/Clean · Coroutines + Flow · Room · DataStore ·
-OkHttp/Retrofit · kotlinx.serialization · WorkManager · Gradle Kotlin DSL ·
+OkHttp · kotlinx.serialization · WorkManager · Gradle Kotlin DSL ·
 `minSdk 26` / `compileSdk 35`.
 
-WorkManager wärmt den Cache einmal täglich im WLAN für die nächsten acht Wochenenden vor, damit
-die App beim Öffnen — auch offline — sofort etwas Sinnvolles zeigt.
+WorkManager warms the cache once a day on Wi-Fi for the next eight weekends, so the app shows
+something useful the moment it opens — offline too.
 
-`minSdk 26` ist eine bewusste Entscheidung: damit steht `java.time` ohne Desugaring zur Verfügung,
-und korrekte Zeitzonenrechnung ist in dieser App keine Nebensache.
+`minSdk 26` is a deliberate decision: it makes `java.time` available without desugaring, and
+correct time-zone arithmetic is not a side issue in this app.
 
-Aufbau und Begründungen: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+Structure and reasoning: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ### Tests
 
-84 Unit-Tests über Pattern-Erkennung, Workday-Penalty, effektive Aufenthaltsdauer,
-Nächte-Berechnung über Mitternacht, Zeitzonen (UK, Madeira, Griechenland, Sommer/Winter),
-Kosten-Scoring, Zufallsauswahl, Feed-Parsing, Datumsformate (inkl. der Zusicherung, dass Englisch
-nie monatsführend formatiert) und die Rangfolge-Fälle aus dem Briefing:
+103 unit tests covering pattern detection, the workday penalty, effective length of stay, counting
+nights across midnight, time zones (UK, Madeira, Greece, summer/winter), cost scoring, random
+selection, feed parsing, price-field text handling, airport search ranking, date formats (including
+the guarantee that English never formats month-first) and the ranking cases from the brief:
 
 ```bash
 ./gradlew testDebugUnitTest
 ```
 
-### Datenschutz
+### Privacy
 
-Keine Konten, keine Tracking-SDKs, keine Analytics. Lokal gespeichert werden ausschließlich:
-Einstellungen, selbst eingegebene Standby-Preise, Favoriten und ein Flugdaten-Cache.
-Netzwerkzugriffe gehen ausschließlich an die von dir selbst konfigurierten Datenquellen.
+No accounts, no tracking SDKs, no analytics. Stored locally are only: settings, standby prices you
+entered yourself, favourites and a flight-data cache. Network access goes exclusively to the data
+sources you configured yourself.
 
-### Externe Datenquellen
+### External data sources
 
-| Quelle | Rolle | Status |
+| Source | Role | Status |
 | --- | --- | --- |
-| Condor Developer API (`developer.condor.com`) | primär vorgesehen | Vertrag vom Nutzer einzutragen |
-| Eigener HTTPS-Feed (Condorino-Feed-Schema) | funktioniert sofort | URL vom Nutzer einzutragen |
-| [OpenSky Network](https://opensky-network.org/) | Abgleich: tatsächlich geflogene Flüge | kostenlos, Konto optional |
-| [OurAirports](https://github.com/davidmegginson/ourairports-data) | Flughafen-Codes, Städte, Länder | Public Domain, gebündelt |
-| [OpenFlights](https://github.com/jpatokal/openflights) | Zeitzonen je Flughafen | ODbL, gebündelt |
-| [IANA tzdata](https://github.com/eggert/tz) | Zeitzonen je Land | Public Domain, gebündelt |
-| `assets/demo_schedule.json` | Beispieldaten | mitgeliefert, rot markiert, abschaltbar |
-| `assets/destination_profiles.json` | redaktionelle Zielbewertungen | mitgeliefert, editierbar |
-| MyID Travel | **nicht** angebunden | Preise manuell |
+| Condor Developer API (`developer.condor.com`) | intended primary source | contract entered by the user |
+| Custom HTTPS feed (Condorino feed schema) | works immediately | URL entered by the user |
+| [OpenSky Network](https://opensky-network.org/) | cross-check: flights actually flown | free, account optional |
+| [OurAirports](https://github.com/davidmegginson/ourairports-data) | airport codes, cities, countries | public domain, bundled |
+| [OpenFlights](https://github.com/jpatokal/openflights) | time zone per airport | ODbL, bundled |
+| [IANA tzdata](https://github.com/eggert/tz) | time zone per country | public domain, bundled |
+| `assets/demo_schedule.json` | sample data | bundled, flagged in red, switchable |
+| `assets/destination_profiles.json` | editorial destination ratings | bundled, editable |
+| MyID Travel | **not** integrated | prices entered manually |

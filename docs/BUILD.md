@@ -1,21 +1,21 @@
-# Build-Anleitung
+# Build guide
 
-## Voraussetzungen
+## Prerequisites
 
-* **JDK 17** (`java -version` muss 17 zeigen; neuere JDKs funktionieren für den Gradle-Lauf, das
-  Kompilat zielt aber auf 17)
-* **Android SDK** mit Platform **API 35** und aktuellen Build-Tools
-* Gradle wird über den mitgelieferten Wrapper geladen — keine lokale Gradle-Installation nötig
+* **JDK 17** (`java -version` must report 17; newer JDKs work for the Gradle run itself, but the
+  output targets 17)
+* **Android SDK** with platform **API 35** and current build tools
+* Gradle is fetched through the bundled wrapper — no local Gradle installation is needed
 
-Ohne Android Studio genügt es, das SDK-Verzeichnis bekannt zu machen:
+Without Android Studio it is enough to point at the SDK directory:
 
 ```bash
-export ANDROID_HOME=$HOME/Android/Sdk     # oder wo dein SDK liegt
-# alternativ eine local.properties im Projektwurzelverzeichnis anlegen:
+export ANDROID_HOME=$HOME/Android/Sdk     # or wherever your SDK lives
+# alternatively, create a local.properties in the project root:
 echo "sdk.dir=$HOME/Android/Sdk" > local.properties
 ```
 
-## Bauen
+## Building
 
 ```bash
 git clone https://github.com/kevinluca1-ctrl/Condorino.git
@@ -23,16 +23,16 @@ cd Condorino
 
 ./gradlew assembleDebug      # → app/build/outputs/apk/debug/app-debug.apk
 ./gradlew assembleRelease    # → app/build/outputs/apk/release/app-release.apk
-./gradlew testDebugUnitTest  # 76 Unit-Tests
+./gradlew testDebugUnitTest  # 103 unit tests
 ```
 
-Unter Windows `gradlew.bat` statt `./gradlew`.
+On Windows use `gradlew.bat` instead of `./gradlew`.
 
-### Signierung
+### Signing
 
-Die Release-Variante ist bewusst mit dem **Debug-Keystore** signiert, damit CI ohne Secrets eine
-installierbare APK erzeugen kann. Für eine echte Veröffentlichung ersetzt du in
-`app/build.gradle.kts` den `signingConfig` des Release-Buildtyps durch einen eigenen Keystore:
+The release variant is deliberately signed with the **debug keystore**, so CI can produce an
+installable APK without secrets. For a real publication, replace the release build type's
+`signingConfig` in `app/build.gradle.kts` with your own keystore:
 
 ```kotlin
 android {
@@ -50,44 +50,47 @@ android {
 }
 ```
 
-## Mit Android Studio
+## With Android Studio
 
-Projektordner öffnen, Gradle-Sync abwarten, `app` als Run-Configuration starten. Android Studio
-lädt fehlende SDK-Komponenten selbst nach.
+Open the project folder, wait for the Gradle sync, and run the `app` configuration. Android Studio
+downloads any missing SDK components itself.
 
-## APK aus GitHub Actions
+## APK from GitHub Actions
 
-Der Workflow `.github/workflows/android.yml` läuft bei jedem Push und legt drei Artefakte ab:
+The workflow `.github/workflows/android.yml` runs on every push and produces three artifacts:
 
 * `condorino-debug-apk`
 * `condorino-release-apk`
-* `unit-test-reports` (HTML-Testbericht)
+* `unit-test-reports` (HTML test report)
 
-*Actions → Build APK → gewünschter Lauf → Artifacts.* Der Workflow lässt sich unter
-*Actions → Build APK → Run workflow* auch manuell auslösen.
+*Actions → Build APK → the run you want → Artifacts.* The workflow can also be triggered by hand
+under *Actions → Build APK → Run workflow*.
 
-## Installieren
+Pushing a version tag additionally runs `.github/workflows/release.yml`, which publishes a GitHub
+Release with both APKs attached. It runs the tests first, so a tag cannot ship a red build.
+
+## Installing
 
 ```bash
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Oder die APK aufs Telefon kopieren und dort öffnen; „Installation aus unbekannten Quellen“ muss
-für die installierende App erlaubt sein.
+Or copy the APK to the phone and open it there; installation from unknown sources has to be
+allowed for the installing app.
 
-Debug- und Release-Variante haben unterschiedliche Application-IDs
-(`com.condorino.weekend.debug` bzw. `com.condorino.weekend`) und lassen sich parallel installieren.
+The debug and release variants have different application IDs
+(`com.condorino.weekend.debug` and `com.condorino.weekend`) and can be installed side by side.
 
 ## Troubleshooting
 
-**`SDK location not found`** — `ANDROID_HOME` setzen oder `local.properties` anlegen (siehe oben).
+**`SDK location not found`** — set `ANDROID_HOME` or create `local.properties` (see above).
 
-**`Unsupported class file major version`** — es läuft ein zu neues oder zu altes JDK. Auf 17
-stellen, z. B. `export JAVA_HOME=$(/usr/libexec/java_home -v 17)` (macOS) oder über
-`update-alternatives` (Linux).
+**`Unsupported class file major version`** — the JDK in use is too new or too old. Switch to 17,
+e.g. `export JAVA_HOME=$(/usr/libexec/java_home -v 17)` (macOS) or via `update-alternatives`
+(Linux).
 
-**Gradle-Download hängt** — der Wrapper lädt Gradle 8.9 von `services.gradle.org`; hinter einem
-Proxy braucht es `-Dhttps.proxyHost`/`-Dhttps.proxyPort` oder eine lokal installierte Gradle-8.9.
+**The Gradle download hangs** — the wrapper fetches Gradle 8.9 from `services.gradle.org`; behind a
+proxy you need `-Dhttps.proxyHost`/`-Dhttps.proxyPort` or a locally installed Gradle 8.9.
 
-**Build schlägt beim Auflösen von `androidx.*` fehl** — die Abhängigkeiten kommen von
-`dl.google.com` (Google Maven). Der Host muss erreichbar sein.
+**The build fails resolving `androidx.*`** — those dependencies come from `dl.google.com` (Google
+Maven). That host has to be reachable.
