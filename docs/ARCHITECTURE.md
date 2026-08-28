@@ -42,6 +42,7 @@ com.condorino.weekend
 │   ├── settings               SettingsViewModel + Settings- und Preis-Screen
 │   └── home / search / tripdetail / compare / random / favorites
 │
+├── work                       WeekendRefreshWorker (täglicher Cache-Vorlauf)
 ├── navigation                 Routen + Bottom-Navigation
 ├── di                         AppContainer (manuelle DI)
 └── core                       Formatting
@@ -80,6 +81,16 @@ Room braucht ohnehin KSP; das ist der einzige Annotation-Processor im Build.
 
 Der erste Schritt macht die App offline-tauglich: der Cache wird immer zuerst gerendert, der
 Netzabruf läuft danach und aktualisiert nur den Zustand. Ein Fehlschlag löscht nie den Cache.
+
+### Bereichssuche
+
+`searchWeekend` deckt ein Wochenende ab, `refreshRange` den ganzen Kalenderzeitraum. Letzteres ist
+kein Luxus: der Cache enthält nur Wochenenden, die der Nutzer schon geöffnet hat — ohne
+`refreshRange` wäre eine Drei-Monats-Übersicht konstruktionsbedingt leer. Weil jede Datenquelle
+ohnehin einen Zeitraum entgegennimmt, kostet die Übersicht **eine** Anfrage, nicht dreizehn.
+
+`WeekendRefreshWorker` ruft dieselbe Methode einmal täglich im WLAN für die nächsten acht
+Wochenenden auf. Er füllt ausschließlich den Cache: keine Benachrichtigungen, keine Aktionen.
 
 ## Zeitzonen
 

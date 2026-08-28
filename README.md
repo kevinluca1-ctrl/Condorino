@@ -103,6 +103,9 @@ Kotlin · Jetpack Compose · Material 3 · MVVM/Clean · Coroutines + Flow · Ro
 OkHttp/Retrofit · kotlinx.serialization · WorkManager · Gradle Kotlin DSL ·
 `minSdk 26` / `compileSdk 35`.
 
+WorkManager wärmt den Cache einmal täglich im WLAN für die nächsten acht Wochenenden vor, damit
+die App beim Öffnen — auch offline — sofort etwas Sinnvolles zeigt.
+
 `minSdk 26` ist eine bewusste Entscheidung: damit steht `java.time` ohne Desugaring zur Verfügung,
 und korrekte Zeitzonenrechnung ist in dieser App keine Nebensache.
 
@@ -110,7 +113,7 @@ Aufbau und Begründungen: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ### Tests
 
-76 Unit-Tests über Pattern-Erkennung, Workday-Penalty, effektive Aufenthaltsdauer,
+79 Unit-Tests über Pattern-Erkennung, Workday-Penalty, effektive Aufenthaltsdauer,
 Nächte-Berechnung über Mitternacht, Zeitzonen (UK, Madeira, Griechenland, Sommer/Winter),
 Kosten-Scoring, Zufallsauswahl, Feed-Parsing und die Rangfolge-Fälle aus dem Briefing:
 
