@@ -17,7 +17,7 @@ interface FlightDataSource {
     /** Stable identifier persisted with cached rows so we know where a row came from. */
     val id: String
 
-    /** Shown in the UI: "Quelle: …". */
+    /** Shown in the UI under "Source: …". */
     val displayName: String
 
     /** What kind of data this source can produce at best. */

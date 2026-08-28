@@ -142,7 +142,12 @@ class OpenSkyFlightDataSource(
                 val outbound = buildTimetable(departures, home, outbound = true)
                 val inbound = buildTimetable(arrivals, home, outbound = false)
 
-                val flights = (outbound + inbound).flatMap { it.projectOnto(query.from, query.to) }
+                val flights = (outbound + inbound)
+                    .flatMap { service ->
+                        service.projectOnto(query.from, query.to) { days ->
+                            strings.plural(R.plurals.src_opensky_observed_days, days, days)
+                        }
+                    }
                     .filter { f ->
                         query.destinationIata == null ||
                             f.destination.iata == query.destinationIata ||
@@ -267,7 +272,12 @@ class OpenSkyFlightDataSource(
         val sampleCount: Int,
         val callsign: String,
     ) {
-        fun projectOnto(from: LocalDate, to: LocalDate): List<Flight> {
+        /**
+         * @param note renders the "observed on N days" caption. It is passed in rather than looked
+         *   up here because this is a plain nested value class with no access to resources — and
+         *   keeping it that way is what lets the aggregation stay free of Android.
+         */
+        fun projectOnto(from: LocalDate, to: LocalDate, note: (Int) -> String): List<Flight> {
             if (to.isBefore(from)) return emptyList()
             val out = mutableListOf<Flight>()
             var date = from
@@ -284,7 +294,7 @@ class OpenSkyFlightDataSource(
                         arrival = departure.toInstant().plus(blockMinutes, ChronoUnit.MINUTES),
                         isDirect = true,
                         provenance = DataProvenance.SCHEDULE,
-                        availabilityNote = strings.plural(R.plurals.src_opensky_observed_days, sampleCount, sampleCount),
+                        availabilityNote = note(sampleCount),
                     )
                 }
                 date = date.plusDays(1)
