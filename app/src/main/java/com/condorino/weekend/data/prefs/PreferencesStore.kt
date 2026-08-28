@@ -13,9 +13,11 @@ import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.condorino.weekend.data.source.CondorApiConfig
 import com.condorino.weekend.data.source.FeedConfig
+import com.condorino.weekend.data.source.OpenSkyConfig
 import com.condorino.weekend.domain.model.Cabin
 import com.condorino.weekend.domain.model.DestinationType
 import com.condorino.weekend.domain.model.ScoreWeights
+import com.condorino.weekend.domain.model.ThemeMode
 import com.condorino.weekend.domain.model.UserPreferences
 import com.condorino.weekend.domain.model.WeekendPattern
 import kotlinx.coroutines.flow.Flow
@@ -77,6 +79,15 @@ class PreferencesStore(private val context: Context) {
         val apiFieldFlightNumber = stringPreferencesKey("condor_api_field_flight_number")
 
         val allowDemoData = booleanPreferencesKey("allow_demo_data")
+
+        val openSkyEnabled = booleanPreferencesKey("opensky_enabled")
+        val openSkyClientId = stringPreferencesKey("opensky_client_id")
+        val openSkyClientSecret = stringPreferencesKey("opensky_client_secret")
+        val openSkyHomeIcao = stringPreferencesKey("opensky_home_icao")
+        val openSkyCallsign = stringPreferencesKey("opensky_callsign_prefix")
+        val openSkyLookbackWeeks = intPreferencesKey("opensky_lookback_weeks")
+
+        val themeMode = stringPreferencesKey("theme_mode")
     }
 
     val preferences: Flow<UserPreferences> = context.dataStore.data.map { p ->
@@ -148,6 +159,23 @@ class PreferencesStore(private val context: Context) {
         )
     }
 
+    val openSkyConfig: Flow<OpenSkyConfig> = context.dataStore.data.map { p ->
+        val d = OpenSkyConfig()
+        OpenSkyConfig(
+            enabled = p[Keys.openSkyEnabled] ?: false,
+            clientId = p[Keys.openSkyClientId].orEmpty(),
+            clientSecret = p[Keys.openSkyClientSecret].orEmpty(),
+            homeIcao = p[Keys.openSkyHomeIcao]?.takeIf { it.isNotBlank() } ?: d.homeIcao,
+            callsignPrefix = p[Keys.openSkyCallsign]?.takeIf { it.isNotBlank() } ?: d.callsignPrefix,
+            lookbackWeeks = p[Keys.openSkyLookbackWeeks] ?: d.lookbackWeeks,
+        )
+    }
+
+    /** Light / dark / follow the system. */
+    val themeMode: Flow<ThemeMode> = context.dataStore.data.map { p ->
+        p[Keys.themeMode]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() } ?: ThemeMode.SYSTEM
+    }
+
     /** Whether the bundled demo data may be used when no real source is configured. */
     val allowDemoData: Flow<Boolean> = context.dataStore.data.map { it[Keys.allowDemoData] ?: true }
 
@@ -207,6 +235,21 @@ class PreferencesStore(private val context: Context) {
             p[Keys.apiFieldArrival] = config.fieldArrival
             p[Keys.apiFieldFlightNumber] = config.fieldFlightNumber
         }
+    }
+
+    suspend fun updateOpenSkyConfig(config: OpenSkyConfig) {
+        context.dataStore.edit { p ->
+            p[Keys.openSkyEnabled] = config.enabled
+            p[Keys.openSkyClientId] = config.clientId
+            p[Keys.openSkyClientSecret] = config.clientSecret
+            p[Keys.openSkyHomeIcao] = config.homeIcao
+            p[Keys.openSkyCallsign] = config.callsignPrefix
+            p[Keys.openSkyLookbackWeeks] = config.lookbackWeeks
+        }
+    }
+
+    suspend fun setThemeMode(mode: ThemeMode) {
+        context.dataStore.edit { it[Keys.themeMode] = mode.name }
     }
 
     suspend fun setAllowDemoData(allow: Boolean) {

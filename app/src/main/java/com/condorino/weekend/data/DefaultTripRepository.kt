@@ -7,6 +7,7 @@ import com.condorino.weekend.data.local.RefreshStateEntity
 import com.condorino.weekend.data.mapper.toDomain
 import com.condorino.weekend.data.mapper.toEntity
 import com.condorino.weekend.data.prefs.PreferencesStore
+import com.condorino.weekend.data.reference.AirportReferenceCatalog
 import com.condorino.weekend.data.source.FlightDataSource
 import com.condorino.weekend.data.source.FlightSearchQuery
 import com.condorino.weekend.data.source.FlightSearchResult
@@ -51,6 +52,7 @@ class DefaultTripRepository(
     private val destinationCatalog: DestinationCatalog,
     private val standbyPriceRepository: StandbyPriceRepository,
     private val favoriteRepository: FavoriteRepository,
+    private val airportReferenceCatalog: AirportReferenceCatalog,
 ) : TripRepository {
 
     private val refreshing = MutableStateFlow(false)
@@ -191,10 +193,14 @@ class DefaultTripRepository(
     private fun isFresh(retrievedAtEpochMillis: Long): Boolean =
         Duration.between(Instant.ofEpochMilli(retrievedAtEpochMillis), Instant.now()) <= liveWindow
 
+    /**
+     * Airports known to the app: the bundled public reference, overlaid with whatever a source
+     * declared for itself (a feed's own spelling of a name wins), plus FRA as a hard guarantee.
+     */
     private suspend fun airportCatalog(): Map<String, Airport> {
         val stored = airportDao.all().associate { it.iata to it.toDomain() }
-        return if (Airport.HOME_IATA in stored) stored
-        else stored + (Airport.HOME_IATA to Airport.FRANKFURT)
+        return airportReferenceCatalog.airports() + stored +
+            (Airport.HOME_IATA to Airport.FRANKFURT)
     }
 
     /**

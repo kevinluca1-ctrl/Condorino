@@ -26,8 +26,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.condorino.weekend.R
 import com.condorino.weekend.core.Formatting
 import com.condorino.weekend.domain.model.WeekendTrip
+import com.condorino.weekend.ui.text.label
+import com.condorino.weekend.ui.text.leaveDaysLabel
+import com.condorino.weekend.ui.text.nightsLabel
+import com.condorino.weekend.ui.text.text
 import com.condorino.weekend.ui.theme.CondorinoColors
 
 /**
@@ -91,7 +97,7 @@ fun TripCard(
                     )
                     Text("·", color = CondorinoColors.TextTertiary, fontSize = 11.sp)
                     Text(
-                        trip.pattern.label,
+                        trip.pattern.label(),
                         color = CondorinoColors.Sky,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
@@ -104,7 +110,9 @@ fun TripCard(
                     Icon(
                         imageVector = if (trip.destination.isFavorite) Icons.Filled.Favorite
                         else Icons.Filled.FavoriteBorder,
-                        contentDescription = if (trip.destination.isFavorite) "Favorit entfernen" else "Zu Favoriten",
+                        contentDescription = stringResource(
+                            if (trip.destination.isFavorite) R.string.favorite_remove else R.string.favorite_add,
+                        ),
                         tint = if (trip.destination.isFavorite) CondorinoColors.Danger else CondorinoColors.TextTertiary,
                         modifier = Modifier.size(19.dp),
                     )
@@ -127,26 +135,26 @@ fun TripCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             LegTime(
-                label = "HIN",
+                label = stringResource(R.string.leg_out),
                 time = Formatting.time(trip.outbound.departureLocal),
                 date = Formatting.dayDate(trip.outbound.departureDateLocal),
-                sub = "an ${Formatting.time(trip.outbound.arrivalLocal)}",
+                sub = stringResource(R.string.leg_arrives, Formatting.time(trip.outbound.arrivalLocal)),
             )
             Spacer(Modifier.weight(1f))
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("✈", color = CondorinoColors.Amber, fontSize = 15.sp)
                 Text(
-                    Formatting.nights(trip.nights),
+                    nightsLabel(trip.nights),
                     color = CondorinoColors.TextTertiary,
                     fontSize = 10.sp,
                 )
             }
             Spacer(Modifier.weight(1f))
             LegTime(
-                label = "ZURÜCK",
+                label = stringResource(R.string.leg_back),
                 time = Formatting.time(trip.inbound.departureLocal),
                 date = Formatting.dayDate(trip.inbound.departureLocal.toLocalDate()),
-                sub = "an ${Formatting.time(trip.inbound.arrivalLocal)}",
+                sub = stringResource(R.string.leg_arrives, Formatting.time(trip.inbound.arrivalLocal)),
                 alignEnd = true,
             )
         }
@@ -158,17 +166,21 @@ fun TripCard(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Pill("⏱ ${trip.effectiveHoursText} vor Ort")
-            trip.economyPrice?.let { Pill("Eco ${it.format()}", color = CondorinoColors.Mint) }
-            trip.businessPrice?.let { Pill("Biz ${it.format()}", color = CondorinoColors.Sky) }
+            Pill(stringResource(R.string.card_time_on_site, trip.effectiveHoursText))
+            trip.economyPrice?.let {
+                Pill(stringResource(R.string.card_economy, it.format()), color = CondorinoColors.Mint)
+            }
+            trip.businessPrice?.let {
+                Pill(stringResource(R.string.card_business, it.format()), color = CondorinoColors.Sky)
+            }
             if (trip.economyPrice == null && trip.businessPrice == null) {
-                Pill("kein Standby-Preis", color = CondorinoColors.Warning)
+                Pill(stringResource(R.string.card_no_standby_price), color = CondorinoColors.Warning)
             }
         }
 
         trip.score.reasons.firstOrNull()?.let { reason ->
             Text(
-                text = "„$reason“",
+                text = "\u201E${reason.text()}\u201C",
                 color = CondorinoColors.TextSecondary,
                 fontSize = 12.sp,
                 lineHeight = 17.sp,
@@ -185,8 +197,8 @@ fun TripCard(
             ProvenancePill(trip.provenance)
             Spacer(Modifier.weight(1f))
             Text(
-                if (trip.pattern.vacationDaysRequired == 0) "0 Urlaubstage"
-                else "${trip.pattern.vacationDaysRequired} Urlaubstag",
+                if (trip.pattern.vacationDaysRequired == 0) stringResource(R.string.leave_none)
+                else leaveDaysLabel(trip.pattern.vacationDaysRequired.toDouble()),
                 color = if (trip.pattern.vacationDaysRequired == 0) CondorinoColors.Mint
                 else CondorinoColors.Warning,
                 fontSize = 11.sp,

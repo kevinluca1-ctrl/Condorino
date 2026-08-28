@@ -1,12 +1,12 @@
 package com.condorino.weekend.domain.model
 
-enum class ScoreComponent(val label: String, val defaultWeight: Double) {
-    FLIGHT_TIME_COMFORT("Flugzeit-Komfort", 0.25),
-    STAY_QUALITY("Aufenthaltsqualität", 0.20),
-    WEEKEND_COMPATIBILITY("Wochenend-Kompatibilität", 0.20),
-    LOGISTICS("Logistik", 0.10),
-    COST("Kosten", 0.15),
-    DESTINATION_QUALITY("Destination Quality", 0.10),
+enum class ScoreComponent(val defaultWeight: Double) {
+    FLIGHT_TIME_COMFORT(0.25),
+    STAY_QUALITY(0.20),
+    WEEKEND_COMPATIBILITY(0.20),
+    LOGISTICS(0.10),
+    COST(0.15),
+    DESTINATION_QUALITY(0.10),
 }
 
 /** One component of the score: raw 0..100 value plus the weight it was applied with. */
@@ -14,7 +14,8 @@ data class ComponentScore(
     val component: ScoreComponent,
     val value: Double,
     val weight: Double,
-    val explanation: String,
+    /** Numeric backing of the explanation; the UI turns it into a sentence in the user's language. */
+    val detail: ComponentDetail,
 ) {
     val weighted: Double get() = value * weight
 }
@@ -26,8 +27,9 @@ data class ComponentScore(
 data class TripScore(
     val total: Double,
     val components: List<ComponentScore>,
-    val reasons: List<String>,
-    val warnings: List<String> = emptyList(),
+    /** Why this trip scored as it did, as structured findings. Rendered by the UI. */
+    val reasons: List<TripInsight>,
+    val warnings: List<TripInsight> = emptyList(),
 ) {
     /** 0..10 headline figure used on the trip cards ("9.4/10"). */
     val outOfTen: Double get() = total / 10.0

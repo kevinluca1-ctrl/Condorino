@@ -31,6 +31,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.condorino.weekend.R
 import com.condorino.weekend.core.Formatting
 import com.condorino.weekend.domain.model.WeekendTrip
 import com.condorino.weekend.scoring.TimeCompatibilityCalculator
@@ -40,6 +42,9 @@ import com.condorino.weekend.ui.components.ProvenancePill
 import com.condorino.weekend.ui.components.ScoreBadge
 import com.condorino.weekend.ui.planner.PlannerUiState
 import com.condorino.weekend.ui.planner.PlannerViewModel
+import com.condorino.weekend.ui.text.label
+import com.condorino.weekend.ui.text.nightsLabel
+import com.condorino.weekend.ui.text.text
 import com.condorino.weekend.ui.theme.CondorinoColors
 import kotlin.math.roundToInt
 
@@ -57,14 +62,13 @@ fun TripDetailScreen(
     Box(modifier.fillMaxSize().background(CondorinoColors.Background)) {
         if (trip == null) {
             Column(Modifier.fillMaxSize().padding(16.dp)) {
-                BackRow(onBack, "Trip")
+                BackRow(onBack, stringResource(R.string.detail_outbound))
                 Spacer(Modifier.height(24.dp))
                 EmptyState(
                     emoji = "🔍",
-                    title = "Trip nicht mehr verfügbar",
-                    message = "Die zugrundeliegenden Flugdaten wurden inzwischen aktualisiert. " +
-                        "Gehe zurück und wähle den Trip erneut aus.",
-                    actionLabel = "Zurück",
+                    title = stringResource(R.string.detail_missing_title),
+                    message = stringResource(R.string.detail_missing_body),
+                    actionLabel = stringResource(R.string.action_back),
                     onAction = onBack,
                 )
             }
@@ -84,7 +88,7 @@ fun TripDetailScreen(
                 IconButton(onClick = { viewModel.toggleFavorite(trip.iata) }) {
                     Icon(
                         if (trip.destination.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                        contentDescription = "Favorit",
+                        contentDescription = stringResource(R.string.detail_favorite),
                         tint = if (trip.destination.isFavorite) CondorinoColors.Danger else CondorinoColors.TextSecondary,
                     )
                 }
@@ -104,7 +108,7 @@ fun TripDetailScreen(
                         letterSpacing = (-1).sp,
                     )
                     Text(
-                        "${trip.destination.airport.name} · ${trip.destination.airport.country}",
+                        "${trip.destination.airport.name} · ${trip.destination.airport.displayCountry}",
                         color = CondorinoColors.TextTertiary,
                         fontSize = 12.sp,
                     )
@@ -114,29 +118,36 @@ fun TripDetailScreen(
 
             Spacer(Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Pill(trip.pattern.label, color = CondorinoColors.Sky)
-                Pill(Formatting.nights(trip.nights))
+                Pill(trip.pattern.label(), color = CondorinoColors.Sky)
+                Pill(nightsLabel(trip.nights))
                 ProvenancePill(trip.provenance)
             }
 
             Spacer(Modifier.height(18.dp))
 
-            LegBlock("Hinflug", trip, outbound = true)
+            LegBlock(stringResource(R.string.detail_outbound), trip, outbound = true)
             Spacer(Modifier.height(10.dp))
-            LegBlock("Rückflug", trip, outbound = false)
+            LegBlock(stringResource(R.string.detail_inbound), trip, outbound = false)
 
             Spacer(Modifier.height(18.dp))
-            SectionHeader("Standby")
+            SectionHeader(stringResource(R.string.detail_standby))
             Card {
-                PriceRow("Economy (Roundtrip)", trip.economyPrice?.format() ?: "nicht hinterlegt",
-                    trip.economyPrice != null)
+                val notSet = stringResource(R.string.detail_not_set)
+                PriceRow(
+                    stringResource(R.string.detail_economy_roundtrip),
+                    trip.economyPrice?.format() ?: notSet,
+                    trip.economyPrice != null,
+                )
                 Spacer(Modifier.height(6.dp))
-                PriceRow("Business (Roundtrip)", trip.businessPrice?.format() ?: "nicht hinterlegt",
-                    trip.businessPrice != null)
+                PriceRow(
+                    stringResource(R.string.detail_business_roundtrip),
+                    trip.businessPrice?.format() ?: notSet,
+                    trip.businessPrice != null,
+                )
                 trip.standbyPrice?.let {
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        "Eingabemodus: ${it.mode.label}",
+                        stringResource(R.string.detail_entry_mode, it.mode.label()),
                         color = CondorinoColors.TextTertiary,
                         fontSize = 11.sp,
                     )
@@ -144,7 +155,10 @@ fun TripDetailScreen(
                 Spacer(Modifier.height(10.dp))
                 OutlinedButton(onClick = { onEditPrice(trip.iata) }) {
                     Text(
-                        if (trip.standbyPrice?.hasAnyPrice == true) "Preise bearbeiten" else "Standby-Preis eintragen",
+                        stringResource(
+                            if (trip.standbyPrice?.hasAnyPrice == true) R.string.detail_edit_prices
+                            else R.string.detail_add_price,
+                        ),
                         color = CondorinoColors.Amber,
                         fontSize = 13.sp,
                     )
@@ -152,24 +166,31 @@ fun TripDetailScreen(
             }
 
             Spacer(Modifier.height(18.dp))
-            SectionHeader("Zeitbilanz")
+            SectionHeader(stringResource(R.string.detail_time_budget))
             Card {
                 DetailRow(
-                    "Arbeitszeit verloren",
+                    stringResource(R.string.detail_work_lost),
                     if (workLost == 0L) "0 h" else Formatting.duration(java.time.Duration.ofMinutes(workLost)),
                     valueColor = if (workLost == 0L) CondorinoColors.Mint else CondorinoColors.Warning,
                 )
-                DetailRow("Effektive Zeit vor Ort", trip.effectiveHoursText, valueColor = CondorinoColors.Amber)
-                DetailRow("Urlaubstage nötig", trip.pattern.vacationDaysRequired.toString())
                 DetailRow(
-                    "Frühester sinnvoller Abflug",
+                    stringResource(R.string.detail_effective_time),
+                    trip.effectiveHoursText,
+                    valueColor = CondorinoColors.Amber,
+                )
+                DetailRow(
+                    stringResource(R.string.detail_leave_needed),
+                    trip.pattern.vacationDaysRequired.toString(),
+                )
+                DetailRow(
+                    stringResource(R.string.detail_earliest_departure),
                     "%02d:%02d".format(
                         state.preferences.earliestReachableDeparture.hour,
                         state.preferences.earliestReachableDeparture.minute,
                     ),
                 )
                 DetailRow(
-                    "Losfahren in ${state.preferences.homeCity} um",
+                    stringResource(R.string.detail_leave_home_at, state.preferences.homeCity),
                     "%02d:%02d".format(
                         state.preferences.latestDepartureFromHomeFor(
                             trip.outbound.departureLocal.toLocalTime(),
@@ -180,20 +201,23 @@ fun TripDetailScreen(
                     ),
                 )
                 DetailRow(
-                    "Wieder zu Hause",
+                    stringResource(R.string.detail_home_again),
                     Formatting.time(time.homeArrivalLocal(trip.inbound)),
                 )
-                DetailRow("Transfer Flughafen ↔ Zentrum", "${trip.destination.transferMinutes} min")
+                DetailRow(
+                    stringResource(R.string.detail_transfer),
+                    "${trip.destination.transferMinutes} min",
+                )
             }
 
             Spacer(Modifier.height(18.dp))
-            SectionHeader("Warum dieser Trip?")
+            SectionHeader(stringResource(R.string.detail_why))
             Card {
                 trip.score.reasons.forEach { reason ->
                     Row(Modifier.padding(vertical = 3.dp)) {
                         Text("•", color = CondorinoColors.Amber, fontSize = 13.sp)
                         Spacer(Modifier.width(8.dp))
-                        Text(reason, color = CondorinoColors.TextSecondary, fontSize = 13.sp, lineHeight = 18.sp)
+                        Text(reason.text(), color = CondorinoColors.TextSecondary, fontSize = 13.sp, lineHeight = 18.sp)
                     }
                 }
                 if (trip.score.warnings.isNotEmpty()) {
@@ -202,20 +226,20 @@ fun TripDetailScreen(
                         Row(Modifier.padding(vertical = 3.dp)) {
                             Text("⚠", color = CondorinoColors.Warning, fontSize = 12.sp)
                             Spacer(Modifier.width(8.dp))
-                            Text(warning, color = CondorinoColors.Warning, fontSize = 12.sp, lineHeight = 17.sp)
+                            Text(warning.text(), color = CondorinoColors.Warning, fontSize = 12.sp, lineHeight = 17.sp)
                         }
                     }
                 }
             }
 
             Spacer(Modifier.height(18.dp))
-            SectionHeader("Score-Zusammensetzung")
+            SectionHeader(stringResource(R.string.detail_score_breakdown))
             Card {
                 trip.score.components.forEach { component ->
                     Column(Modifier.padding(vertical = 5.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                component.component.label,
+                                component.component.label(),
                                 color = CondorinoColors.TextSecondary,
                                 fontSize = 12.sp,
                                 modifier = Modifier.weight(1f),
@@ -243,7 +267,7 @@ fun TripDetailScreen(
                             trackColor = CondorinoColors.SurfaceHigh,
                         )
                         Text(
-                            component.explanation,
+                            component.detail.text(),
                             color = CondorinoColors.TextTertiary,
                             fontSize = 10.sp,
                             modifier = Modifier.padding(top = 2.dp),
@@ -261,7 +285,11 @@ fun TripDetailScreen(
 private fun BackRow(onBack: () -> Unit, title: String, trailing: @Composable () -> Unit = {}) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Zurück", tint = CondorinoColors.TextPrimary)
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowBack,
+                stringResource(R.string.action_back),
+                tint = CondorinoColors.TextPrimary,
+            )
         }
         Text(title, color = CondorinoColors.TextSecondary, fontSize = 13.sp, modifier = Modifier.weight(1f))
         trailing()
@@ -310,8 +338,10 @@ private fun LegBlock(title: String, trip: WeekendTrip, outbound: Boolean) {
                     Pill(it, color = CondorinoColors.Amber)
                 }
                 Spacer(Modifier.weight(1f))
-                Pill(if (flight.isDirect) "Nonstop" else "Umsteigen",
-                    color = if (flight.isDirect) CondorinoColors.Mint else CondorinoColors.Warning)
+                Pill(
+                    stringResource(if (flight.isDirect) R.string.detail_nonstop else R.string.detail_connecting),
+                    color = if (flight.isDirect) CondorinoColors.Mint else CondorinoColors.Warning,
+                )
             }
             Spacer(Modifier.height(4.dp))
             Text(
@@ -350,7 +380,11 @@ private fun LegBlock(title: String, trip: WeekendTrip, outbound: Boolean) {
                 )
             }
             Text(
-                "Ortszeit ${flight.origin.timeZoneId} → ${flight.destination.timeZoneId}",
+                stringResource(
+                    R.string.detail_local_zones,
+                    flight.origin.timeZoneId,
+                    flight.destination.timeZoneId,
+                ),
                 color = CondorinoColors.TextTertiary.copy(alpha = 0.75f),
                 fontSize = 10.sp,
                 modifier = Modifier.padding(top = 4.dp),

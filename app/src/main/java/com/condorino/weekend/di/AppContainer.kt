@@ -9,10 +9,12 @@ import com.condorino.weekend.data.DestinationCatalog
 import com.condorino.weekend.data.local.CondorinoDatabase
 import com.condorino.weekend.data.mapper.toDomain
 import com.condorino.weekend.data.prefs.PreferencesStore
+import com.condorino.weekend.data.reference.AirportReferenceCatalog
 import com.condorino.weekend.data.source.AssetDemoFlightDataSource
 import com.condorino.weekend.data.source.CondorDeveloperApiDataSource
 import com.condorino.weekend.data.source.FlightDataSource
 import com.condorino.weekend.data.source.HttpFeedFlightDataSource
+import com.condorino.weekend.data.source.OpenSkyFlightDataSource
 import com.condorino.weekend.domain.model.Airport
 import com.condorino.weekend.domain.repository.FavoriteRepository
 import com.condorino.weekend.domain.repository.StandbyPriceRepository
@@ -39,6 +41,9 @@ class AppContainer(context: Context) {
 
     private val destinationCatalog: DestinationCatalog by lazy { DestinationCatalog(appContext) }
 
+    /** Public airport reference (OurAirports + OpenFlights + tzdata), shared by every source. */
+    val airportReferenceCatalog: AirportReferenceCatalog by lazy { AirportReferenceCatalog(appContext) }
+
     private val httpClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
@@ -61,7 +66,9 @@ class AppContainer(context: Context) {
         DefaultFavoriteRepository(database.favoriteDao())
     }
 
-    private val demoSource: FlightDataSource by lazy { AssetDemoFlightDataSource(appContext) }
+    private val demoSource: FlightDataSource by lazy {
+        AssetDemoFlightDataSource(appContext, airportReferenceCatalog)
+    }
 
     /**
      * Real sources in descending order of trust. The first one that returns flights wins; the
@@ -74,14 +81,23 @@ class AppContainer(context: Context) {
                 client = httpClient,
                 configProvider = { preferencesStore.condorApiConfig.first() },
                 airportCatalog = {
-                    database.airportDao().all()
-                        .associate { it.iata to it.toDomain() }
-                        .ifEmpty { mapOf(Airport.HOME_IATA to Airport.FRANKFURT) }
+                    // Cached airports first, then the bundled public reference.
+                    val cached = database.airportDao().all().associate { it.iata to it.toDomain() }
+                    airportReferenceCatalog.airports() + cached +
+                        mapOf(Airport.HOME_IATA to Airport.FRANKFURT)
                 },
             ),
             HttpFeedFlightDataSource(
                 client = httpClient,
                 configProvider = { preferencesStore.feedConfig.first() },
+                airportCatalog = airportReferenceCatalog,
+            ),
+            // Ranked last of the real sources: OpenSky describes flights that *were* flown, which
+            // is an excellent cross-check but never a statement about availability.
+            OpenSkyFlightDataSource(
+                client = httpClient,
+                configProvider = { preferencesStore.openSkyConfig.first() },
+                airportCatalog = airportReferenceCatalog,
             ),
         )
     }
@@ -97,6 +113,7 @@ class AppContainer(context: Context) {
             destinationCatalog = destinationCatalog,
             standbyPriceRepository = standbyPriceRepository,
             favoriteRepository = favoriteRepository,
+            airportReferenceCatalog = airportReferenceCatalog,
         )
     }
 

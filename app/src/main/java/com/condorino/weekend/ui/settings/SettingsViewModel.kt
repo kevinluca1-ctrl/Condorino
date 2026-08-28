@@ -5,10 +5,13 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.condorino.weekend.data.prefs.PreferencesStore
 import com.condorino.weekend.data.source.CondorApiConfig
+import com.condorino.weekend.data.reference.AirportReferenceCatalog
 import com.condorino.weekend.data.source.FeedConfig
+import com.condorino.weekend.data.source.OpenSkyConfig
 import com.condorino.weekend.data.source.FlightDataSource
 import com.condorino.weekend.data.source.SourceStatus
 import com.condorino.weekend.domain.model.StandbyPrice
+import com.condorino.weekend.domain.model.ThemeMode
 import com.condorino.weekend.domain.model.UserPreferences
 import com.condorino.weekend.domain.repository.StandbyPriceRepository
 import com.condorino.weekend.domain.repository.TripRepository
@@ -33,6 +36,10 @@ data class SettingsUiState(
     val sources: List<SourceState> = emptyList(),
     val prices: Map<String, StandbyPrice> = emptyMap(),
     val destinations: List<Destination> = emptyList(),
+    val openSkyConfig: OpenSkyConfig = OpenSkyConfig(),
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    /** How many airports the bundled public reference covers. */
+    val referenceAirportCount: Int = 0,
     /** Destination whose price card the prices screen should open expanded, if any. */
     val focusPriceIata: String? = null,
 )
@@ -42,6 +49,7 @@ class SettingsViewModel(
     private val standbyPriceRepository: StandbyPriceRepository,
     private val tripRepository: TripRepository,
     private val sources: List<FlightDataSource>,
+    private val airportReferenceCatalog: AirportReferenceCatalog,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SettingsUiState())
@@ -70,7 +78,19 @@ class SettingsViewModel(
             standbyPriceRepository.prices.collectLatest { _state.value = _state.value.copy(prices = it) }
         }
         viewModelScope.launch {
-            _state.value = _state.value.copy(destinations = tripRepository.destinations())
+            preferencesStore.openSkyConfig.collectLatest {
+                _state.value = _state.value.copy(openSkyConfig = it)
+                refreshSourceStates()
+            }
+        }
+        viewModelScope.launch {
+            preferencesStore.themeMode.collectLatest { _state.value = _state.value.copy(themeMode = it) }
+        }
+        viewModelScope.launch {
+            _state.value = _state.value.copy(
+                destinations = tripRepository.destinations(),
+                referenceAirportCount = airportReferenceCatalog.airports().size,
+            )
         }
         refreshSourceStates()
     }
@@ -95,6 +115,14 @@ class SettingsViewModel(
         viewModelScope.launch { preferencesStore.updateCondorApiConfig(config) }
     }
 
+    fun updateOpenSkyConfig(config: OpenSkyConfig) {
+        viewModelScope.launch { preferencesStore.updateOpenSkyConfig(config) }
+    }
+
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch { preferencesStore.setThemeMode(mode) }
+    }
+
     fun setAllowDemoData(allow: Boolean) {
         viewModelScope.launch { preferencesStore.setAllowDemoData(allow) }
     }
@@ -117,10 +145,16 @@ class SettingsViewModel(
             standbyPriceRepository: StandbyPriceRepository,
             tripRepository: TripRepository,
             sources: List<FlightDataSource>,
+            airportReferenceCatalog: AirportReferenceCatalog,
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                SettingsViewModel(preferencesStore, standbyPriceRepository, tripRepository, sources) as T
+            override fun <T : ViewModel> create(modelClass: Class<T>): T = SettingsViewModel(
+                preferencesStore,
+                standbyPriceRepository,
+                tripRepository,
+                sources,
+                airportReferenceCatalog,
+            ) as T
         }
     }
 }

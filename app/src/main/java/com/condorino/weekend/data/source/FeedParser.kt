@@ -31,7 +31,16 @@ class FeedParser(
     },
 ) {
 
-    fun parse(raw: String, forcedProvenance: DataProvenance? = null): ParsedFeed {
+    /**
+     * @param referenceAirports the bundled public airport reference, used for any airport a feed
+     *   references but does not declare. A feed may therefore be a bare list of IATA codes and
+     *   times; it no longer has to repeat name, country and time zone for every airport.
+     */
+    fun parse(
+        raw: String,
+        forcedProvenance: DataProvenance? = null,
+        referenceAirports: Map<String, Airport> = emptyMap(),
+    ): ParsedFeed {
         val feed = json.decodeFromString(FlightFeed.serializer(), raw)
         val skipped = mutableListOf<String>()
 
@@ -60,16 +69,24 @@ class FeedParser(
 
         val retrievedAt = feed.generatedAt?.let { parseInstantOrNull(it) }
 
+        // A feed's own declaration wins; anything it leaves out is looked up in the reference.
+        fun resolve(code: String): Airport? {
+            val key = code.uppercase()
+            return airports[key] ?: referenceAirports[key]?.also { airports[key] = it }
+        }
+
         val flights = feed.flights.mapNotNull { ff ->
-            val origin = airports[ff.origin.uppercase()]
-            val destination = airports[ff.destination.uppercase()]
+            val origin = resolve(ff.origin)
+            val destination = resolve(ff.destination)
             when {
                 origin == null -> {
-                    skipped += "Flug ${ff.flightNumber ?: "?"}: Abflughafen ${ff.origin} nicht im Feed deklariert"
+                    skipped += "Flug ${ff.flightNumber ?: "?"}: Abflughafen ${ff.origin} " +
+                        "weder im Feed deklariert noch im Referenzdatensatz gefunden"
                     null
                 }
                 destination == null -> {
-                    skipped += "Flug ${ff.flightNumber ?: "?"}: Zielflughafen ${ff.destination} nicht im Feed deklariert"
+                    skipped += "Flug ${ff.flightNumber ?: "?"}: Zielflughafen ${ff.destination} " +
+                        "weder im Feed deklariert noch im Referenzdatensatz gefunden"
                     null
                 }
                 else -> {

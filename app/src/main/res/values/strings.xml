@@ -1,4 +1,354 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Condorino</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_calendar">Kalender</string>
+    <string name="nav_compare">Vergleich</string>
+    <string name="nav_favorites">Favoriten</string>
+    <string name="nav_more">Mehr</string>
+
+    <!-- Home -->
+    <string name="home_title">Dieses Wochenende</string>
+    <string name="home_subtitle">ab Frankfurt (FRA) · Heimatort %1$s</string>
+    <string name="home_best_trips">Beste Trips</string>
+    <string name="home_count">%1$d von %2$d</string>
+    <string name="home_surprise">✈️  Surprise me</string>
+    <string name="home_prev_weekend">Vorheriges Wochenende</string>
+    <string name="home_next_weekend">Nächstes Wochenende</string>
+    <string name="home_empty_title">Keine passende Verbindung</string>
+    <string name="home_reset_filters">Filter zurücksetzen</string>
+    <string name="action_refresh_now">Jetzt aktualisieren</string>
+    <string name="action_back">Zurück</string>
+    <string name="action_filter">Filter</string>
+
+    <!-- Data status -->
+    <string name="status_demo_banner_title">⚠️  BEISPIELDATEN – KEINE ECHTEN FLÜGE</string>
+    <string name="status_demo_banner_body">Es ist keine Live-Datenquelle eingerichtet. Alle Flugzeiten und Flugnummern unten sind frei erfundene Platzhalter und dienen nur dazu, die App zu testen.</string>
+    <string name="status_demo_setup">Datenquelle einrichten →</string>
+    <string name="status_last_updated">Zuletzt aktualisiert: %1$s</string>
+    <string name="status_offline_last_updated">Offline – zuletzt aktualisiert: %1$s</string>
+    <string name="status_never">noch nie</string>
+    <string name="provenance_live">LIVE</string>
+    <string name="provenance_recent">KÜRZLICH AKTUALISIERT</string>
+    <string name="provenance_schedule">FLUGPLAN</string>
+    <string name="provenance_cached">GECACHT</string>
+    <string name="provenance_manual">MANUELL</string>
+    <string name="provenance_demo">BEISPIELDATEN</string>
+    <string name="provenance_none">KEINE DATEN</string>
+    <string name="score_label">SCORE</string>
+
+    <!-- Relative time -->
+    <string name="age_just_now">gerade eben</string>
+    <string name="age_minutes">vor %1$d min</string>
+    <string name="age_hours">vor %1$d h</string>
+    <string name="age_days">vor %1$d Tagen</string>
+    <plurals name="nights">
+        <item quantity="one">1 Nacht</item>
+        <item quantity="other">%1$d Nächte</item>
+    </plurals>
+    <plurals name="leave_days">
+        <item quantity="one">%1$s Urlaubstag</item>
+        <item quantity="other">%1$s Urlaubstage</item>
+    </plurals>
+    <string name="leave_none">0 Urlaubstage</string>
+
+    <!-- Trip card / detail -->
+    <string name="leg_out">HIN</string>
+    <string name="leg_back">ZURÜCK</string>
+    <string name="leg_arrives">an %1$s</string>
+    <string name="card_time_on_site">⏱ %1$s vor Ort</string>
+    <string name="card_economy">Eco %1$s</string>
+    <string name="card_business">Biz %1$s</string>
+    <string name="card_no_standby_price">kein Standby-Preis</string>
+    <string name="detail_outbound">Hinflug</string>
+    <string name="detail_inbound">Rückflug</string>
+    <string name="detail_standby">Standby</string>
+    <string name="detail_economy_roundtrip">Economy (Roundtrip)</string>
+    <string name="detail_business_roundtrip">Business (Roundtrip)</string>
+    <string name="detail_not_set">nicht hinterlegt</string>
+    <string name="detail_entry_mode">Eingabemodus: %1$s</string>
+    <string name="detail_edit_prices">Preise bearbeiten</string>
+    <string name="detail_add_price">Standby-Preis eintragen</string>
+    <string name="detail_time_budget">Zeitbilanz</string>
+    <string name="detail_work_lost">Arbeitszeit verloren</string>
+    <string name="detail_effective_time">Effektive Zeit vor Ort</string>
+    <string name="detail_leave_needed">Urlaubstage nötig</string>
+    <string name="detail_earliest_departure">Frühester sinnvoller Abflug</string>
+    <string name="detail_leave_home_at">Losfahren in %1$s um</string>
+    <string name="detail_home_again">Wieder zu Hause</string>
+    <string name="detail_transfer">Transfer Flughafen ↔ Zentrum</string>
+    <string name="detail_why">Warum dieser Trip?</string>
+    <string name="detail_score_breakdown">Score-Zusammensetzung</string>
+    <string name="detail_nonstop">Nonstop</string>
+    <string name="detail_connecting">Umsteigen</string>
+    <string name="detail_local_zones">Ortszeit %1$s → %2$s</string>
+    <string name="detail_missing_title">Trip nicht mehr verfügbar</string>
+    <string name="detail_missing_body">Die zugrundeliegenden Flugdaten wurden inzwischen aktualisiert. Gehe zurück und wähle den Trip erneut aus.</string>
+    <string name="detail_favorite">Favorit</string>
+    <string name="favorite_add">Zu Favoriten</string>
+    <string name="favorite_remove">Favorit entfernen</string>
+
+    <!-- Filters -->
+    <string name="filter_title">Filter</string>
+    <string name="filter_reset">Zurücksetzen</string>
+    <string name="filter_days">Reisetage</string>
+    <string name="filter_all">Alle</string>
+    <string name="filter_cabin">Reiseklasse</string>
+    <string name="filter_max_price">Max. Preis: %1$s</string>
+    <string name="filter_unlimited">unbegrenzt</string>
+    <string name="filter_min_score">Mindestscore: %1$d</string>
+    <string name="filter_destination_type">Zieltyp</string>
+    <string name="filter_favorites_only">Nur Favoriten</string>
+
+    <!-- Calendar -->
+    <string name="calendar_title">Welche Wochenenden sind gut?</string>
+    <string name="calendar_range">%1$s – %2$s</string>
+    <string name="calendar_best">Beste Wochenenden</string>
+    <string name="calendar_all">Alle Wochenenden</string>
+    <string name="calendar_no_connection">keine Verbindung</string>
+    <string name="calendar_empty_title">Keine bewerteten Wochenenden</string>
+    <string name="calendar_demo_note">Hinweis: Beispieldaten wiederholen sich jede Woche, deshalb sind hier alle Wochenenden fast gleich gut. Mit echten Flugdaten unterscheiden sie sich.</string>
+    <string name="calendar_preset_1">1 Monat</string>
+    <string name="calendar_preset_3">3 Monate</string>
+    <string name="calendar_preset_6">6 Monate</string>
+    <string name="calendar_preset_custom">Zeitraum…</string>
+    <string name="calendar_pick_range">Zeitraum wählen</string>
+    <string name="action_apply">Übernehmen</string>
+    <string name="action_cancel">Abbrechen</string>
+    <string name="calendar_msg_no_weekend">Im gewählten Zeitraum liegt kein Wochenende.</string>
+    <string name="calendar_msg_none">Für keines dieser Wochenenden liegen passende Verbindungen vor. Prüfe deine Datenquelle in den Einstellungen oder erweitere deine Vorgaben.</string>
+
+    <!-- Compare -->
+    <string name="compare_title">Vergleichen</string>
+    <string name="compare_subtitle">Wähle bis zu %1$d Ziele des Wochenendes ab Fr %2$s</string>
+    <string name="compare_clear">Auswahl leeren</string>
+    <string name="compare_nothing_title">Nichts zu vergleichen</string>
+    <string name="compare_none_selected_title">Noch nichts ausgewählt</string>
+    <string name="compare_none_selected_body">Tippe oben auf zwei oder mehr Ziele, um sie gegenüberzustellen.</string>
+    <string name="compare_factor">Faktor</string>
+    <string name="compare_trip_score">Trip Score</string>
+    <string name="compare_economy">Economy</string>
+    <string name="compare_business">Business</string>
+    <string name="compare_effective_time">Effektive Zeit</string>
+    <string name="compare_outbound">Hinflug</string>
+    <string name="compare_inbound">Rückflug</string>
+    <string name="compare_pattern">Muster</string>
+    <string name="compare_nights">Nächte</string>
+    <string name="compare_flight_time">Flugzeit</string>
+    <string name="compare_leave_days">Urlaubstage</string>
+
+    <!-- Favorites -->
+    <string name="favorites_title">Favoriten</string>
+    <string name="favorites_count">%1$d gemerkte Ziele</string>
+    <string name="favorites_empty_title">Noch keine Favoriten</string>
+    <string name="favorites_empty_body">Tippe auf einer Trip-Karte auf das Herz, um ein Ziel zu merken. Gespeicherte Standby-Preise bleiben dabei erhalten.</string>
+    <string name="favorites_none_this_weekend_title">Kein Favorit an diesem Wochenende</string>
+    <string name="favorites_none_this_weekend_body">Für deine gemerkten Ziele (%1$s) gibt es an diesem Wochenende keine passende Verbindung. Probiere ein anderes Wochenende oder schau in den Kalender.</string>
+
+    <!-- Random -->
+    <string name="random_title">✈️ Überraschungsziel</string>
+    <string name="random_nav_title">Zufallsziel</string>
+    <string name="random_weekend_from">Wochenende ab Fr %1$s</string>
+    <string name="random_empty_title">Kein Ziel gefunden</string>
+    <string name="random_empty_body">Für dieses Wochenende gibt es noch keine bewerteten Trips. Aktualisiere die Daten oder wähle ein anderes Wochenende.</string>
+    <string name="random_reroll">🎲  Nochmal würfeln</string>
+    <string name="random_pool">Auswahl aus %1$d bewerteten Trips · Modus: %2$s</string>
+    <string name="random_no_match">Für „%1$s“ gibt es an diesem Wochenende kein passendes Ziel.</string>
+    <string name="random_economy_standby">Economy Standby %1$s</string>
+    <string name="random_business">Business %1$s</string>
+    <string name="random_missing_price">Standby-Preis fehlt</string>
+
+    <string name="random_mode_any">Komplett zufällig</string>
+    <string name="random_mode_top_ten">Aus den Top 10</string>
+    <string name="random_mode_under_budget">Unter Budget</string>
+    <string name="random_mode_sun">Sonnenziel</string>
+    <string name="random_mode_city">Citytrip</string>
+    <string name="random_mode_best">Bester Score</string>
+    <string name="random_mode_any_desc">Irgendein geeignetes Ziel</string>
+    <string name="random_mode_top_ten_desc">Zufällig aus den zehn besten Trips</string>
+    <string name="random_mode_under_budget_desc">Nur Ziele innerhalb deines Budgets</string>
+    <string name="random_mode_sun_desc">Strand und Sonne</string>
+    <string name="random_mode_city_desc">Städte mit hohem Citytrip-Faktor</string>
+    <string name="random_mode_best_desc">Das am besten bewertete Ziel</string>
+    <!-- Weekday names used inside generated explanations -->
+    <string name="day_monday">Montag</string>
+    <string name="day_tuesday">Dienstag</string>
+    <string name="day_wednesday">Mittwoch</string>
+    <string name="day_thursday">Donnerstag</string>
+    <string name="day_friday">Freitag</string>
+    <string name="day_saturday">Samstag</string>
+    <string name="day_sunday">Sonntag</string>
+
+    <!-- Score insights (rendered from TripInsight) -->
+    <string name="insight_relaxed_departure">sehr entspannter %1$s-Abflug um %2$s</string>
+    <string name="insight_departure_no_work">%1$s-Abflug %2$s ohne Verlust von Arbeitszeit</string>
+    <string name="insight_slight_work_lost">leicht früher Abflug (%1$d min Arbeitszeit)</string>
+    <string name="insight_early_departure">früher Abflug um %1$s – kostet Arbeitszeit</string>
+    <string name="insight_late_arrival">späte Ankunft um %1$s Ortszeit</string>
+    <string name="insight_very_late_return">sehr später %1$s-Rückflug um %2$s</string>
+    <string name="insight_return">%1$s-Rückflug um %2$s</string>
+    <string name="insight_early_return">früher Rückflug um %1$s – kostet Wochenende</string>
+    <string name="insight_home_late">Rückkehr erst %1$s zu Hause</string>
+    <string name="insight_good_stay">gute Aufenthaltsdauer (%1$d h vor Ort)</string>
+    <string name="insight_short_stay">kurzer Aufenthalt (nur %1$d h vor Ort)</string>
+    <string name="insight_no_leave">kein Urlaubstag nötig (%1$s)</string>
+    <string name="insight_leave_needed">%1$s Urlaub nötig (%2$s)</string>
+    <string name="insight_nonstop">Nonstop in %1$s</string>
+    <string name="insight_no_usable_stay">Kein nutzbarer Aufenthalt – Rückflug zu früh.</string>
+    <string name="insight_nights_below_min">Nur %1$d Nächte – unter deinem Minimum von %2$d.</string>
+    <string name="insight_nights_above_max">%1$d Nächte – über deinem Maximum von %2$d.</string>
+    <string name="insight_missing_price">Standby-Preis für %1$s fehlt – Kosten neutral bewertet.</string>
+    <string name="insight_over_budget">Über deinem Budget (%1$s).</string>
+    <string name="insight_not_nonstop">Kein Nonstop-Flug – Umsteigeverbindung.</string>
+
+    <!-- Score component explanations -->
+    <string name="component_flight">Hinflug %1$d/100, Rückflug %2$d/100</string>
+    <string name="component_stay">%1$d h effektiv, %2$s</string>
+    <string name="component_no_stay">kein nutzbarer Aufenthalt</string>
+    <string name="component_weekend">%1$s · %2$s</string>
+    <string name="component_weekend_not_preferred">%1$s · %2$s · nicht in deinen Wunschmustern</string>
+    <string name="component_logistics">⌀ Flugzeit %1$s, Transfer %2$d min</string>
+    <string name="component_cost">%1$s Roundtrip %2$s</string>
+    <string name="component_cost_missing">kein Standby-Preis hinterlegt</string>
+    <string name="component_destination">stark für %1$s (%2$d/10)</string>
+    <string name="component_destination_missing">keine Zielbewertung hinterlegt</string>
+
+    <string name="component_flight_time_comfort">Flugzeit-Komfort</string>
+    <string name="component_stay_quality">Aufenthaltsqualität</string>
+    <string name="component_weekend_compat">Wochenend-Kompatibilität</string>
+    <string name="component_logistics_label">Logistik</string>
+    <string name="component_cost_label">Kosten</string>
+    <string name="component_destination_label">Destination Quality</string>
+
+    <!-- Weekend patterns, cabins, destination types, price modes -->
+    <string name="pattern_fri_sun">Fr → So</string>
+    <string name="pattern_thu_sun">Do → So</string>
+    <string name="pattern_fri_mon">Fr → Mo</string>
+    <string name="pattern_thu_mon">Do → Mo</string>
+    <string name="cabin_economy">Economy</string>
+    <string name="cabin_business">Business</string>
+    <string name="dest_city">City</string>
+    <string name="dest_beach">Beach</string>
+    <string name="dest_nightlife">Nightlife</string>
+    <string name="dest_culture">Culture</string>
+    <string name="dest_food">Food</string>
+    <string name="dest_nature">Nature</string>
+    <string name="price_mode_per_segment">Preis pro Segment</string>
+    <string name="price_mode_round_trip">Preis für Hin- &amp; Rückflug</string>
+
+    <!-- Rejection reasons -->
+    <string name="reject_no_outbound">Kein passender Hinflug an diesem Tag.</string>
+    <string name="reject_no_inbound">Kein passender Rückflug an diesem Tag.</string>
+    <string name="reject_negative_stay">Rückflug liegt vor der nutzbaren Ankunft.</string>
+    <string name="reject_flight_too_long">Flugzeit über deinem Maximum.</string>
+    <string name="reject_nights">Anzahl Nächte außerhalb deiner Vorgaben.</string>
+    <string name="reject_not_direct">Kein Nonstop-Flug verfügbar.</string>
+    <string name="reject_over_budget">Standby-Preis über deinem Budget.</string>
+    <string name="reject_below_min_score">Score unter deinem Mindestwert.</string>
+    <string name="empty_no_data">Für dieses Wochenende liegen noch keine Flugdaten vor.</string>
+    <string name="empty_no_match">Keine passende Verbindung gefunden.</string>
+    <string name="empty_filters">Keine Verbindung passt zu deinen aktuellen Filtern.</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Einstellungen</string>
+    <string name="settings_appearance">Darstellung</string>
+    <string name="settings_theme">Design</string>
+    <string name="theme_system">Systemeinstellung</string>
+    <string name="theme_light">Hell</string>
+    <string name="theme_dark">Dunkel</string>
+    <string name="settings_language">Sprache</string>
+    <string name="settings_language_body">Deutsch und Englisch (US). Die App folgt der Systemsprache; ab Android 13 lässt sie sich in den Systemeinstellungen einzeln umstellen.</string>
+    <string name="settings_open_language">App-Sprache wählen</string>
+
+    <string name="settings_sources">Datenquellen</string>
+    <string name="settings_sources_body">Die App erfindet keine Flugdaten. Ohne konfigurierte Quelle zeigt sie klar gekennzeichnete Beispieldaten.</string>
+    <string name="settings_source_ready">Bereit</string>
+    <string name="settings_allow_demo">Beispieldaten erlauben</string>
+    <string name="settings_allow_demo_body">Wenn keine echte Quelle liefert, werden erfundene Musterflüge angezeigt – immer rot als Beispieldaten markiert.</string>
+
+    <string name="settings_reference">Flughafen-Referenzdaten</string>
+    <string name="settings_reference_body">%1$d Flughäfen mit belegter Zeitzone, gebündelt aus OurAirports (Public Domain), OpenFlights (ODbL) und IANA tzdata. Feeds müssen deshalb nur noch IATA-Codes liefern.</string>
+
+    <string name="settings_feed">Eigener Flight-Feed</string>
+    <string name="settings_feed_body">JSON nach dem Condorino-Feed-Schema (siehe docs/CONDOR_DATA_SOURCES.md). Funktioniert mit jeder HTTPS-URL, die dieses Format liefert.</string>
+    <string name="settings_feed_active">Feed aktiv</string>
+    <string name="settings_feed_url">Feed-URL</string>
+    <string name="settings_auth_header">Auth-Header (optional)</string>
+    <string name="settings_auth_value">Auth-Wert (optional)</string>
+
+    <string name="settings_opensky">OpenSky-Abgleich (beobachtete Flüge)</string>
+    <string name="settings_opensky_body">Kostenlose, öffentliche ADS-B-Daten: welche Condor-Flüge ab FRA in den letzten Wochen tatsächlich geflogen sind. Daraus leitet die App einen beobachteten Flugplan ab. Keine Verfügbarkeitsaussage – immer als FLUGPLAN gekennzeichnet.</string>
+    <string name="settings_opensky_active">OpenSky aktiv</string>
+    <string name="settings_opensky_home">Heimatflughafen (ICAO)</string>
+    <string name="settings_opensky_callsign">Airline-Rufzeichen-Präfix</string>
+    <string name="settings_opensky_lookback">Rückblick (Wochen)</string>
+    <string name="settings_opensky_client_id">OpenSky Client-ID (optional)</string>
+    <string name="settings_opensky_client_secret">OpenSky Client-Secret (optional)</string>
+
+    <string name="settings_condor_api">Condor Developer API</string>
+    <string name="settings_condor_api_body">Condor betreibt ein Entwicklerportal (developer.condor.com). Der genaue Vertrag ist registrierungspflichtig – trage ihn hier ein, sobald du Zugang hast. Die App rät bewusst keine Endpunkte.</string>
+    <string name="settings_api_active">API aktiv</string>
+    <string name="settings_api_base_url">Basis-URL</string>
+    <string name="settings_api_path">Endpunkt-Pfad</string>
+    <string name="settings_api_key_header">API-Key-Header</string>
+    <string name="settings_api_key">API-Key</string>
+    <string name="settings_api_items_path">Pfad zur Flugliste in der Antwort</string>
+    <string name="settings_api_fields">Feldnamen der Antwort</string>
+    <string name="settings_api_field_origin">Feld: Abflughafen</string>
+    <string name="settings_api_field_destination">Feld: Zielflughafen</string>
+    <string name="settings_api_field_departure">Feld: Abflugzeit (ISO-8601)</string>
+    <string name="settings_api_field_arrival">Feld: Ankunftszeit (ISO-8601)</string>
+    <string name="settings_api_field_flight_number">Feld: Flugnummer</string>
+
+    <string name="settings_work">Arbeitszeiten &amp; Anfahrt</string>
+    <string name="settings_work_body">Daraus berechnet die App den frühesten realistisch erreichbaren Flug.</string>
+    <string name="settings_work_end_hour">Arbeitsende (Stunde)</string>
+    <string name="settings_work_end_minute">Arbeitsende (Minute)</string>
+    <string name="settings_home_city">Heimatort</string>
+    <string name="settings_drive_to_airport">Fahrzeit zum FRA</string>
+    <string name="settings_airport_buffer">Puffer am FRA</string>
+    <string name="settings_return_buffer">Puffer am Zielflughafen (Rückflug)</string>
+    <string name="settings_drive_home">Rückfahrt FRA → Zuhause</string>
+    <string name="settings_earliest_departure">Frühester sinnvoller Abflug ab FRA</string>
+    <string name="settings_earliest_formula">= Arbeitsende + %1$d min Anfahrt + %2$d min Puffer</string>
+
+    <string name="settings_trip_rules">Reisevorgaben</string>
+    <string name="settings_max_flight">Max. Flugzeit</string>
+    <string name="settings_min_nights">Mindestanzahl Nächte</string>
+    <string name="settings_max_nights">Maximale Anzahl Nächte</string>
+    <string name="settings_max_budget">Maximales Budget</string>
+    <string name="settings_preferred_cabin">Bevorzugte Reiseklasse</string>
+    <string name="settings_preferred_patterns">Bevorzugte Reisemuster</string>
+    <string name="settings_preferred_types">Bevorzugte Zieltypen</string>
+
+    <string name="settings_weights">Score-Gewichtung</string>
+    <string name="settings_weights_body">Die Gewichte werden normalisiert – du kannst jeden Regler einzeln verschieben.</string>
+    <string name="settings_weights_sum">Summe: %1$d %% (wird auf 100 %% normalisiert)</string>
+    <string name="settings_weights_reset">Standardgewichtung</string>
+
+    <string name="settings_prices">Standby-Preise (MyID Travel)</string>
+    <string name="settings_prices_body">Die App ruft keine MyID-Travel-Daten ab und speichert keine Zugangsdaten. Preise trägst du selbst ein.</string>
+    <string name="settings_prices_count">%1$d Ziele mit hinterlegten Preisen</string>
+    <string name="settings_manage_prices">Standby-Preise verwalten</string>
+
+    <string name="settings_privacy">Datenschutz</string>
+    <string name="settings_privacy_body">Condorino speichert ausschließlich lokal: deine Einstellungen, deine manuell eingegebenen Standby-Preise, Favoriten und einen Flugdaten-Cache. Es gibt keine Tracking-SDKs, keine Konten und keine Weitergabe an Dritte. Netzwerkzugriffe erfolgen nur auf die von dir konfigurierten Datenquellen.</string>
+
+    <!-- Standby prices screen -->
+    <string name="prices_title">Standby-Preise</string>
+    <string name="prices_body">Trage die Preise ein, die du in MyID Travel siehst. Die App fragt MyID Travel nicht ab und speichert keine Zugangsdaten.</string>
+    <string name="prices_empty_title">Noch keine Ziele bekannt</string>
+    <string name="prices_empty_body">Sobald Flugdaten geladen wurden, erscheinen hier alle erreichbaren Ziele und du kannst für jedes einen Standby-Preis hinterlegen.</string>
+    <string name="prices_entry_mode">Eingabemodus</string>
+    <string name="prices_eco_out">Economy Hinflug</string>
+    <string name="prices_eco_in">Economy Rückflug</string>
+    <string name="prices_biz_out">Business Hinflug</string>
+    <string name="prices_biz_in">Business Rückflug</string>
+    <string name="prices_taxes">Steuern &amp; Gebühren (optional)</string>
+    <string name="prices_total">Gesamtpreis Roundtrip</string>
+    <string name="prices_total_value">Economy: %1$s   ·   Business: %2$s</string>
+    <string name="value_dash">–</string>
 </resources>
+

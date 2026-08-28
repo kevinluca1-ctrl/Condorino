@@ -149,8 +149,13 @@ class StandbyPriceTest {
     }
 
     @Test
-    fun `money formats in German style`() {
-        assertEquals("90 €", Money(9_000).format())
-        assertEquals("76,50 €", Money(7_650).format())
+    fun `money formats per locale`() {
+        val de = java.util.Locale.GERMANY
+        assertEquals("90 €", Money(9_000).format(de))
+        assertEquals("76,50 €", Money(7_650).format(de))
+
+        val us = java.util.Locale.US
+        assertEquals("€90", Money(9_000).format(us))
+        assertEquals("€76.50", Money(7_650).format(us))
     }
 }

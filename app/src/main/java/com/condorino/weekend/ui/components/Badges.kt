@@ -19,6 +19,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.condorino.weekend.R
 import com.condorino.weekend.domain.model.DataProvenance
 import com.condorino.weekend.ui.theme.CondorinoColors
 import kotlin.math.roundToInt
@@ -48,7 +50,7 @@ fun ScoreBadge(
                 textAlign = TextAlign.Center,
             )
             Text(
-                text = "SCORE",
+                text = stringResource(R.string.score_label),
                 color = color.copy(alpha = 0.7f),
                 fontWeight = FontWeight.Bold,
                 fontSize = (size * 0.14).sp,
@@ -86,13 +88,13 @@ fun Pill(
 @Composable
 fun ProvenancePill(provenance: DataProvenance?, modifier: Modifier = Modifier) {
     val (label, color) = when (provenance) {
-        DataProvenance.LIVE -> "LIVE" to CondorinoColors.Mint
-        DataProvenance.RECENTLY_UPDATED -> "KÜRZLICH AKTUALISIERT" to CondorinoColors.Sky
-        DataProvenance.SCHEDULE -> "FLUGPLAN" to CondorinoColors.Amber
-        DataProvenance.CACHED -> "GECACHT" to CondorinoColors.TextTertiary
-        DataProvenance.MANUAL -> "MANUELL" to CondorinoColors.TextSecondary
-        DataProvenance.DEMO -> "BEISPIELDATEN" to CondorinoColors.Danger
-        null -> "KEINE DATEN" to CondorinoColors.TextTertiary
+        DataProvenance.LIVE -> stringResource(R.string.provenance_live) to CondorinoColors.Mint
+        DataProvenance.RECENTLY_UPDATED -> stringResource(R.string.provenance_recent) to CondorinoColors.Sky
+        DataProvenance.SCHEDULE -> stringResource(R.string.provenance_schedule) to CondorinoColors.Amber
+        DataProvenance.CACHED -> stringResource(R.string.provenance_cached) to CondorinoColors.TextTertiary
+        DataProvenance.MANUAL -> stringResource(R.string.provenance_manual) to CondorinoColors.TextSecondary
+        DataProvenance.DEMO -> stringResource(R.string.provenance_demo) to CondorinoColors.Danger
+        null -> stringResource(R.string.provenance_none) to CondorinoColors.TextTertiary
     }
     Row(
         modifier = modifier

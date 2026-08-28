@@ -1,5 +1,6 @@
 package com.condorino.weekend.data.source
 
+import com.condorino.weekend.data.reference.AirportReferenceCatalog
 import com.condorino.weekend.domain.model.DataProvenance
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -24,6 +25,7 @@ import java.time.Instant
 class HttpFeedFlightDataSource(
     private val client: OkHttpClient,
     private val configProvider: suspend () -> FeedConfig,
+    private val airportCatalog: AirportReferenceCatalog,
     private val parser: FeedParser = FeedParser(),
 ) : FlightDataSource {
 
@@ -84,7 +86,7 @@ class HttpFeedFlightDataSource(
                         return@withContext FlightSearchResult.Failure("Der Feed hat eine leere Antwort geliefert.")
                     }
 
-                    val parsed = parser.parse(body)
+                    val parsed = parser.parse(body, referenceAirports = airportCatalog.airports())
                     val filtered = parsed.flights.filter { f ->
                         val date = f.departureLocal.toLocalDate()
                         !date.isBefore(query.from) && !date.isAfter(query.to)

@@ -29,11 +29,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.ui.res.stringResource
+import com.condorino.weekend.R
 import com.condorino.weekend.core.Formatting
 import com.condorino.weekend.domain.model.WeekendTrip
 import com.condorino.weekend.ui.components.EmptyState
 import com.condorino.weekend.ui.planner.PlannerUiState
 import com.condorino.weekend.ui.planner.PlannerViewModel
+import com.condorino.weekend.ui.text.label
+import com.condorino.weekend.ui.text.text
 import com.condorino.weekend.ui.theme.CondorinoColors
 import kotlin.math.roundToInt
 
@@ -55,15 +60,18 @@ fun CompareScreen(
             .padding(16.dp),
     ) {
         Text(
-            "Vergleichen",
+            stringResource(R.string.compare_title),
             color = CondorinoColors.TextPrimary,
             fontSize = 28.sp,
             fontWeight = FontWeight.Black,
             letterSpacing = (-1).sp,
         )
         Text(
-            "Wähle bis zu ${PlannerViewModel.MAX_COMPARE} Ziele des Wochenendes ab Fr " +
+            stringResource(
+                R.string.compare_subtitle,
+                PlannerViewModel.MAX_COMPARE,
                 Formatting.shortDate(state.friday),
+            ),
             color = CondorinoColors.TextTertiary,
             fontSize = 12.sp,
         )
@@ -73,8 +81,8 @@ fun CompareScreen(
         if (state.trips.isEmpty()) {
             EmptyState(
                 emoji = "⚖️",
-                title = "Nichts zu vergleichen",
-                message = state.emptyReason,
+                title = stringResource(R.string.compare_nothing_title),
+                message = state.emptyReason.text(),
             )
             return@Column
         }
@@ -99,7 +107,7 @@ fun CompareScreen(
 
         if (state.compareSelection.isNotEmpty()) {
             TextButton(onClick = viewModel::clearCompare) {
-                Text("Auswahl leeren", color = CondorinoColors.Amber, fontSize = 12.sp)
+                Text(stringResource(R.string.compare_clear), color = CondorinoColors.Amber, fontSize = 12.sp)
             }
         }
 
@@ -108,8 +116,8 @@ fun CompareScreen(
         if (selected.isEmpty()) {
             EmptyState(
                 emoji = "👆",
-                title = "Noch nichts ausgewählt",
-                message = "Tippe oben auf zwei oder mehr Ziele, um sie gegenüberzustellen.",
+                title = stringResource(R.string.compare_none_selected_title),
+                message = stringResource(R.string.compare_none_selected_body),
             )
         } else {
             ComparisonTable(selected)
@@ -133,8 +141,8 @@ private fun ComparisonTable(trips: List<WeekendTrip>) {
     ) {
         Row(Modifier.horizontalScroll(rememberScrollState())) {
             Column {
-                HeaderCell("Faktor", labelWidth)
-                CompareRowLabels().forEach { LabelCell(it, labelWidth) }
+                HeaderCell(stringResource(R.string.compare_factor), labelWidth)
+                compareRowLabels().forEach { LabelCell(it, labelWidth) }
             }
             trips.forEach { trip ->
                 Column {
@@ -153,12 +161,13 @@ private fun ComparisonTable(trips: List<WeekendTrip>) {
                     }
                     ValueCell(trip.score.total.roundToInt().toString(), columnWidth,
                         CondorinoColors.forScore(trip.score.total), bold = true)
-                    ValueCell(trip.economyPrice?.format() ?: "–", columnWidth)
-                    ValueCell(trip.businessPrice?.format() ?: "–", columnWidth)
+                    val dash = stringResource(R.string.value_dash)
+                    ValueCell(trip.economyPrice?.format() ?: dash, columnWidth)
+                    ValueCell(trip.businessPrice?.format() ?: dash, columnWidth)
                     ValueCell("${trip.effectiveTime.toHours()} h", columnWidth)
                     ValueCell(Formatting.time(trip.outbound.departureLocal), columnWidth)
                     ValueCell(Formatting.time(trip.inbound.departureLocal), columnWidth)
-                    ValueCell(trip.pattern.label, columnWidth)
+                    ValueCell(trip.pattern.label(), columnWidth)
                     ValueCell(trip.nights.toString(), columnWidth)
                     ValueCell(Formatting.duration(trip.outbound.duration), columnWidth)
                     ValueCell(
@@ -172,17 +181,19 @@ private fun ComparisonTable(trips: List<WeekendTrip>) {
     }
 }
 
-private fun CompareRowLabels() = listOf(
-    "Trip Score",
-    "Economy",
-    "Business",
-    "Effektive Zeit",
-    "Hinflug",
-    "Rückflug",
-    "Muster",
-    "Nächte",
-    "Flugzeit",
-    "Urlaubstage",
+@Composable
+@ReadOnlyComposable
+private fun compareRowLabels() = listOf(
+    stringResource(R.string.compare_trip_score),
+    stringResource(R.string.compare_economy),
+    stringResource(R.string.compare_business),
+    stringResource(R.string.compare_effective_time),
+    stringResource(R.string.compare_outbound),
+    stringResource(R.string.compare_inbound),
+    stringResource(R.string.compare_pattern),
+    stringResource(R.string.compare_nights),
+    stringResource(R.string.compare_flight_time),
+    stringResource(R.string.compare_leave_days),
 )
 
 @Composable

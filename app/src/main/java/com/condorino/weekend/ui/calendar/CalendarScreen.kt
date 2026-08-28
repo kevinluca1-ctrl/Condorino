@@ -36,19 +36,26 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.annotation.StringRes
+import androidx.compose.ui.res.stringResource
+import com.condorino.weekend.R
 import com.condorino.weekend.core.Formatting
 import com.condorino.weekend.domain.repository.WeekendSearchResult
 import com.condorino.weekend.ui.components.DataStatusBar
+import com.condorino.weekend.ui.text.label
+import com.condorino.weekend.ui.text.text
 import com.condorino.weekend.ui.components.EmptyState
 import com.condorino.weekend.ui.theme.CondorinoColors
 import java.time.LocalDate
 import kotlin.math.roundToInt
 
-private enum class RangePreset(val label: String, val months: Long?) {
-    ONE("1 Monat", 1), THREE("3 Monate", 3), SIX("6 Monate", 6),
+private enum class RangePreset(@StringRes val label: Int, val months: Long?) {
+    ONE(R.string.calendar_preset_1, 1),
+    THREE(R.string.calendar_preset_3, 3),
+    SIX(R.string.calendar_preset_6, 6),
 
-    /** Explicit Von/Bis selection (spec §16). */
-    CUSTOM("Zeitraum…", null),
+    /** Explicit from/to selection (spec §16). */
+    CUSTOM(R.string.calendar_preset_custom, null),
 }
 
 /**
@@ -86,7 +93,7 @@ fun CalendarScreen(
         ) {
             item {
                 Text(
-                    "Welche Wochenenden sind gut?",
+                    stringResource(R.string.calendar_title),
                     color = CondorinoColors.TextPrimary,
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Black,
@@ -94,7 +101,11 @@ fun CalendarScreen(
                     lineHeight = 32.sp,
                 )
                 Text(
-                    "${Formatting.shortDate(state.from)} – ${Formatting.shortDate(state.to)}",
+                    stringResource(
+                        R.string.calendar_range,
+                        Formatting.shortDate(state.from),
+                        Formatting.shortDate(state.to),
+                    ),
                     color = CondorinoColors.TextTertiary,
                     fontSize = 12.sp,
                 )
@@ -110,8 +121,7 @@ fun CalendarScreen(
             item {
                 if (state.status.isDemo) {
                     Text(
-                        "Hinweis: Beispieldaten wiederholen sich jede Woche, deshalb sind hier alle " +
-                            "Wochenenden fast gleich gut. Mit echten Flugdaten unterscheiden sie sich.",
+                        stringResource(R.string.calendar_demo_note),
                         color = CondorinoColors.Warning,
                         fontSize = 11.sp,
                         lineHeight = 15.sp,
@@ -134,7 +144,7 @@ fun CalendarScreen(
                                     viewModel.setRange(from, from.plusMonths(months))
                                 }
                             },
-                            label = { Text(option.label, fontSize = 12.sp) },
+                            label = { Text(stringResource(option.label), fontSize = 12.sp) },
                             colors = FilterChipDefaults.filterChipColors(
                                 containerColor = CondorinoColors.SurfaceElevated,
                                 labelColor = CondorinoColors.TextSecondary,
@@ -160,14 +170,14 @@ fun CalendarScreen(
                 item {
                     EmptyState(
                         emoji = "📅",
-                        title = "Keine bewerteten Wochenenden",
-                        message = message,
+                        title = stringResource(R.string.calendar_empty_title),
+                        message = message.text(),
                     )
                 }
             }
 
             if (state.ranked.isNotEmpty()) {
-                item { SectionTitle("Beste Wochenenden") }
+                item { SectionTitle(stringResource(R.string.calendar_best)) }
                 items(state.ranked.take(8), key = { "best-${it.friday}" }) { result ->
                     BestWeekendRow(
                         rank = state.ranked.indexOf(result) + 1,
@@ -176,7 +186,7 @@ fun CalendarScreen(
                     )
                 }
 
-                item { SectionTitle("Alle Wochenenden") }
+                item { SectionTitle(stringResource(R.string.calendar_all)) }
                 state.byMonth.forEach { (month, results) ->
                     item(key = "month-$month") {
                         Text(
@@ -238,7 +248,7 @@ private fun BestWeekendRow(rank: Int, result: WeekendSearchResult, onClick: () -
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                "${best.pattern.label} · ${Formatting.time(best.outbound.departureLocal)} → " +
+                "${best.pattern.label()} · ${Formatting.time(best.outbound.departureLocal)} → " +
                     Formatting.time(best.inbound.departureLocal),
                 color = CondorinoColors.TextTertiary,
                 fontSize = 11.sp,
@@ -266,14 +276,18 @@ private fun WeekendRow(result: WeekendSearchResult, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            "Fr ${Formatting.shortDate(result.friday)}",
+            Formatting.dayDate(result.friday),
             color = CondorinoColors.TextSecondary,
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.width(78.dp),
         )
         if (best == null) {
-            Text("keine Verbindung", color = CondorinoColors.TextTertiary, fontSize = 12.sp)
+            Text(
+                stringResource(R.string.calendar_no_connection),
+                color = CondorinoColors.TextTertiary,
+                fontSize = 12.sp,
+            )
         } else {
             Text(stars(best.score.total), color = CondorinoColors.Amber, fontSize = 13.sp)
             Spacer(Modifier.width(8.dp))
@@ -331,12 +345,12 @@ private fun RangePickerDialog(
                 enabled = pickerState.selectedStartDateMillis != null &&
                     pickerState.selectedEndDateMillis != null,
             ) {
-                Text("Übernehmen", color = CondorinoColors.Amber)
+                Text(stringResource(R.string.action_apply), color = CondorinoColors.Amber)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Abbrechen", color = CondorinoColors.TextSecondary)
+                Text(stringResource(R.string.action_cancel), color = CondorinoColors.TextSecondary)
             }
         },
         colors = androidx.compose.material3.DatePickerDefaults.colors(
@@ -347,7 +361,7 @@ private fun RangePickerDialog(
             state = pickerState,
             title = {
                 Text(
-                    "Zeitraum wählen",
+                    stringResource(R.string.calendar_pick_range),
                     color = CondorinoColors.TextPrimary,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,

@@ -2,11 +2,13 @@ package com.condorino.weekend.scoring
 
 import com.condorino.weekend.Fixtures
 import com.condorino.weekend.domain.model.Cabin
+import com.condorino.weekend.domain.model.ComponentDetail
 import com.condorino.weekend.domain.model.Destination
 import com.condorino.weekend.domain.model.Flight
 import com.condorino.weekend.domain.model.PriceEntryMode
 import com.condorino.weekend.domain.model.ScoreComponent
 import com.condorino.weekend.domain.model.StandbyPrice
+import com.condorino.weekend.domain.model.TripInsight
 import com.condorino.weekend.domain.model.TripScore
 import com.condorino.weekend.domain.model.UserPreferences
 import com.condorino.weekend.domain.model.WeekendPattern
@@ -109,7 +111,7 @@ class TripScoringEngineTest {
 
     @Test
     fun `pattern priority follows the order in the brief`() {
-        val reasons = mutableListOf<String>()
+        val reasons = mutableListOf<TripInsight>()
         val ordered = WeekendPattern.byPriority.map {
             engine.weekendCompatibility(it, outboundWorkdayPenalty = 0.0, reasons = reasons).first
         }
@@ -139,11 +141,11 @@ class TripScoringEngineTest {
 
     @Test
     fun `cost score is neutral when no standby price is known and warns about it`() {
-        val warnings = mutableListOf<String>()
-        val (value, explanation) = engine.cost(null, warnings)
+        val warnings = mutableListOf<TripInsight>()
+        val (value, detail) = engine.cost(null, warnings)
         assertEquals(TripScoringEngine.NEUTRAL_SCORE, value, 1e-9)
-        assertTrue(warnings.single().contains("fehlt"))
-        assertTrue(explanation.contains("kein Standby-Preis"))
+        assertTrue(warnings.single() is TripInsight.MissingStandbyPrice)
+        assertEquals(null, (detail as ComponentDetail.Cost).price)
     }
 
     @Test
@@ -157,19 +159,20 @@ class TripScoringEngineTest {
 
     @Test
     fun `over-budget prices score zero and produce a warning`() {
-        val warnings = mutableListOf<String>()
+        val warnings = mutableListOf<TripInsight>()
         val tooMuch = StandbyPrice("LGW", PriceEntryMode.ROUND_TRIP, economyOutboundCents = 60_000)
         val (value, _) = engine.cost(tooMuch, warnings)
         assertEquals(0.0, value, 1e-9)
-        assertTrue(warnings.any { it.contains("Budget") })
+        assertTrue(warnings.any { it is TripInsight.OverBudget })
     }
 
     @Test
     fun `a negative stay scores zero and warns`() {
-        val warnings = mutableListOf<String>()
-        val (value, _) = engine.stayQuality(java.time.Duration.ofHours(-2), 0, mutableListOf(), warnings)
+        val warnings = mutableListOf<TripInsight>()
+        val (value, detail) = engine.stayQuality(java.time.Duration.ofHours(-2), 0, mutableListOf(), warnings)
         assertEquals(0.0, value, 1e-9)
-        assertTrue(warnings.any { it.contains("Rückflug zu früh") })
+        assertTrue(warnings.any { it == TripInsight.NoUsableStay })
+        assertEquals(ComponentDetail.NoStay, detail)
     }
 
     @Test
@@ -194,7 +197,7 @@ class TripScoringEngineTest {
             WeekendPattern.FRI_SUN,
         )
         assertTrue(nonstop.total > connecting.total)
-        assertTrue(connecting.warnings.any { it.contains("Nonstop") })
+        assertTrue(connecting.warnings.any { it == TripInsight.NotNonstop })
     }
 
     @Test

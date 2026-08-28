@@ -4,9 +4,9 @@ package com.condorino.weekend.domain.model
  * How the user entered a standby price. MyID Travel / staff-travel listings are sometimes quoted
  * per segment and sometimes for the whole round trip, so we make the user tell us which.
  */
-enum class PriceEntryMode(val label: String) {
-    PER_SEGMENT("Preis pro Segment"),
-    ROUND_TRIP("Preis für Hin- & Rückflug"),
+enum class PriceEntryMode {
+    PER_SEGMENT,
+    ROUND_TRIP,
 }
 
 /**

@@ -1,13 +1,13 @@
 package com.condorino.weekend.domain.model
 
 /** Coarse categories used by the "Zieltyp" filter and by the surprise-me modes. */
-enum class DestinationType(val label: String) {
-    CITY("City"),
-    BEACH("Beach"),
-    NIGHTLIFE("Nightlife"),
-    CULTURE("Culture"),
-    FOOD("Food"),
-    NATURE("Nature"),
+enum class DestinationType {
+    CITY,
+    BEACH,
+    NIGHTLIFE,
+    CULTURE,
+    FOOD,
+    NATURE,
 }
 
 /**

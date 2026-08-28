@@ -41,6 +41,14 @@ data class TripFilters(
             destinationTypes.size != DestinationType.entries.size
 }
 
+/** Why a trip list came back empty. Rendered by the UI, see `ui/text/DomainText.kt`. */
+sealed interface EmptyReason {
+    data object NoFlightData : EmptyReason
+    data class Rejected(val reason: RejectionReason) : EmptyReason
+    data object NoMatch : EmptyReason
+    data object FiltersTooTight : EmptyReason
+}
+
 data class PlannerUiState(
     val friday: LocalDate = WeekendCalendar.anchorFriday(LocalDate.now()),
     val allTrips: List<WeekendTrip> = emptyList(),
@@ -53,7 +61,8 @@ data class PlannerUiState(
     val isLoading: Boolean = true,
     val surprise: WeekendTrip? = null,
     val surpriseMode: RandomMode = RandomMode.ANY,
-    val surpriseMessage: String? = null,
+    /** True when the last draw found nothing for the selected mode. */
+    val surpriseFailed: Boolean = false,
     val compareSelection: List<String> = emptyList(),
     /**
      * The trip the detail screen is showing. Kept here rather than in the navigation route: trip
@@ -82,15 +91,20 @@ data class PlannerUiState(
             true
         }
 
-    val emptyReason: String
+    /**
+     * Why the list is empty, as a value rather than a sentence — the UI turns it into the
+     * reader's language.
+     */
+    val emptyReason: EmptyReason
         get() = when {
-            allTrips.isEmpty() && rejections.isEmpty() ->
-                "Für dieses Wochenende liegen noch keine Flugdaten vor."
-            allTrips.isEmpty() ->
-                rejections.maxByOrNull { it.value }?.key?.message
-                    ?: "Keine passende Verbindung gefunden."
-            else ->
-                "Keine Verbindung passt zu deinen aktuellen Filtern."
+            allTrips.isEmpty() && rejections.isEmpty() -> EmptyReason.NoFlightData
+            allTrips.isEmpty() -> {
+                val dominant = rejections.keys.maxWithOrNull(
+                    compareBy<RejectionReason> { it.informativeness }.thenBy { rejections[it] ?: 0 },
+                )
+                if (dominant == null) EmptyReason.NoMatch else EmptyReason.Rejected(dominant)
+            }
+            else -> EmptyReason.FiltersTooTight
         }
 
     val selectedTrip: WeekendTrip?
@@ -209,14 +223,7 @@ class PlannerViewModel(
     fun surpriseMe() {
         val current = _state.value
         val pick = randomSelector.pick(current.trips, current.surpriseMode, current.preferences)
-        _state.value = current.copy(
-            surprise = pick,
-            surpriseMessage = if (pick == null) {
-                "Für „${current.surpriseMode.label}“ gibt es an diesem Wochenende kein passendes Ziel."
-            } else {
-                null
-            },
-        )
+        _state.value = current.copy(surprise = pick, surpriseFailed = pick == null)
     }
 
     // ---------------------------------------------------------------- compare

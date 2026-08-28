@@ -6,13 +6,13 @@ import com.condorino.weekend.domain.model.WeekendTrip
 import kotlin.random.Random
 
 /** Modes offered by the "Surprise me" button (spec §11). */
-enum class RandomMode(val label: String, val description: String) {
-    ANY("Komplett zufällig", "Irgendein geeignetes Ziel"),
-    TOP_TEN("Aus den Top 10", "Zufällig aus den zehn besten Trips"),
-    UNDER_BUDGET("Unter Budget", "Nur Ziele innerhalb deines Budgets"),
-    SUN("Sonnenziel", "Strand und Sonne"),
-    CITY_TRIP("Citytrip", "Städte mit hohem Citytrip-Faktor"),
-    BEST_SCORE("Bester Score", "Das am besten bewertete Ziel"),
+enum class RandomMode {
+    ANY,
+    TOP_TEN,
+    UNDER_BUDGET,
+    SUN,
+    CITY_TRIP,
+    BEST_SCORE,
 }
 
 /**

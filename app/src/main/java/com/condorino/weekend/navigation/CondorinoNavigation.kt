@@ -1,5 +1,6 @@
 package com.condorino.weekend.navigation
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -17,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -26,6 +28,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.condorino.weekend.R
 import com.condorino.weekend.ui.calendar.CalendarScreen
 import com.condorino.weekend.ui.calendar.CalendarViewModel
 import com.condorino.weekend.ui.compare.CompareScreen
@@ -54,14 +57,14 @@ object Routes {
     const val TRIP_DETAIL = "trip"
 }
 
-private data class TabItem(val route: String, val label: String, val icon: ImageVector)
+private data class TabItem(val route: String, @StringRes val label: Int, val icon: ImageVector)
 
 private val tabs = listOf(
-    TabItem(Routes.HOME, "Home", Icons.Filled.Home),
-    TabItem(Routes.CALENDAR, "Kalender", Icons.Filled.CalendarMonth),
-    TabItem(Routes.COMPARE, "Vergleich", Icons.Filled.CompareArrows),
-    TabItem(Routes.FAVORITES, "Favoriten", Icons.Filled.Favorite),
-    TabItem(Routes.SETTINGS, "Mehr", Icons.Filled.Settings),
+    TabItem(Routes.HOME, R.string.nav_home, Icons.Filled.Home),
+    TabItem(Routes.CALENDAR, R.string.nav_calendar, Icons.Filled.CalendarMonth),
+    TabItem(Routes.COMPARE, R.string.nav_compare, Icons.Filled.CompareArrows),
+    TabItem(Routes.FAVORITES, R.string.nav_favorites, Icons.Filled.Favorite),
+    TabItem(Routes.SETTINGS, R.string.nav_more, Icons.Filled.Settings),
 )
 
 @Composable
@@ -93,8 +96,8 @@ fun CondorinoNavigation(
                                     restoreState = true
                                 }
                             },
-                            icon = { Icon(tab.icon, contentDescription = tab.label) },
-                            label = { Text(tab.label, fontSize = 10.sp) },
+                            icon = { Icon(tab.icon, contentDescription = stringResource(tab.label)) },
+                            label = { Text(stringResource(tab.label), fontSize = 10.sp) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = CondorinoColors.Background,
                                 selectedTextColor = CondorinoColors.Amber,

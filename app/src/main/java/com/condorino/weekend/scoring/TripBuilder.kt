@@ -13,15 +13,15 @@ import java.time.LocalDate
  * Reason a candidate pairing was thrown away. Surfaced in the UI so the app can say
  * *why* there is nothing to show instead of rendering an empty list (spec §23).
  */
-enum class RejectionReason(val message: String) {
-    NO_OUTBOUND("Kein passender Hinflug an diesem Tag."),
-    NO_INBOUND("Kein passender Rückflug an diesem Tag."),
-    NEGATIVE_STAY("Rückflug liegt vor der nutzbaren Ankunft."),
-    FLIGHT_TOO_LONG("Flugzeit über deinem Maximum."),
-    NIGHTS_OUT_OF_RANGE("Anzahl Nächte außerhalb deiner Vorgaben."),
-    NOT_DIRECT("Kein Nonstop-Flug verfügbar."),
-    OVER_BUDGET("Standby-Preis über deinem Budget."),
-    BELOW_MIN_SCORE("Score unter deinem Mindestwert."),
+enum class RejectionReason {
+    NO_OUTBOUND,
+    NO_INBOUND,
+    NEGATIVE_STAY,
+    FLIGHT_TOO_LONG,
+    NIGHTS_OUT_OF_RANGE,
+    NOT_DIRECT,
+    OVER_BUDGET,
+    BELOW_MIN_SCORE,
     ;
 
     /**

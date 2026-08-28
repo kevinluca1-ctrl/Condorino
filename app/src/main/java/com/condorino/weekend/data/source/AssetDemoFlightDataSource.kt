@@ -1,6 +1,7 @@
 package com.condorino.weekend.data.source
 
 import android.content.Context
+import com.condorino.weekend.data.reference.AirportReferenceCatalog
 import com.condorino.weekend.domain.model.DataProvenance
 import com.condorino.weekend.domain.model.Flight
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +24,7 @@ import java.time.temporal.ChronoUnit
  */
 class AssetDemoFlightDataSource(
     private val context: Context,
+    private val airportCatalog: AirportReferenceCatalog,
     private val parser: FeedParser = FeedParser(),
     private val assetName: String = ASSET,
 ) : FlightDataSource {
@@ -37,7 +39,11 @@ class AssetDemoFlightDataSource(
         withContext(Dispatchers.IO) {
             try {
                 val raw = context.assets.open(assetName).bufferedReader().use { it.readText() }
-                val parsed = parser.parse(raw, forcedProvenance = DataProvenance.DEMO)
+                val parsed = parser.parse(
+                    raw,
+                    forcedProvenance = DataProvenance.DEMO,
+                    referenceAirports = airportCatalog.airports(),
+                )
 
                 // The demo feed is authored around a single reference week. Project that weekly
                 // pattern across every week the query covers, so the calendar and the

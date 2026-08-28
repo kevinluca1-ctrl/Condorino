@@ -18,9 +18,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.condorino.weekend.R
 import com.condorino.weekend.core.Formatting
 import com.condorino.weekend.domain.model.DataProvenance
 import com.condorino.weekend.domain.repository.DataStatus
+import com.condorino.weekend.ui.text.relativeAge
 import com.condorino.weekend.ui.theme.CondorinoColors
 
 /**
@@ -48,15 +51,14 @@ fun DataStatusBar(
                     .padding(horizontal = 12.dp, vertical = 10.dp),
             ) {
                 Text(
-                    "⚠️  BEISPIELDATEN – KEINE ECHTEN FLÜGE",
+                    stringResource(R.string.status_demo_banner_title),
                     color = CondorinoColors.DemoBannerText,
                     fontWeight = FontWeight.Black,
                     fontSize = 12.sp,
                     letterSpacing = 0.6.sp,
                 )
                 Text(
-                    "Es ist keine Live-Datenquelle eingerichtet. Alle Flugzeiten und Flugnummern " +
-                        "unten sind frei erfundene Platzhalter und dienen nur dazu, die App zu testen.",
+                    stringResource(R.string.status_demo_banner_body),
                     color = CondorinoColors.DemoBannerText.copy(alpha = 0.85f),
                     fontSize = 11.sp,
                     lineHeight = 15.sp,
@@ -64,7 +66,11 @@ fun DataStatusBar(
                 )
                 if (onOpenSettings != null) {
                     TextButton(onClick = onOpenSettings, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
-                        Text("Datenquelle einrichten →", color = CondorinoColors.Amber, fontSize = 12.sp)
+                        Text(
+                            stringResource(R.string.status_demo_setup),
+                            color = CondorinoColors.Amber,
+                            fontSize = 12.sp,
+                        )
                     }
                 }
             }
@@ -81,9 +87,10 @@ fun DataStatusBar(
 
             Column(Modifier.weight(1f)) {
                 Text(
-                    text = when {
-                        status.isOffline -> "Offline – zuletzt aktualisiert: ${lastUpdate(status)}"
-                        else -> "Zuletzt aktualisiert: ${lastUpdate(status)}"
+                    text = if (status.isOffline) {
+                        stringResource(R.string.status_offline_last_updated, lastUpdate(status))
+                    } else {
+                        stringResource(R.string.status_last_updated, lastUpdate(status))
                     },
                     color = CondorinoColors.TextTertiary,
                     fontSize = 11.sp,
@@ -106,7 +113,11 @@ fun DataStatusBar(
                 )
             } else {
                 TextButton(onClick = onRefresh) {
-                    Text("Jetzt aktualisieren", color = CondorinoColors.Amber, fontSize = 12.sp)
+                    Text(
+                        stringResource(R.string.action_refresh_now),
+                        color = CondorinoColors.Amber,
+                        fontSize = 12.sp,
+                    )
                 }
             }
         }
@@ -123,8 +134,11 @@ fun DataStatusBar(
     }
 }
 
-private fun lastUpdate(status: DataStatus): String =
-    status.lastSuccess?.let { "${Formatting.clock(it)} (${Formatting.relativeAge(it)})" } ?: "noch nie"
+@Composable
+private fun lastUpdate(status: DataStatus): String {
+    val success = status.lastSuccess ?: return stringResource(R.string.status_never)
+    return "${Formatting.clock(success)} (${relativeAge(success)})"
+}
 
 /** Compact inline variant used on secondary screens. */
 @Composable

@@ -35,10 +35,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.condorino.weekend.R
 import com.condorino.weekend.domain.model.Destination
 import com.condorino.weekend.domain.model.PriceEntryMode
 import com.condorino.weekend.domain.model.StandbyPrice
 import com.condorino.weekend.ui.components.EmptyState
+import com.condorino.weekend.ui.text.label
 import com.condorino.weekend.ui.theme.CondorinoColors
 
 /**
@@ -69,20 +72,27 @@ fun StandbyPricesScreen(
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Zurück", tint = CondorinoColors.TextPrimary)
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            stringResource(R.string.action_back),
+                            tint = CondorinoColors.TextPrimary,
+                        )
                     }
-                    Text("Einstellungen", color = CondorinoColors.TextSecondary, fontSize = 13.sp)
+                    Text(
+                        stringResource(R.string.settings_title),
+                        color = CondorinoColors.TextSecondary,
+                        fontSize = 13.sp,
+                    )
                 }
                 Text(
-                    "Standby-Preise",
+                    stringResource(R.string.prices_title),
                     color = CondorinoColors.TextPrimary,
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Black,
                     letterSpacing = (-1).sp,
                 )
                 Text(
-                    "Trage die Preise ein, die du in MyID Travel siehst. Die App fragt MyID Travel " +
-                        "nicht ab und speichert keine Zugangsdaten.",
+                    stringResource(R.string.prices_body),
                     color = CondorinoColors.TextTertiary,
                     fontSize = 12.sp,
                     lineHeight = 17.sp,
@@ -94,9 +104,8 @@ fun StandbyPricesScreen(
                 item {
                     EmptyState(
                         emoji = "💶",
-                        title = "Noch keine Ziele bekannt",
-                        message = "Sobald Flugdaten geladen wurden, erscheinen hier alle erreichbaren " +
-                            "Ziele und du kannst für jedes einen Standby-Preis hinterlegen.",
+                        title = stringResource(R.string.prices_empty_title),
+                        message = stringResource(R.string.prices_empty_body),
                     )
                 }
             }
@@ -149,13 +158,15 @@ private fun PriceCard(
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    price.economyRoundTrip?.let { "Eco ${it.format()}" } ?: "Eco –",
+                    price.economyRoundTrip?.let { stringResource(R.string.card_economy, it.format()) }
+                        ?: stringResource(R.string.card_economy, stringResource(R.string.value_dash)),
                     color = if (price.economyRoundTrip != null) CondorinoColors.Mint else CondorinoColors.TextTertiary,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    price.businessRoundTrip?.let { "Biz ${it.format()}" } ?: "Biz –",
+                    price.businessRoundTrip?.let { stringResource(R.string.card_business, it.format()) }
+                        ?: stringResource(R.string.card_business, stringResource(R.string.value_dash)),
                     color = if (price.businessRoundTrip != null) CondorinoColors.Sky else CondorinoColors.TextTertiary,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
@@ -167,13 +178,13 @@ private fun PriceCard(
 
         Spacer(Modifier.height(12.dp))
 
-        Text("Eingabemodus", color = CondorinoColors.TextSecondary, fontSize = 12.sp)
+        Text(stringResource(R.string.prices_entry_mode), color = CondorinoColors.TextSecondary, fontSize = 12.sp)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 6.dp)) {
             PriceEntryMode.entries.forEach { mode ->
                 FilterChip(
                     selected = price.mode == mode,
                     onClick = { onSave(price.copy(mode = mode)) },
-                    label = { Text(mode.label, fontSize = 11.sp) },
+                    label = { Text(mode.label(), fontSize = 11.sp) },
                     colors = FilterChipDefaults.filterChipColors(
                         containerColor = CondorinoColors.SurfaceElevated,
                         labelColor = CondorinoColors.TextSecondary,
@@ -184,23 +195,23 @@ private fun PriceCard(
             }
         }
 
-        EuroField("Economy Hinflug", price.economyOutboundCents) {
+        EuroField(stringResource(R.string.prices_eco_out), price.economyOutboundCents) {
             onSave(price.copy(economyOutboundCents = it))
         }
         if (price.mode == PriceEntryMode.PER_SEGMENT) {
-            EuroField("Economy Rückflug", price.economyInboundCents) {
+            EuroField(stringResource(R.string.prices_eco_in), price.economyInboundCents) {
                 onSave(price.copy(economyInboundCents = it))
             }
         }
-        EuroField("Business Hinflug", price.businessOutboundCents) {
+        EuroField(stringResource(R.string.prices_biz_out), price.businessOutboundCents) {
             onSave(price.copy(businessOutboundCents = it))
         }
         if (price.mode == PriceEntryMode.PER_SEGMENT) {
-            EuroField("Business Rückflug", price.businessInboundCents) {
+            EuroField(stringResource(R.string.prices_biz_in), price.businessInboundCents) {
                 onSave(price.copy(businessInboundCents = it))
             }
         }
-        EuroField("Steuern & Gebühren (optional)", price.taxesCents) {
+        EuroField(stringResource(R.string.prices_taxes), price.taxesCents) {
             onSave(price.copy(taxesCents = it))
         }
 
@@ -213,10 +224,18 @@ private fun PriceCard(
                 .padding(10.dp),
         ) {
             Column {
-                Text("Gesamtpreis Roundtrip", color = CondorinoColors.TextTertiary, fontSize = 10.sp)
                 Text(
-                    "Economy: ${price.economyRoundTrip?.format() ?: "–"}   ·   " +
-                        "Business: ${price.businessRoundTrip?.format() ?: "–"}",
+                    stringResource(R.string.prices_total),
+                    color = CondorinoColors.TextTertiary,
+                    fontSize = 10.sp,
+                )
+                val dash = stringResource(R.string.value_dash)
+                Text(
+                    stringResource(
+                        R.string.prices_total_value,
+                        price.economyRoundTrip?.format() ?: dash,
+                        price.businessRoundTrip?.format() ?: dash,
+                    ),
                     color = CondorinoColors.TextPrimary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,

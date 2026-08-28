@@ -1,31 +1,58 @@
 package com.condorino.weekend.ui.theme
 
+import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
+import com.condorino.weekend.domain.model.ThemeMode
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-private val DarkScheme = darkColorScheme(
-    primary = CondorinoColors.Amber,
-    onPrimary = CondorinoColors.Background,
-    primaryContainer = CondorinoColors.AmberDim,
-    onPrimaryContainer = CondorinoColors.TextPrimary,
-    secondary = CondorinoColors.Sky,
-    onSecondary = CondorinoColors.Background,
-    background = CondorinoColors.Background,
-    onBackground = CondorinoColors.TextPrimary,
-    surface = CondorinoColors.Surface,
-    onSurface = CondorinoColors.TextPrimary,
-    surfaceVariant = CondorinoColors.SurfaceElevated,
-    onSurfaceVariant = CondorinoColors.TextSecondary,
-    outline = CondorinoColors.Outline,
-    error = CondorinoColors.Danger,
-)
+private fun schemeFor(p: CondorinoPalette) = if (p.isLight) {
+    lightColorScheme(
+        primary = p.amber,
+        onPrimary = Color.White,
+        primaryContainer = p.amberDim,
+        onPrimaryContainer = p.textPrimary,
+        secondary = p.sky,
+        onSecondary = Color.White,
+        background = p.background,
+        onBackground = p.textPrimary,
+        surface = p.surface,
+        onSurface = p.textPrimary,
+        surfaceVariant = p.surfaceElevated,
+        onSurfaceVariant = p.textSecondary,
+        outline = p.outline,
+        error = p.danger,
+    )
+} else {
+    darkColorScheme(
+        primary = p.amber,
+        onPrimary = p.background,
+        primaryContainer = p.amberDim,
+        onPrimaryContainer = p.textPrimary,
+        secondary = p.sky,
+        onSecondary = p.background,
+        background = p.background,
+        onBackground = p.textPrimary,
+        surface = p.surface,
+        onSurface = p.textPrimary,
+        surfaceVariant = p.surfaceElevated,
+        onSurfaceVariant = p.textSecondary,
+        outline = p.outline,
+        error = p.danger,
+    )
+}
 
 /** Strong, tight typography — the "travel app" feel the brief asks for. */
 private val CondorinoTypography = Typography(
@@ -88,16 +115,40 @@ private val CondorinoTypography = Typography(
     ),
 )
 
+/**
+ * Applies the palette for [themeMode]. [ThemeMode.SYSTEM] follows the device's dark-mode switch,
+ * so the app changes with it at runtime without a restart.
+ */
 @Composable
 fun CondorinoTheme(
-    @Suppress("UNUSED_PARAMETER") darkTheme: Boolean = isSystemInDarkTheme(),
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
     content: @Composable () -> Unit,
 ) {
-    // The app is intentionally dark-only: it is designed around a very dark travel aesthetic and
-    // a light variant would weaken the score/provenance colour language.
-    MaterialTheme(
-        colorScheme = DarkScheme,
-        typography = CondorinoTypography,
-        content = content,
-    )
+    val dark = when (themeMode) {
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        ThemeMode.DARK -> true
+        ThemeMode.LIGHT -> false
+    }
+    val palette = if (dark) DarkPalette else LightPalette
+
+    // Keep the system bars in step with the palette, otherwise light mode gets dark icons on a
+    // dark status bar (or the reverse) at the very top of the screen.
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as? Activity)?.window ?: return@SideEffect
+            WindowCompat.getInsetsController(window, view).apply {
+                isAppearanceLightStatusBars = !dark
+                isAppearanceLightNavigationBars = !dark
+            }
+        }
+    }
+
+    CompositionLocalProvider(LocalCondorinoPalette provides palette) {
+        MaterialTheme(
+            colorScheme = schemeFor(palette),
+            typography = CondorinoTypography,
+            content = content,
+        )
+    }
 }

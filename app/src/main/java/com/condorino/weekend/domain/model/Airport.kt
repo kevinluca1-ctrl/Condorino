@@ -18,6 +18,16 @@ data class Airport(
 ) {
     val zone: ZoneId get() = runCatching { ZoneId.of(timeZoneId) }.getOrElse { ZoneId.of("UTC") }
 
+    /**
+     * Country name in the reader's language, derived from the ISO code so it follows the device
+     * locale instead of being frozen into the data file. Falls back to whatever [country] holds.
+     */
+    val displayCountry: String
+        get() = runCatching {
+            java.util.Locale("", countryCode).getDisplayCountry(java.util.Locale.getDefault())
+        }.getOrNull()?.takeIf { it.isNotBlank() && !it.equals(countryCode, ignoreCase = true) }
+            ?: country
+
     /** Unicode regional-indicator flag derived from the ISO-3166 alpha-2 country code. */
     val flag: String
         get() {

@@ -26,11 +26,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.condorino.weekend.R
 import com.condorino.weekend.domain.model.Cabin
 import com.condorino.weekend.domain.model.DestinationType
 import com.condorino.weekend.domain.model.Money
 import com.condorino.weekend.domain.model.WeekendPattern
 import com.condorino.weekend.ui.planner.TripFilters
+import com.condorino.weekend.ui.text.label
 import com.condorino.weekend.ui.theme.CondorinoColors
 import kotlin.math.roundToInt
 
@@ -58,15 +61,20 @@ fun FilterSheet(
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Filter", color = CondorinoColors.TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.Black)
+                Text(
+                    stringResource(R.string.filter_title),
+                    color = CondorinoColors.TextPrimary,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Black,
+                )
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = { onChange(TripFilters()) }) {
-                        Text("Zurücksetzen", color = CondorinoColors.Amber, fontSize = 13.sp)
+                        Text(stringResource(R.string.filter_reset), color = CondorinoColors.Amber, fontSize = 13.sp)
                     }
                 }
             }
 
-            SectionTitle("Reisetage")
+            SectionTitle(stringResource(R.string.filter_days))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 WeekendPattern.byPriority.forEach { pattern ->
                     val selected = pattern in filters.patterns
@@ -76,19 +84,19 @@ fun FilterSheet(
                             val next = if (selected) filters.patterns - pattern else filters.patterns + pattern
                             onChange(filters.copy(patterns = next.ifEmpty { WeekendPattern.entries.toSet() }))
                         },
-                        label = { Text(pattern.label, fontSize = 13.sp) },
+                        label = { Text(pattern.label(), fontSize = 13.sp) },
                         colors = chipColors(),
                     )
                 }
                 FilterChip(
                     selected = filters.patterns.size == WeekendPattern.entries.size,
                     onClick = { onChange(filters.copy(patterns = WeekendPattern.entries.toSet())) },
-                    label = { Text("Alle", fontSize = 13.sp) },
+                    label = { Text(stringResource(R.string.filter_all), fontSize = 13.sp) },
                     colors = chipColors(),
                 )
             }
 
-            SectionTitle("Reiseklasse")
+            SectionTitle(stringResource(R.string.filter_cabin))
             Row {
                 Cabin.entries.forEach { cabin ->
                     val checked = cabin in filters.cabins
@@ -101,13 +109,17 @@ fun FilterSheet(
                             },
                             colors = CheckboxDefaults.colors(checkedColor = CondorinoColors.Amber),
                         )
-                        Text(cabin.label, color = CondorinoColors.TextSecondary, fontSize = 13.sp)
+                        Text(cabin.label(), color = CondorinoColors.TextSecondary, fontSize = 13.sp)
                     }
                 }
             }
 
             SectionTitle(
-                "Max. Preis: " + (filters.maxPriceCents?.let { Money(it).format() } ?: "unbegrenzt"),
+                stringResource(
+                    R.string.filter_max_price,
+                    filters.maxPriceCents?.let { Money(it).format() }
+                        ?: stringResource(R.string.filter_unlimited),
+                ),
             )
             Slider(
                 value = (filters.maxPriceCents ?: MAX_PRICE_CENTS).toFloat(),
@@ -124,7 +136,7 @@ fun FilterSheet(
                 ),
             )
 
-            SectionTitle("Mindestscore: ${filters.minScore}")
+            SectionTitle(stringResource(R.string.filter_min_score, filters.minScore))
             Slider(
                 value = filters.minScore.toFloat(),
                 onValueChange = { onChange(filters.copy(minScore = it.roundToInt())) },
@@ -137,7 +149,7 @@ fun FilterSheet(
                 ),
             )
 
-            SectionTitle("Zieltyp")
+            SectionTitle(stringResource(R.string.filter_destination_type))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 DestinationType.entries.forEach { type ->
                     val selected = type in filters.destinationTypes
@@ -152,7 +164,7 @@ fun FilterSheet(
                                 ),
                             )
                         },
-                        label = { Text(type.label, fontSize = 13.sp) },
+                        label = { Text(type.label(), fontSize = 13.sp) },
                         colors = chipColors(),
                     )
                 }
@@ -164,7 +176,7 @@ fun FilterSheet(
                     onCheckedChange = { onChange(filters.copy(favoritesOnly = it)) },
                     colors = CheckboxDefaults.colors(checkedColor = CondorinoColors.Amber),
                 )
-                Text("Nur Favoriten", color = CondorinoColors.TextSecondary, fontSize = 13.sp)
+                Text(stringResource(R.string.filter_favorites_only), color = CondorinoColors.TextSecondary, fontSize = 13.sp)
             }
         }
     }

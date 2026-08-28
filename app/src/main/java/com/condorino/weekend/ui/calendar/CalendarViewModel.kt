@@ -13,12 +13,16 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
+/** Empty-state reasons for the calendar, kept language-free. */
+enum class CalendarMessage { NO_WEEKEND_IN_RANGE, NO_CONNECTIONS }
+
 data class CalendarUiState(
     val from: LocalDate = LocalDate.now(),
     val to: LocalDate = LocalDate.now().plusMonths(3),
     val weekends: List<WeekendSearchResult> = emptyList(),
     val isLoading: Boolean = false,
-    val message: String? = null,
+    /** Why the range came back empty, if it did. Rendered by the UI. */
+    val message: CalendarMessage? = null,
     /** Same provenance/freshness contract as every other data-bearing screen (spec §4). */
     val status: DataStatus = DataStatus.EMPTY,
 ) {
@@ -75,15 +79,11 @@ class CalendarViewModel(
         }
     }
 
-    private fun messageFor(results: List<com.condorino.weekend.domain.repository.WeekendSearchResult>): String? =
-        when {
-            results.isEmpty() ->
-                "Im gewählten Zeitraum liegt kein Wochenende."
-            results.all { it.trips.isEmpty() } ->
-                "Für keines dieser Wochenenden liegen passende Verbindungen vor. " +
-                    "Prüfe deine Datenquelle in den Einstellungen oder erweitere deine Vorgaben."
-            else -> null
-        }
+    private fun messageFor(results: List<WeekendSearchResult>): CalendarMessage? = when {
+        results.isEmpty() -> CalendarMessage.NO_WEEKEND_IN_RANGE
+        results.all { it.trips.isEmpty() } -> CalendarMessage.NO_CONNECTIONS
+        else -> null
+    }
 
     fun setRange(from: LocalDate, to: LocalDate) = search(from, to)
 

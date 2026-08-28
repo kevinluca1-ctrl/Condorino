@@ -8,30 +8,72 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-/** German-locale formatting helpers used across the UI. */
+/**
+ * Locale-aware date and time formatting.
+ *
+ * Two rules hold in every language:
+ *
+ *  * **Times are 24-hour.** The whole app is an argument about 18:15 versus 13:00; am/pm would
+ *    make its central comparison harder to read at a glance.
+ *  * **Dates are day-before-month.** `dd.MM.` in German, `dd MMM` in English. US month-first
+ *    (MM/DD/YYYY) is deliberately not used anywhere, in any locale.
+ *
+ * Formatters are cached per locale, because the device language can change while the app is alive.
+ */
 object Formatting {
 
-    private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.GERMANY)
-    private val dayDateFormatter = DateTimeFormatter.ofPattern("EEE dd.MM.", Locale.GERMANY)
-    private val longDateFormatter = DateTimeFormatter.ofPattern("EEEE, dd.MM.yyyy", Locale.GERMANY)
-    private val shortDateFormatter = DateTimeFormatter.ofPattern("dd.MM.", Locale.GERMANY)
-    private val monthFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.GERMANY)
+    private data class Patterns(
+        val time: DateTimeFormatter,
+        val dayDate: DateTimeFormatter,
+        val longDate: DateTimeFormatter,
+        val shortDate: DateTimeFormatter,
+        val month: DateTimeFormatter,
+    )
 
-    fun time(value: ZonedDateTime): String = value.format(timeFormatter)
+    private val cache = HashMap<String, Patterns>()
 
-    fun time(instant: Instant, zone: ZoneId): String = instant.atZone(zone).format(timeFormatter)
+    @Synchronized
+    private fun patterns(locale: Locale): Patterns = cache.getOrPut(locale.toLanguageTag()) {
+        val german = locale.language == "de"
+        Patterns(
+            time = DateTimeFormatter.ofPattern("HH:mm", locale),
+            // German: "Fr 04.09."  ·  English: "Fri 04 Sep"
+            dayDate = DateTimeFormatter.ofPattern(if (german) "EEE dd.MM." else "EEE dd MMM", locale),
+            longDate = DateTimeFormatter.ofPattern(
+                if (german) "EEEE, dd.MM.yyyy" else "EEEE, dd MMM yyyy", locale,
+            ),
+            shortDate = DateTimeFormatter.ofPattern(if (german) "dd.MM." else "dd MMM", locale),
+            month = DateTimeFormatter.ofPattern("MMMM yyyy", locale),
+        )
+    }
 
-    fun dayDate(date: LocalDate): String = date.format(dayDateFormatter)
+    private fun current(): Locale = Locale.getDefault()
 
-    fun longDate(date: LocalDate): String = date.format(longDateFormatter)
+    fun time(value: ZonedDateTime, locale: Locale = current()): String =
+        value.format(patterns(locale).time)
 
-    fun shortDate(date: LocalDate): String = date.format(shortDateFormatter)
+    fun time(instant: Instant, zone: ZoneId, locale: Locale = current()): String =
+        instant.atZone(zone).format(patterns(locale).time)
 
-    fun month(date: LocalDate): String = date.format(monthFormatter)
+    fun time(value: java.time.LocalTime, locale: Locale = current()): String =
+        value.format(patterns(locale).time)
 
-    fun clock(instant: Instant): String =
-        instant.atZone(ZoneId.systemDefault()).format(timeFormatter)
+    fun dayDate(date: LocalDate, locale: Locale = current()): String =
+        date.format(patterns(locale).dayDate)
 
+    fun longDate(date: LocalDate, locale: Locale = current()): String =
+        date.format(patterns(locale).longDate)
+
+    fun shortDate(date: LocalDate, locale: Locale = current()): String =
+        date.format(patterns(locale).shortDate)
+
+    fun month(date: LocalDate, locale: Locale = current()): String =
+        date.format(patterns(locale).month)
+
+    fun clock(instant: Instant, locale: Locale = current()): String =
+        instant.atZone(ZoneId.systemDefault()).format(patterns(locale).time)
+
+    /** "2 h 15 min" — the unit abbreviations read the same in both supported languages. */
     fun duration(duration: Duration): String {
         val minutes = duration.toMinutes().coerceAtLeast(0)
         val h = minutes / 60
@@ -39,17 +81,8 @@ object Formatting {
         return if (h == 0L) "$m min" else "$h h ${m.toString().padStart(2, '0')} min"
     }
 
-    /** "2 Nächte", "1 Nacht". */
-    fun nights(count: Int): String = if (count == 1) "1 Nacht" else "$count Nächte"
+    fun minutes(value: Long): String = duration(Duration.ofMinutes(value))
 
-    fun relativeAge(instant: Instant?): String {
-        if (instant == null) return "noch nie"
-        val minutes = Duration.between(instant, Instant.now()).toMinutes()
-        return when {
-            minutes < 1 -> "gerade eben"
-            minutes < 60 -> "vor $minutes min"
-            minutes < 60 * 24 -> "vor ${minutes / 60} h"
-            else -> "vor ${minutes / (60 * 24)} Tagen"
-        }
-    }
+    /** Whole minutes between now and [instant]; the wording lives in the string resources. */
+    fun minutesSince(instant: Instant): Long = Duration.between(instant, Instant.now()).toMinutes()
 }

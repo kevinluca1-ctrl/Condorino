@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Condorino" parent="android:Theme.Material.NoActionBar">
-        <item name="android:statusBarColor">#0B0D12</item>
-        <item name="android:navigationBarColor">#0B0D12</item>
-        <item name="android:windowBackground">#0B0D12</item>
+    <!-- Light window chrome. The dark variant lives in values-night/. -->
+    <style name="Theme.Condorino" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">#F7F8FC</item>
+        <item name="android:navigationBarColor">#F7F8FC</item>
+        <item name="android:windowBackground">#F7F8FC</item>
     </style>
 </resources>

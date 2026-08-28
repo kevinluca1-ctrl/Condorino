@@ -36,6 +36,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.condorino.weekend.R
 import com.condorino.weekend.core.Formatting
 import com.condorino.weekend.ui.components.DataStatusBar
 import com.condorino.weekend.ui.components.EmptyState
@@ -43,6 +45,7 @@ import com.condorino.weekend.ui.components.TripCard
 import com.condorino.weekend.ui.planner.PlannerUiState
 import com.condorino.weekend.ui.planner.PlannerViewModel
 import com.condorino.weekend.ui.planner.TripFilters
+import com.condorino.weekend.ui.text.text
 import com.condorino.weekend.ui.search.FilterSheet
 import com.condorino.weekend.ui.theme.CondorinoColors
 
@@ -69,14 +72,14 @@ fun HomeScreen(
         ) {
             item {
                 Text(
-                    "Dieses Wochenende",
+                    stringResource(R.string.home_title),
                     color = CondorinoColors.TextPrimary,
                     fontSize = 32.sp,
                     fontWeight = FontWeight.Black,
                     letterSpacing = (-1).sp,
                 )
                 Text(
-                    "ab Frankfurt (FRA) · Heimatort ${state.preferences.homeCity}",
+                    stringResource(R.string.home_subtitle, state.preferences.homeCity),
                     color = CondorinoColors.TextTertiary,
                     fontSize = 12.sp,
                 )
@@ -110,21 +113,21 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        "Beste Trips",
+                        stringResource(R.string.home_best_trips),
                         color = CondorinoColors.TextPrimary,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                     )
                     Spacer(Modifier.weight(1f))
                     Text(
-                        "${trips.size} von ${state.allTrips.size}",
+                        stringResource(R.string.home_count, trips.size, state.allTrips.size),
                         color = CondorinoColors.TextTertiary,
                         fontSize = 11.sp,
                     )
                     IconButton(onClick = { showFilters = true }) {
                         Icon(
                             Icons.Filled.Tune,
-                            contentDescription = "Filter",
+                            contentDescription = stringResource(R.string.action_filter),
                             tint = if (state.filters.isActive) CondorinoColors.Amber
                             else CondorinoColors.TextSecondary,
                             modifier = Modifier.size(20.dp),
@@ -137,9 +140,12 @@ fun HomeScreen(
                 item {
                     EmptyState(
                         emoji = "🛫",
-                        title = "Keine passende Verbindung",
-                        message = state.emptyReason,
-                        actionLabel = if (state.filters.isActive) "Filter zurücksetzen" else "Jetzt aktualisieren",
+                        title = stringResource(R.string.home_empty_title),
+                        message = state.emptyReason.text(),
+                        actionLabel = stringResource(
+                            if (state.filters.isActive) R.string.home_reset_filters
+                            else R.string.action_refresh_now,
+                        ),
                         onAction = {
                             if (state.filters.isActive) viewModel.updateFilters { TripFilters() }
                             else viewModel.refresh()
@@ -179,7 +185,11 @@ private fun WeekendSelector(state: PlannerUiState, viewModel: PlannerViewModel) 
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = viewModel::previousWeekend) {
-            Icon(Icons.Filled.ChevronLeft, "Vorheriges Wochenende", tint = CondorinoColors.Amber)
+            Icon(
+                Icons.Filled.ChevronLeft,
+                stringResource(R.string.home_prev_weekend),
+                tint = CondorinoColors.Amber,
+            )
         }
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
@@ -195,7 +205,11 @@ private fun WeekendSelector(state: PlannerUiState, viewModel: PlannerViewModel) 
             )
         }
         IconButton(onClick = viewModel::nextWeekend) {
-            Icon(Icons.Filled.ChevronRight, "Nächstes Wochenende", tint = CondorinoColors.Amber)
+            Icon(
+                Icons.Filled.ChevronRight,
+                stringResource(R.string.home_next_weekend),
+                tint = CondorinoColors.Amber,
+            )
         }
     }
 }
@@ -211,6 +225,6 @@ private fun SurpriseButton(onClick: () -> Unit) {
             contentColor = CondorinoColors.Background,
         ),
     ) {
-        Text("✈️  Surprise me", fontWeight = FontWeight.Black, fontSize = 16.sp)
+        Text(stringResource(R.string.home_surprise), fontWeight = FontWeight.Black, fontSize = 16.sp)
     }
 }

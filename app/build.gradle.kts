@@ -20,6 +20,9 @@ android {
         versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // German is the default; English (US) is the second shipped language.
+        resourceConfigurations += listOf("de", "en")
     }
 
     buildTypes {

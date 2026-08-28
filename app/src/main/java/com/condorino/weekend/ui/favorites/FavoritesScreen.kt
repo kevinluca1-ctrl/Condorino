@@ -13,6 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.condorino.weekend.R
 import com.condorino.weekend.ui.components.EmptyState
 import com.condorino.weekend.ui.components.TripCard
 import com.condorino.weekend.ui.planner.PlannerUiState
@@ -39,14 +41,14 @@ fun FavoritesScreen(
         ) {
             item {
                 Text(
-                    "Favoriten",
+                    stringResource(R.string.favorites_title),
                     color = CondorinoColors.TextPrimary,
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Black,
                     letterSpacing = (-1).sp,
                 )
                 Text(
-                    "${state.favorites.size} gemerkte Ziele",
+                    stringResource(R.string.favorites_count, state.favorites.size),
                     color = CondorinoColors.TextTertiary,
                     fontSize = 12.sp,
                 )
@@ -56,19 +58,19 @@ fun FavoritesScreen(
                 item {
                     EmptyState(
                         emoji = "🤍",
-                        title = "Noch keine Favoriten",
-                        message = "Tippe auf einer Trip-Karte auf das Herz, um ein Ziel zu merken. " +
-                            "Gespeicherte Standby-Preise bleiben dabei erhalten.",
+                        title = stringResource(R.string.favorites_empty_title),
+                        message = stringResource(R.string.favorites_empty_body),
                     )
                 }
             } else if (favoriteTrips.isEmpty()) {
                 item {
                     EmptyState(
                         emoji = "📭",
-                        title = "Kein Favorit an diesem Wochenende",
-                        message = "Für deine gemerkten Ziele (${state.favorites.sorted().joinToString(", ")}) " +
-                            "gibt es an diesem Wochenende keine passende Verbindung. " +
-                            "Probiere ein anderes Wochenende oder schau in den Kalender.",
+                        title = stringResource(R.string.favorites_none_this_weekend_title),
+                        message = stringResource(
+                            R.string.favorites_none_this_weekend_body,
+                            state.favorites.sorted().joinToString(", "),
+                        ),
                     )
                 }
             }

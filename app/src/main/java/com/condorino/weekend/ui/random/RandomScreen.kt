@@ -35,6 +35,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.condorino.weekend.R
 import com.condorino.weekend.core.Formatting
 import com.condorino.weekend.scoring.RandomMode
 import com.condorino.weekend.ui.components.EmptyState
@@ -43,6 +45,9 @@ import com.condorino.weekend.ui.components.ProvenancePill
 import com.condorino.weekend.ui.components.ScoreBadge
 import com.condorino.weekend.ui.planner.PlannerUiState
 import com.condorino.weekend.ui.planner.PlannerViewModel
+import com.condorino.weekend.ui.text.description
+import com.condorino.weekend.ui.text.label
+import com.condorino.weekend.ui.text.nightsLabel
 import com.condorino.weekend.ui.theme.CondorinoColors
 
 /** "Surprise me" (spec §11): pick a mode, draw a destination, show it as one big travel card. */
@@ -68,13 +73,21 @@ fun RandomScreen(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Zurück", tint = CondorinoColors.TextPrimary)
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    stringResource(R.string.action_back),
+                    tint = CondorinoColors.TextPrimary,
+                )
             }
-            Text("Zufallsziel", color = CondorinoColors.TextSecondary, fontSize = 13.sp)
+            Text(
+                stringResource(R.string.random_nav_title),
+                color = CondorinoColors.TextSecondary,
+                fontSize = 13.sp,
+            )
         }
 
         Text(
-            "✈️ Überraschungsziel",
+            stringResource(R.string.random_title),
             color = CondorinoColors.TextPrimary,
             fontSize = 30.sp,
             fontWeight = FontWeight.Black,
@@ -82,7 +95,7 @@ fun RandomScreen(
             modifier = Modifier.padding(top = 6.dp),
         )
         Text(
-            "Wochenende ab Fr ${Formatting.shortDate(state.friday)}",
+            stringResource(R.string.random_weekend_from, Formatting.shortDate(state.friday)),
             color = CondorinoColors.TextTertiary,
             fontSize = 12.sp,
         )
@@ -97,7 +110,7 @@ fun RandomScreen(
                         viewModel.setSurpriseMode(mode)
                         viewModel.surpriseMe()
                     },
-                    label = { Text(mode.label, fontSize = 12.sp) },
+                    label = { Text(mode.label(), fontSize = 12.sp) },
                     colors = FilterChipDefaults.filterChipColors(
                         containerColor = CondorinoColors.SurfaceElevated,
                         labelColor = CondorinoColors.TextSecondary,
@@ -114,11 +127,13 @@ fun RandomScreen(
         if (trip == null) {
             EmptyState(
                 emoji = "🎲",
-                title = "Kein Ziel gefunden",
-                message = state.surpriseMessage
-                    ?: "Für dieses Wochenende gibt es noch keine bewerteten Trips. " +
-                    "Aktualisiere die Daten oder wähle ein anderes Wochenende.",
-                actionLabel = "Nochmal würfeln",
+                title = stringResource(R.string.random_empty_title),
+                message = if (state.surpriseFailed) {
+                    stringResource(R.string.random_no_match, state.surpriseMode.label())
+                } else {
+                    stringResource(R.string.random_empty_body)
+                },
+                actionLabel = stringResource(R.string.random_reroll),
                 onAction = viewModel::surpriseMe,
             )
         } else {
@@ -139,7 +154,7 @@ fun RandomScreen(
                     letterSpacing = (-1.5).sp,
                 )
                 Text(
-                    "${trip.destination.airport.country} · FRA → ${trip.iata}",
+                    "${trip.destination.airport.displayCountry} · FRA → ${trip.iata}",
                     color = CondorinoColors.TextTertiary,
                     fontSize = 12.sp,
                 )
@@ -149,7 +164,7 @@ fun RandomScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(
-                            trip.pattern.label,
+                            trip.pattern.label(),
                             color = CondorinoColors.Sky,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
@@ -162,7 +177,8 @@ fun RandomScreen(
                             fontWeight = FontWeight.Black,
                         )
                         Text(
-                            "${Formatting.nights(trip.nights)} · ${trip.effectiveHoursText} vor Ort",
+                            "${nightsLabel(trip.nights)} · " +
+                                stringResource(R.string.card_time_on_site, trip.effectiveHoursText),
                             color = CondorinoColors.TextTertiary,
                             fontSize = 12.sp,
                         )
@@ -173,10 +189,14 @@ fun RandomScreen(
                 Spacer(Modifier.height(14.dp))
 
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    trip.economyPrice?.let { Pill("Economy Standby ${it.format()}", color = CondorinoColors.Mint) }
-                    trip.businessPrice?.let { Pill("Business ${it.format()}", color = CondorinoColors.Sky) }
+                    trip.economyPrice?.let {
+                        Pill(stringResource(R.string.random_economy_standby, it.format()), color = CondorinoColors.Mint)
+                    }
+                    trip.businessPrice?.let {
+                        Pill(stringResource(R.string.random_business, it.format()), color = CondorinoColors.Sky)
+                    }
                     if (!(trip.standbyPrice?.hasAnyPrice ?: false)) {
-                        Pill("Standby-Preis fehlt", color = CondorinoColors.Warning)
+                        Pill(stringResource(R.string.random_missing_price), color = CondorinoColors.Warning)
                     }
                 }
 
@@ -204,12 +224,16 @@ fun RandomScreen(
                     contentColor = CondorinoColors.Background,
                 ),
             ) {
-                Text("🎲  Nochmal würfeln", fontWeight = FontWeight.Black, fontSize = 15.sp)
+                Text(stringResource(R.string.random_reroll), fontWeight = FontWeight.Black, fontSize = 15.sp)
             }
             Spacer(Modifier.width(4.dp))
             Box(Modifier.fillMaxWidth().padding(top = 8.dp)) {
                 Text(
-                    "Auswahl aus ${state.trips.size} bewerteten Trips · Modus: ${state.surpriseMode.description}",
+                    stringResource(
+                        R.string.random_pool,
+                        state.trips.size,
+                        state.surpriseMode.description(),
+                    ),
                     color = CondorinoColors.TextTertiary,
                     fontSize = 11.sp,
                 )

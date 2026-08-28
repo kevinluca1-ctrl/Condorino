@@ -1,12 +1,14 @@
 package com.condorino.weekend.scoring
 
 import com.condorino.weekend.domain.model.Cabin
+import com.condorino.weekend.domain.model.ComponentDetail
 import com.condorino.weekend.domain.model.ComponentScore
 import com.condorino.weekend.domain.model.Destination
 import com.condorino.weekend.domain.model.DestinationType
 import com.condorino.weekend.domain.model.Flight
 import com.condorino.weekend.domain.model.ScoreComponent
 import com.condorino.weekend.domain.model.StandbyPrice
+import com.condorino.weekend.domain.model.TripInsight
 import com.condorino.weekend.domain.model.TripScore
 import com.condorino.weekend.domain.model.UserPreferences
 import com.condorino.weekend.domain.model.WeekendPattern
@@ -34,8 +36,8 @@ class TripScoringEngine(
         effectiveTime: Duration,
         nights: Int,
     ): TripScore {
-        val reasons = mutableListOf<String>()
-        val warnings = mutableListOf<String>()
+        val reasons = mutableListOf<TripInsight>()
+        val warnings = mutableListOf<TripInsight>()
 
         val comfort = flightTimeComfort(outbound, inbound, pattern, reasons)
         val stay = stayQuality(effectiveTime, nights, reasons, warnings)
@@ -78,19 +80,19 @@ class TripScoringEngine(
         outbound: Flight,
         inbound: Flight,
         pattern: WeekendPattern,
-        reasons: MutableList<String>,
-    ): Pair<Double, String> {
+        reasons: MutableList<TripInsight>,
+    ): Pair<Double, ComponentDetail> {
         val outScore = outboundTimeScore(outbound, pattern, reasons)
         val inScore = inboundTimeScore(inbound, pattern, reasons)
         val value = ScoringMath.clamp100(0.5 * outScore + 0.5 * inScore)
-        return value to "Hinflug ${outScore.roundToInt()}/100, Rückflug ${inScore.roundToInt()}/100"
+        return value to ComponentDetail.FlightTimeComfort(outScore.roundToInt(), inScore.roundToInt())
     }
 
     /** 0..100 for the outbound leg. */
     internal fun outboundTimeScore(
         outbound: Flight,
         pattern: WeekendPattern,
-        reasons: MutableList<String> = mutableListOf(),
+        reasons: MutableList<TripInsight> = mutableListOf(),
     ): Double {
         val depLocal = outbound.departureLocal
         // Thursday and Friday are both working days for the traveller.
@@ -114,15 +116,17 @@ class TripScoringEngine(
 
         when {
             penalty <= 0.0 && buffer >= 60 ->
-                reasons += "sehr entspannter ${dayLabel(pattern.outboundDay)}-Abflug um ${fmt(depLocal)}"
+                reasons += TripInsight.RelaxedDeparture(pattern.outboundDay, depLocal.toLocalTime())
             penalty <= 0.0 ->
-                reasons += "${dayLabel(pattern.outboundDay)}-Abflug ${fmt(depLocal)} ohne Verlust von Arbeitszeit"
+                reasons += TripInsight.DepartureCostsNoWork(pattern.outboundDay, depLocal.toLocalTime())
             penalty < 0.25 ->
-                reasons += "leicht früher Abflug (${time.workingMinutesLost(depLocal)} min Arbeitszeit)"
+                reasons += TripInsight.SlightWorkTimeLost(time.workingMinutesLost(depLocal))
             else ->
-                reasons += "früher Abflug um ${fmt(depLocal)} – kostet Arbeitszeit"
+                reasons += TripInsight.EarlyDepartureCostsWork(depLocal.toLocalTime())
         }
-        if (civility < 1.0) reasons += "späte Ankunft um ${fmt(outbound.arrivalLocal)} Ortszeit"
+        if (civility < 1.0) {
+            reasons += TripInsight.LateArrival(outbound.arrivalLocal.toLocalTime())
+        }
         return value
     }
 
@@ -130,7 +134,7 @@ class TripScoringEngine(
     internal fun inboundTimeScore(
         inbound: Flight,
         pattern: WeekendPattern,
-        reasons: MutableList<String> = mutableListOf(),
+        reasons: MutableList<TripInsight> = mutableListOf(),
     ): Double {
         val depLocal = inbound.departureLocal
         val hour = depLocal.toLocalTime().toSecondOfDay() / 3600.0
@@ -146,13 +150,13 @@ class TripScoringEngine(
             // Home after midnight before a working day: still better than losing the afternoon,
             // but no longer a perfect return.
             value *= 0.88
-            reasons += "Rückkehr erst ${fmt(time.homeArrivalLocal(inbound))} zu Hause"
+            reasons += TripInsight.HomeLate(time.homeArrivalLocal(inbound).toLocalTime())
         }
 
         when {
-            hour >= 18.0 -> reasons += "sehr später ${dayLabel(pattern.inboundDay)}-Rückflug um ${fmt(depLocal)}"
-            hour >= 15.0 -> reasons += "${dayLabel(pattern.inboundDay)}-Rückflug um ${fmt(depLocal)}"
-            else -> reasons += "früher Rückflug um ${fmt(depLocal)} – kostet Wochenende"
+            hour >= 18.0 -> reasons += TripInsight.VeryLateReturn(pattern.inboundDay, depLocal.toLocalTime())
+            hour >= 15.0 -> reasons += TripInsight.Return(pattern.inboundDay, depLocal.toLocalTime())
+            else -> reasons += TripInsight.EarlyReturnCostsWeekend(depLocal.toLocalTime())
         }
         return ScoringMath.clamp100(value)
     }
@@ -162,13 +166,13 @@ class TripScoringEngine(
     internal fun stayQuality(
         effectiveTime: Duration,
         nights: Int,
-        reasons: MutableList<String>,
-        warnings: MutableList<String>,
-    ): Pair<Double, String> {
+        reasons: MutableList<TripInsight>,
+        warnings: MutableList<TripInsight>,
+    ): Pair<Double, ComponentDetail> {
         val hours = effectiveTime.toMinutes() / 60.0
         if (hours <= 0) {
-            warnings += "Kein nutzbarer Aufenthalt – Rückflug zu früh."
-            return 0.0 to "kein nutzbarer Aufenthalt"
+            warnings += TripInsight.NoUsableStay
+            return 0.0 to ComponentDetail.NoStay
         }
 
         // A weekend trip is at its best between ~40 h and ~60 h on site.
@@ -183,17 +187,18 @@ class TripScoringEngine(
         var value = base
         if (nights < prefs.minNights) {
             value *= 0.6
-            warnings += "Nur $nights Nächte – unter deinem Minimum von ${prefs.minNights}."
+            warnings += TripInsight.NightsBelowMinimum(nights, prefs.minNights)
         }
         if (nights > prefs.maxNights) {
             value *= 0.7
-            warnings += "$nights Nächte – über deinem Maximum von ${prefs.maxNights}."
+            warnings += TripInsight.NightsAboveMaximum(nights, prefs.maxNights)
         }
 
-        if (hours >= 40) reasons += "gute Aufenthaltsdauer (${hours.roundToInt()} h vor Ort)"
-        else if (hours < 20) reasons += "kurzer Aufenthalt (nur ${hours.roundToInt()} h vor Ort)"
+        if (hours >= 40) reasons += TripInsight.GoodStayLength(hours.roundToInt())
+        else if (hours < 20) reasons += TripInsight.ShortStay(hours.roundToInt())
 
-        return ScoringMath.clamp100(value) to "${hours.roundToInt()} h effektiv, $nights Nächte"
+        return ScoringMath.clamp100(value) to
+            ComponentDetail.StayQuality(hours.roundToInt(), nights)
     }
 
     // ---------------------------------------------------------------- 20 % Wochenend-Kompatibilität
@@ -210,8 +215,8 @@ class TripScoringEngine(
     internal fun weekendCompatibility(
         pattern: WeekendPattern,
         outboundWorkdayPenalty: Double,
-        reasons: MutableList<String>,
-    ): Pair<Double, String> {
+        reasons: MutableList<TripInsight>,
+    ): Pair<Double, ComponentDetail> {
         // Priority order from the spec, expressed through the cost in vacation days.
         val base = when (pattern) {
             WeekendPattern.FRI_SUN -> 100.0
@@ -226,27 +231,15 @@ class TripScoringEngine(
         val value = base * leaveFactor * (if (preferred) 1.0 else 0.5)
 
         val extraLeaveDays = pattern.vacationDaysRequired + outboundWorkdayPenalty
-        when {
-            extraLeaveDays <= 0.05 -> reasons += "kein Urlaubstag nötig (${pattern.label})"
-            extraLeaveDays < 1.0 -> reasons += "ca. ${formatLeaveDays(extraLeaveDays)} Urlaub nötig (${pattern.label})"
-            else -> reasons += "${formatLeaveDays(extraLeaveDays)} Urlaub nötig (${pattern.label})"
+        reasons += if (extraLeaveDays <= 0.05) {
+            TripInsight.NoLeaveNeeded(pattern)
+        } else {
+            TripInsight.LeaveNeeded(pattern, extraLeaveDays)
         }
 
-        val note = buildString {
-            append(pattern.label)
-            append(" · ")
-            append(
-                if (extraLeaveDays <= 0.05) "0 Urlaubstage"
-                else "${formatLeaveDays(extraLeaveDays)} Urlaub",
-            )
-            if (!preferred) append(" · nicht in deinen Wunschmustern")
-        }
-        return ScoringMath.clamp100(value) to note
+        return ScoringMath.clamp100(value) to
+            ComponentDetail.WeekendFit(pattern, extraLeaveDays, preferred)
     }
-
-    private fun formatLeaveDays(days: Double): String =
-        if (days >= 0.95) "%.0f Tag%s".format(days, if (days >= 1.95) "e" else "")
-        else "%.1f Tage".format(days).replace('.', ',')
 
     // ---------------------------------------------------------------- 10 % Logistik
 
@@ -254,9 +247,9 @@ class TripScoringEngine(
         outbound: Flight,
         inbound: Flight,
         destination: Destination,
-        reasons: MutableList<String>,
-        warnings: MutableList<String>,
-    ): Pair<Double, String> {
+        reasons: MutableList<TripInsight>,
+        warnings: MutableList<TripInsight>,
+    ): Pair<Double, ComponentDetail> {
         val avgMinutes = (outbound.duration.toMinutes() + inbound.duration.toMinutes()) / 2.0
 
         // 60 min → 100, at the configured maximum → 25, beyond → 0.
@@ -280,27 +273,27 @@ class TripScoringEngine(
 
         if (!outbound.isDirect || !inbound.isDirect) {
             value *= 0.45
-            warnings += "Kein Nonstop-Flug – Umsteigeverbindung."
+            warnings += TripInsight.NotNonstop
         } else {
-            reasons += "Nonstop in ${formatMinutes(avgMinutes.roundToInt().toLong())}"
+            reasons += TripInsight.Nonstop(avgMinutes.roundToInt().toLong())
         }
 
         if (time.isLateHomeArrival(inbound)) value *= 0.92
 
         return ScoringMath.clamp100(value) to
-            "⌀ Flugzeit ${formatMinutes(avgMinutes.roundToInt().toLong())}, Transfer ${destination.transferMinutes} min"
+            ComponentDetail.Logistics(avgMinutes.roundToInt().toLong(), destination.transferMinutes)
     }
 
     // ---------------------------------------------------------------- 15 % Kosten
 
     internal fun cost(
         standbyPrice: StandbyPrice?,
-        warnings: MutableList<String>,
-    ): Pair<Double, String> {
+        warnings: MutableList<TripInsight>,
+    ): Pair<Double, ComponentDetail> {
         val price = standbyPrice?.roundTripFor(prefs.preferredCabin)
         if (price == null) {
-            warnings += "Standby-Preis für ${prefs.preferredCabin.label} fehlt – Kosten neutral bewertet."
-            return NEUTRAL_SCORE to "kein Standby-Preis hinterlegt"
+            warnings += TripInsight.MissingStandbyPrice(prefs.preferredCabin)
+            return NEUTRAL_SCORE to ComponentDetail.Cost(null, prefs.preferredCabin)
         }
         val budget = prefs.maxBudgetCents.toDouble().coerceAtLeast(1.0)
         val ratio = price.cents / budget
@@ -309,15 +302,15 @@ class TripScoringEngine(
             ratio,
             listOf(0.0 to 100.0, 0.25 to 88.0, 0.5 to 62.0, 0.75 to 44.0, 1.0 to 25.0, 1.3 to 0.0),
         )
-        if (ratio > 1.0) warnings += "Über deinem Budget (${price.format()})."
-        return ScoringMath.clamp100(value) to "${price.format()} Roundtrip ${prefs.preferredCabin.label}"
+        if (ratio > 1.0) warnings += TripInsight.OverBudget(price)
+        return ScoringMath.clamp100(value) to ComponentDetail.Cost(price, prefs.preferredCabin)
     }
 
     // ---------------------------------------------------------------- 10 % Destination Quality
 
-    internal fun destinationQuality(destination: Destination): Pair<Double, String> {
+    internal fun destinationQuality(destination: Destination): Pair<Double, ComponentDetail> {
         val profile = destination.profile
-            ?: return NEUTRAL_SCORE to "keine Zielbewertung hinterlegt"
+            ?: return NEUTRAL_SCORE to ComponentDetail.NoDestinationProfile
 
         val selected = prefs.enabledDestinationTypes.ifEmpty { DestinationType.entries.toSet() }
         val factors = selected.map { profile.factorFor(it) }
@@ -327,26 +320,8 @@ class TripScoringEngine(
         // Two thirds average fit, one third "is it outstanding at anything I care about".
         val value = ScoringMath.clamp100((avg * 10.0) * 0.65 + (best * 10.0) * 0.35)
         val topType = selected.maxByOrNull { profile.factorFor(it) }
-        return value to "stark für ${topType?.label ?: "–"} (${best}/10)"
+        return value to ComponentDetail.DestinationQuality(topType, best)
     }
-
-    // ---------------------------------------------------------------- helpers
-
-    private fun fmt(t: java.time.ZonedDateTime): String =
-        "%02d:%02d".format(t.hour, t.minute)
-
-    private fun dayLabel(day: java.time.DayOfWeek): String = when (day) {
-        java.time.DayOfWeek.MONDAY -> "Montag"
-        java.time.DayOfWeek.TUESDAY -> "Dienstag"
-        java.time.DayOfWeek.WEDNESDAY -> "Mittwoch"
-        java.time.DayOfWeek.THURSDAY -> "Donnerstag"
-        java.time.DayOfWeek.FRIDAY -> "Freitag"
-        java.time.DayOfWeek.SATURDAY -> "Samstag"
-        java.time.DayOfWeek.SUNDAY -> "Sonntag"
-    }
-
-    private fun formatMinutes(minutes: Long): String =
-        if (minutes < 60) "${minutes} min" else "${minutes / 60} h ${(minutes % 60).toString().padStart(2, '0')} min"
 
     companion object {
         /** Used when a factor genuinely cannot be evaluated. Never silently favourable. */
