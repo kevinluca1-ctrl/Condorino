@@ -46,11 +46,12 @@ object Routes {
     const val FAVORITES = "favorites"
     const val SETTINGS = "settings"
     const val RANDOM = "random"
-    const val PRICES = "prices?iata={iata}"
-    const val TRIP_DETAIL = "trip/{tripId}"
+    const val PRICES = "prices"
 
-    fun tripDetail(id: String) = "trip/${java.net.URLEncoder.encode(id, "UTF-8")}"
-    fun prices(iata: String? = null) = if (iata == null) "prices?iata=" else "prices?iata=$iata"
+    // Both detail routes are argument-free: the selected trip and the focused destination live in
+    // their ViewModels. Trip ids contain timestamps, and URL-encoding them into a route is a
+    // needless source of breakage.
+    const val TRIP_DETAIL = "trip"
 }
 
 private data class TabItem(val route: String, val label: String, val icon: ImageVector)
@@ -118,7 +119,10 @@ fun CondorinoNavigation(
                 HomeScreen(
                     state = plannerState,
                     viewModel = plannerViewModel,
-                    onOpenTrip = { navController.navigate(Routes.tripDetail(it)) },
+                    onOpenTrip = {
+                        plannerViewModel.selectTrip(it)
+                        navController.navigate(Routes.TRIP_DETAIL)
+                    },
                     onOpenSurprise = { navController.navigate(Routes.RANDOM) },
                     onOpenSettings = { navController.navigate(Routes.SETTINGS) },
                 )
@@ -147,7 +151,10 @@ fun CondorinoNavigation(
                 FavoritesScreen(
                     state = plannerState,
                     viewModel = plannerViewModel,
-                    onOpenTrip = { navController.navigate(Routes.tripDetail(it)) },
+                    onOpenTrip = {
+                        plannerViewModel.selectTrip(it)
+                        navController.navigate(Routes.TRIP_DETAIL)
+                    },
                 )
             }
 
@@ -156,7 +163,10 @@ fun CondorinoNavigation(
                 SettingsScreen(
                     state = settingsState,
                     viewModel = settingsViewModel,
-                    onOpenPrices = { navController.navigate(Routes.prices()) },
+                    onOpenPrices = {
+                        settingsViewModel.focusPrice(null)
+                        navController.navigate(Routes.PRICES)
+                    },
                 )
             }
 
@@ -165,29 +175,31 @@ fun CondorinoNavigation(
                     state = plannerState,
                     viewModel = plannerViewModel,
                     onBack = { navController.popBackStack() },
-                    onOpenTrip = { navController.navigate(Routes.tripDetail(it)) },
+                    onOpenTrip = {
+                        plannerViewModel.selectTrip(it)
+                        navController.navigate(Routes.TRIP_DETAIL)
+                    },
                 )
             }
 
-            composable(Routes.PRICES) { entry ->
+            composable(Routes.PRICES) {
                 val settingsState by settingsViewModel.state.collectAsStateWithLifecycle()
                 StandbyPricesScreen(
                     state = settingsState,
                     viewModel = settingsViewModel,
                     onBack = { navController.popBackStack() },
-                    focusIata = entry.arguments?.getString("iata")?.takeIf { it.isNotBlank() },
                 )
             }
 
-            composable(Routes.TRIP_DETAIL) { entry ->
-                val encoded = entry.arguments?.getString("tripId").orEmpty()
-                val tripId = java.net.URLDecoder.decode(encoded, "UTF-8")
+            composable(Routes.TRIP_DETAIL) {
                 TripDetailScreen(
-                    tripId = tripId,
                     state = plannerState,
                     viewModel = plannerViewModel,
                     onBack = { navController.popBackStack() },
-                    onEditPrice = { navController.navigate(Routes.prices(it)) },
+                    onEditPrice = { iata ->
+                        settingsViewModel.focusPrice(iata)
+                        navController.navigate(Routes.PRICES)
+                    },
                 )
             }
         }

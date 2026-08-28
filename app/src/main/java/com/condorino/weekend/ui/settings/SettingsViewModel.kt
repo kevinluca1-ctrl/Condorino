@@ -33,6 +33,8 @@ data class SettingsUiState(
     val sources: List<SourceState> = emptyList(),
     val prices: Map<String, StandbyPrice> = emptyMap(),
     val destinations: List<Destination> = emptyList(),
+    /** Destination whose price card the prices screen should open expanded, if any. */
+    val focusPriceIata: String? = null,
 )
 
 class SettingsViewModel(
@@ -95,6 +97,10 @@ class SettingsViewModel(
 
     fun setAllowDemoData(allow: Boolean) {
         viewModelScope.launch { preferencesStore.setAllowDemoData(allow) }
+    }
+
+    fun focusPrice(iata: String?) {
+        _state.value = _state.value.copy(focusPriceIata = iata)
     }
 
     fun savePrice(price: StandbyPrice) {

@@ -55,6 +55,12 @@ data class PlannerUiState(
     val surpriseMode: RandomMode = RandomMode.ANY,
     val surpriseMessage: String? = null,
     val compareSelection: List<String> = emptyList(),
+    /**
+     * The trip the detail screen is showing. Kept here rather than in the navigation route: trip
+     * ids contain timestamps and slashes, and round-tripping them through URL encoding is a source
+     * of subtle breakage for no benefit.
+     */
+    val selectedTripId: String? = null,
 ) {
     /** Trips after the on-screen filters — this is what every list renders. */
     val trips: List<WeekendTrip>
@@ -86,6 +92,9 @@ data class PlannerUiState(
             else ->
                 "Keine Verbindung passt zu deinen aktuellen Filtern."
         }
+
+    val selectedTrip: WeekendTrip?
+        get() = selectedTripId?.let { id -> allTrips.firstOrNull { it.id == id } }
 
     val comparedTrips: List<WeekendTrip>
         get() = compareSelection.mapNotNull { iata -> trips.firstOrNull { it.iata == iata } }
@@ -179,7 +188,9 @@ class PlannerViewModel(
         _state.value = _state.value.copy(filters = transform(_state.value.filters))
     }
 
-    fun tripById(id: String): WeekendTrip? = _state.value.allTrips.firstOrNull { it.id == id }
+    fun selectTrip(id: String) {
+        _state.value = _state.value.copy(selectedTripId = id)
+    }
 
     fun toggleFavorite(iata: String) {
         viewModelScope.launch { favoriteRepository.toggle(iata) }

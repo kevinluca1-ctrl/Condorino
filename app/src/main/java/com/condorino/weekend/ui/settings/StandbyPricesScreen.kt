@@ -50,10 +50,9 @@ fun StandbyPricesScreen(
     state: SettingsUiState,
     viewModel: SettingsViewModel,
     onBack: () -> Unit,
-    focusIata: String? = null,
     modifier: Modifier = Modifier,
 ) {
-    var expanded by remember { mutableStateOf(focusIata) }
+    var expanded by remember { mutableStateOf(state.focusPriceIata) }
 
     // Destinations known from flight data, plus any destination that already has a saved price.
     val entries: List<Pair<String, Destination?>> = remember(state.destinations, state.prices) {

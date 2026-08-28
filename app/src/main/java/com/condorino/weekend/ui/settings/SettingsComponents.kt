@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -55,6 +57,7 @@ fun SettingsSection(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NumberField(
     label: String,
@@ -75,13 +78,18 @@ fun NumberField(
     )
 }
 
+/**
+ * [onValueChange] is deliberately the *last* parameter so the settings screen can use the
+ * trailing-lambda form for its many one-line fields.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TextField(
     label: String,
     value: String,
-    onValueChange: (String) -> Unit,
     placeholder: String? = null,
     modifier: Modifier = Modifier,
+    onValueChange: (String) -> Unit,
 ) {
     OutlinedTextField(
         value = value,

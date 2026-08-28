@@ -42,6 +42,7 @@ import com.condorino.weekend.ui.components.EmptyState
 import com.condorino.weekend.ui.components.TripCard
 import com.condorino.weekend.ui.planner.PlannerUiState
 import com.condorino.weekend.ui.planner.PlannerViewModel
+import com.condorino.weekend.ui.planner.TripFilters
 import com.condorino.weekend.ui.search.FilterSheet
 import com.condorino.weekend.ui.theme.CondorinoColors
 
@@ -140,7 +141,7 @@ fun HomeScreen(
                         message = state.emptyReason,
                         actionLabel = if (state.filters.isActive) "Filter zurücksetzen" else "Jetzt aktualisieren",
                         onAction = {
-                            if (state.filters.isActive) viewModel.updateFilters { com.condorino.weekend.ui.planner.TripFilters() }
+                            if (state.filters.isActive) viewModel.updateFilters { TripFilters() }
                             else viewModel.refresh()
                         },
                     )
@@ -162,7 +163,7 @@ fun HomeScreen(
         FilterSheet(
             filters = state.filters,
             onDismiss = { showFilters = false },
-            onChange = { viewModel.updateFilters { _ -> it } },
+            onChange = { updated -> viewModel.updateFilters { updated } },
         )
     }
 }

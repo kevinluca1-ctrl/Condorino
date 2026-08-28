@@ -46,14 +46,13 @@ import kotlin.math.roundToInt
 /** Full breakdown of one trip (spec §14), including the time budget and the score components. */
 @Composable
 fun TripDetailScreen(
-    tripId: String,
     state: PlannerUiState,
     viewModel: PlannerViewModel,
     onBack: () -> Unit,
     onEditPrice: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val trip = state.allTrips.firstOrNull { it.id == tripId }
+    val trip = state.selectedTrip
 
     Box(modifier.fillMaxSize().background(CondorinoColors.Background)) {
         if (trip == null) {
