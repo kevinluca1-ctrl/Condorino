@@ -97,12 +97,25 @@ class DefaultTripRepository(
         return score(friday, flights, status)
     }
 
-    override suspend fun searchRange(from: LocalDate, to: LocalDate): List<WeekendSearchResult> {
+    override suspend fun searchRange(from: LocalDate, to: LocalDate): List<WeekendSearchResult> =
+        scoreRange(from, to, dataStatusSnapshot())
+
+    override suspend fun refreshRange(from: LocalDate, to: LocalDate): List<WeekendSearchResult> {
+        // A single query for the whole range rather than one per weekend: every source takes a
+        // date range, so a three-month overview costs one request, not thirteen.
+        val status = fetchIntoCache(from.minusDays(1), to.plusDays(3))
+        return scoreRange(from, to, status)
+    }
+
+    private suspend fun scoreRange(
+        from: LocalDate,
+        to: LocalDate,
+        status: DataStatus,
+    ): List<WeekendSearchResult> {
         val fridays = WeekendCalendar.fridaysBetween(from, to)
         if (fridays.isEmpty()) return emptyList()
         // One cache read for the whole range, then score each weekend from it.
         val flights = cachedFlights(from.minusDays(1), to.plusDays(3))
-        val status = dataStatusSnapshot()
         return fridays.map { friday ->
             val window = WeekendCalendar.searchWindow(friday)
             val slice = flights.filter {

@@ -155,6 +155,23 @@ class TripBuilderTest {
     ) = build(flights, friday, destinations, emptyMap())
 
     @Test
+    fun `the most informative rejection wins over the most frequent one`() {
+        // Only Friday flights exist, so the two Thursday patterns each add a NO_OUTBOUND. Counting
+        // occurrences would surface "no Thursday flight" and bury the reason that actually matters.
+        val flights = listOf(
+            Fixtures.flight(Fixtures.FRA, Fixtures.LGW, Fixtures.FRIDAY, "18:15", 80),
+            Fixtures.flight(Fixtures.LGW, Fixtures.FRA, Fixtures.SUNDAY, "19:35", 80),
+        )
+        val prices = mapOf(
+            "LGW" to StandbyPrice("LGW", PriceEntryMode.ROUND_TRIP, economyOutboundCents = 90_000),
+        )
+        val result = builder.build(flights, Fixtures.FRIDAY, destinations, prices)
+        assertTrue(result.rejections.getOrDefault(RejectionReason.NO_OUTBOUND, 0) >= 2)
+        assertEquals(1, result.rejections[RejectionReason.OVER_BUDGET])
+        assertEquals(RejectionReason.OVER_BUDGET, result.dominantRejection)
+    }
+
+    @Test
     fun `a weekend with no flights at all yields no outbound rejections silently`() {
         val result = builder.build(emptyList(), Fixtures.FRIDAY, destinations, emptyMap())
         assertTrue(result.isEmpty)

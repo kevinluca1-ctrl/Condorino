@@ -2,6 +2,7 @@ package com.condorino.weekend.data.source
 
 import android.content.Context
 import com.condorino.weekend.domain.model.DataProvenance
+import com.condorino.weekend.domain.model.Flight
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.time.Instant
@@ -38,16 +39,16 @@ class AssetDemoFlightDataSource(
                 val raw = context.assets.open(assetName).bufferedReader().use { it.readText() }
                 val parsed = parser.parse(raw, forcedProvenance = DataProvenance.DEMO)
 
-                // The demo feed is authored around a single reference weekend; shift it onto the
-                // weekend actually being searched so every date the user picks has candidates.
-                val shifted = shiftToWeek(parsed, query.from)
+                // The demo feed is authored around a single reference week. Project that weekly
+                // pattern across every week the query covers, so the calendar and the
+                // multi-weekend search have candidates for the whole range — not just for the
+                // one weekend the user happened to open first.
+                val projected = projectOverRange(parsed, query.from, query.to)
 
-                val filtered = shifted.filter { f ->
-                    val date = f.departureLocal.toLocalDate()
-                    !date.isBefore(query.from) && !date.isAfter(query.to) &&
-                        (query.destinationIata == null ||
-                            f.destination.iata == query.destinationIata ||
-                            f.origin.iata == query.destinationIata)
+                val filtered = projected.filter { f ->
+                    query.destinationIata == null ||
+                        f.destination.iata == query.destinationIata ||
+                        f.origin.iata == query.destinationIata
                 }
 
                 FlightSearchResult.Success(
@@ -65,29 +66,45 @@ class AssetDemoFlightDataSource(
         }
 
     /**
-     * Moves every flight forward/backward by whole weeks so that the feed's reference week lines
-     * up with the week containing [target]. Weekday and local time-of-day are preserved, which is
-     * exactly how a repeating timetable behaves.
+     * Repeats the feed's reference week across every week between [from] and [to].
+     *
+     * The shift happens in *local* time, so a departure stays at 18:15 on its weekday even when
+     * the projection crosses a daylight-saving boundary — which is how a published timetable
+     * actually behaves.
      */
-    private fun shiftToWeek(parsed: ParsedFeed, target: LocalDate) =
-        parsed.flights.map { flight ->
-            val depLocal = flight.departureLocal
-            val arrLocal = flight.arrivalLocal
-            val weeks = ChronoUnit.WEEKS.between(
-                depLocal.toLocalDate().with(java.time.DayOfWeek.MONDAY),
-                target.with(java.time.DayOfWeek.MONDAY),
-            )
-            if (weeks == 0L) {
-                flight
-            } else {
-                // Shift in *local* time so the wall-clock departure stays 18:15 even when the
-                // shift crosses a daylight-saving boundary.
-                flight.copy(
-                    departure = depLocal.plusWeeks(weeks).toInstant(),
-                    arrival = arrLocal.plusWeeks(weeks).toInstant(),
-                )
+    private fun projectOverRange(parsed: ParsedFeed, from: LocalDate, to: LocalDate): List<Flight> {
+        if (parsed.flights.isEmpty() || to.isBefore(from)) return emptyList()
+
+        val referenceMonday = parsed.flights
+            .minOf { it.departureLocal.toLocalDate() }
+            .with(java.time.DayOfWeek.MONDAY)
+
+        // One week of slack on each side so a Thursday-to-Monday window is never clipped.
+        val firstMonday = from.with(java.time.DayOfWeek.MONDAY).minusWeeks(1)
+        val lastMonday = to.with(java.time.DayOfWeek.MONDAY).plusWeeks(1)
+
+        val out = mutableListOf<Flight>()
+        var monday = firstMonday
+        while (!monday.isAfter(lastMonday)) {
+            val weeks = ChronoUnit.WEEKS.between(referenceMonday, monday)
+            parsed.flights.mapTo(out) { flight ->
+                if (weeks == 0L) {
+                    flight
+                } else {
+                    flight.copy(
+                        departure = flight.departureLocal.plusWeeks(weeks).toInstant(),
+                        arrival = flight.arrivalLocal.plusWeeks(weeks).toInstant(),
+                    )
+                }
             }
+            monday = monday.plusWeeks(1)
         }
+
+        return out.filter {
+            val date = it.departureLocal.toLocalDate()
+            !date.isBefore(from) && !date.isAfter(to)
+        }
+    }
 
     companion object {
         const val ASSET = "demo_schedule.json"

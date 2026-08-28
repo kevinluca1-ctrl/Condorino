@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.condorino.weekend.core.Formatting
 import com.condorino.weekend.domain.repository.WeekendSearchResult
+import com.condorino.weekend.ui.components.DataStatusBar
 import com.condorino.weekend.ui.components.EmptyState
 import com.condorino.weekend.ui.theme.CondorinoColors
 import java.time.LocalDate
@@ -76,6 +77,25 @@ fun CalendarScreen(
                     color = CondorinoColors.TextTertiary,
                     fontSize = 12.sp,
                 )
+            }
+
+            item {
+                DataStatusBar(
+                    status = state.status,
+                    onRefresh = viewModel::refresh,
+                )
+            }
+
+            item {
+                if (state.status.isDemo) {
+                    Text(
+                        "Hinweis: Beispieldaten wiederholen sich jede Woche, deshalb sind hier alle " +
+                            "Wochenenden fast gleich gut. Mit echten Flugdaten unterscheiden sie sich.",
+                        color = CondorinoColors.Warning,
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp,
+                    )
+                }
             }
 
             item {

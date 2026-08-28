@@ -3,6 +3,7 @@ package com.condorino.weekend.ui.calendar
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.condorino.weekend.domain.repository.DataStatus
 import com.condorino.weekend.domain.repository.TripRepository
 import com.condorino.weekend.domain.repository.WeekendSearchResult
 import kotlinx.coroutines.Job
@@ -18,6 +19,8 @@ data class CalendarUiState(
     val weekends: List<WeekendSearchResult> = emptyList(),
     val isLoading: Boolean = false,
     val message: String? = null,
+    /** Same provenance/freshness contract as every other data-bearing screen (spec §4). */
+    val status: DataStatus = DataStatus.EMPTY,
 ) {
     /** Weekends that produced at least one trip, best first — the "Beste Wochenenden" list. */
     val ranked: List<WeekendSearchResult>
@@ -44,27 +47,47 @@ class CalendarViewModel(
         search(_state.value.from, _state.value.to)
     }
 
+    /**
+     * Cached-first, then a single refresh across the whole range.
+     *
+     * The refresh is not optional here: the cache only ever holds the weekends the user has
+     * already opened, so without it a three-month overview would be empty on first use — and the
+     * overview is the whole point of this screen.
+     */
     fun search(from: LocalDate, to: LocalDate) {
         job?.cancel()
         job = viewModelScope.launch {
             _state.value = _state.value.copy(from = from, to = to, isLoading = true, message = null)
-            val results = repository.searchRange(from, to)
+
+            val cached = repository.searchRange(from, to)
+            _state.value = _state.value.copy(
+                weekends = cached,
+                status = cached.firstOrNull()?.status ?: _state.value.status,
+            )
+
+            val results = repository.refreshRange(from, to)
             _state.value = _state.value.copy(
                 weekends = results,
                 isLoading = false,
-                message = when {
-                    results.isEmpty() ->
-                        "Im gewählten Zeitraum liegt kein Wochenende."
-                    results.all { it.trips.isEmpty() } ->
-                        "Für keines dieser Wochenenden liegen passende Verbindungen vor. " +
-                            "Aktualisiere die Daten oder erweitere deine Filter."
-                    else -> null
-                },
+                message = messageFor(results),
+                status = results.firstOrNull()?.status ?: _state.value.status,
             )
         }
     }
 
+    private fun messageFor(results: List<com.condorino.weekend.domain.repository.WeekendSearchResult>): String? =
+        when {
+            results.isEmpty() ->
+                "Im gewählten Zeitraum liegt kein Wochenende."
+            results.all { it.trips.isEmpty() } ->
+                "Für keines dieser Wochenenden liegen passende Verbindungen vor. " +
+                    "Prüfe deine Datenquelle in den Einstellungen oder erweitere deine Vorgaben."
+            else -> null
+        }
+
     fun setRange(from: LocalDate, to: LocalDate) = search(from, to)
+
+    fun refresh() = search(_state.value.from, _state.value.to)
 
     companion object {
         fun factory(repository: TripRepository): ViewModelProvider.Factory =

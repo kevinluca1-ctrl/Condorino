@@ -49,8 +49,18 @@ interface TripRepository {
     /** Forces a refresh from the highest-priority configured source, then re-searches. */
     suspend fun refresh(friday: LocalDate): WeekendSearchResult
 
-    /** Scores every weekend in the range. Used by the calendar and multi-weekend screens. */
+    /**
+     * Scores every weekend in the range from cached data only. Used by the calendar and
+     * multi-weekend screens for their instant first paint.
+     */
     suspend fun searchRange(from: LocalDate, to: LocalDate): List<WeekendSearchResult>
+
+    /**
+     * Fetches the whole range from the configured source in one request, then re-scores it.
+     * The calendar needs this: without it, only the weekend the user happened to open would ever
+     * have data, and a three-month overview would be empty by construction.
+     */
+    suspend fun refreshRange(from: LocalDate, to: LocalDate): List<WeekendSearchResult>
 
     suspend fun destinations(): List<Destination>
 }

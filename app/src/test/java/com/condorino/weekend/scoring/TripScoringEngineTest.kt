@@ -119,6 +119,25 @@ class TripScoringEngineTest {
     }
 
     @Test
+    fun `lost working time lowers weekend compatibility as well as flight comfort`() {
+        // Leaving at 13:00 on a Friday is effectively half a day of leave. It has to show up in
+        // the weekend-compatibility component, not only as "less comfortable".
+        val noLeave = engine.weekendCompatibility(WeekendPattern.FRI_SUN, 0.0, mutableListOf()).first
+        val halfDay = engine.weekendCompatibility(WeekendPattern.FRI_SUN, 0.5, mutableListOf()).first
+        val fullDay = engine.weekendCompatibility(WeekendPattern.FRI_SUN, 1.0, mutableListOf()).first
+
+        assertTrue("$noLeave > $halfDay > $fullDay", noLeave > halfDay && halfDay > fullDay)
+        assertEquals(100.0, noLeave, 1e-9)
+    }
+
+    @Test
+    fun `a Fri-Sun trip that costs half a day can rank below a clean Thu-Sun trip`() {
+        val cleanThursday = engine.weekendCompatibility(WeekendPattern.THU_SUN, 0.0, mutableListOf()).first
+        val costlyFriday = engine.weekendCompatibility(WeekendPattern.FRI_SUN, 0.6, mutableListOf()).first
+        assertTrue("$cleanThursday should beat $costlyFriday", cleanThursday > costlyFriday)
+    }
+
+    @Test
     fun `cost score is neutral when no standby price is known and warns about it`() {
         val warnings = mutableListOf<String>()
         val (value, explanation) = engine.cost(null, warnings)
