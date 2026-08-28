@@ -1,0 +1,120 @@
+package com.condorino.weekend.ui.settings
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import com.condorino.weekend.data.prefs.PreferencesStore
+import com.condorino.weekend.data.source.CondorApiConfig
+import com.condorino.weekend.data.source.FeedConfig
+import com.condorino.weekend.data.source.FlightDataSource
+import com.condorino.weekend.data.source.SourceStatus
+import com.condorino.weekend.domain.model.StandbyPrice
+import com.condorino.weekend.domain.model.UserPreferences
+import com.condorino.weekend.domain.repository.StandbyPriceRepository
+import com.condorino.weekend.domain.repository.TripRepository
+import com.condorino.weekend.domain.model.Destination
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+
+data class SourceState(
+    val id: String,
+    val name: String,
+    val status: SourceStatus,
+)
+
+data class SettingsUiState(
+    val preferences: UserPreferences = UserPreferences.DEFAULT,
+    val feedConfig: FeedConfig = FeedConfig(),
+    val condorApiConfig: CondorApiConfig = CondorApiConfig(),
+    val allowDemoData: Boolean = true,
+    val sources: List<SourceState> = emptyList(),
+    val prices: Map<String, StandbyPrice> = emptyMap(),
+    val destinations: List<Destination> = emptyList(),
+)
+
+class SettingsViewModel(
+    private val preferencesStore: PreferencesStore,
+    private val standbyPriceRepository: StandbyPriceRepository,
+    private val tripRepository: TripRepository,
+    private val sources: List<FlightDataSource>,
+) : ViewModel() {
+
+    private val _state = MutableStateFlow(SettingsUiState())
+    val state: StateFlow<SettingsUiState> = _state.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            preferencesStore.preferences.collectLatest { _state.value = _state.value.copy(preferences = it) }
+        }
+        viewModelScope.launch {
+            preferencesStore.feedConfig.collectLatest {
+                _state.value = _state.value.copy(feedConfig = it)
+                refreshSourceStates()
+            }
+        }
+        viewModelScope.launch {
+            preferencesStore.condorApiConfig.collectLatest {
+                _state.value = _state.value.copy(condorApiConfig = it)
+                refreshSourceStates()
+            }
+        }
+        viewModelScope.launch {
+            preferencesStore.allowDemoData.collectLatest { _state.value = _state.value.copy(allowDemoData = it) }
+        }
+        viewModelScope.launch {
+            standbyPriceRepository.prices.collectLatest { _state.value = _state.value.copy(prices = it) }
+        }
+        viewModelScope.launch {
+            _state.value = _state.value.copy(destinations = tripRepository.destinations())
+        }
+        refreshSourceStates()
+    }
+
+    private fun refreshSourceStates() {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(
+                sources = sources.map { SourceState(it.id, it.displayName, it.status()) },
+            )
+        }
+    }
+
+    fun updatePreferences(transform: (UserPreferences) -> UserPreferences) {
+        viewModelScope.launch { preferencesStore.update(transform) }
+    }
+
+    fun updateFeedConfig(config: FeedConfig) {
+        viewModelScope.launch { preferencesStore.updateFeedConfig(config) }
+    }
+
+    fun updateCondorApiConfig(config: CondorApiConfig) {
+        viewModelScope.launch { preferencesStore.updateCondorApiConfig(config) }
+    }
+
+    fun setAllowDemoData(allow: Boolean) {
+        viewModelScope.launch { preferencesStore.setAllowDemoData(allow) }
+    }
+
+    fun savePrice(price: StandbyPrice) {
+        viewModelScope.launch { standbyPriceRepository.save(price) }
+    }
+
+    fun deletePrice(iata: String) {
+        viewModelScope.launch { standbyPriceRepository.delete(iata) }
+    }
+
+    companion object {
+        fun factory(
+            preferencesStore: PreferencesStore,
+            standbyPriceRepository: StandbyPriceRepository,
+            tripRepository: TripRepository,
+            sources: List<FlightDataSource>,
+        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                SettingsViewModel(preferencesStore, standbyPriceRepository, tripRepository, sources) as T
+        }
+    }
+}

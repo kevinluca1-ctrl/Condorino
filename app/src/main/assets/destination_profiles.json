@@ -1,0 +1,19 @@
+{
+  "_comment": "Redaktionelle Zielbewertungen (0-10) und Transferzeiten. Dies sind Einschätzungen, KEINE Flugdaten. Frei anpassbar - fehlende Ziele werden neutral bewertet.",
+  "profiles": [
+    { "iata": "LGW", "city_trip": 10, "nightlife": 9, "culture": 10, "beach": 1, "food": 9, "nature": 3, "transfer_minutes": 45, "distance_to_center_km": 45.0, "note": "Gatwick Express ab ca. 30 min in die City." },
+    { "iata": "BUD", "city_trip": 9, "nightlife": 10, "culture": 9, "beach": 2, "food": 8, "nature": 4, "transfer_minutes": 40, "distance_to_center_km": 24.0, "note": "Ruinenbars, Thermalbäder, sehr günstig." },
+    { "iata": "PRG", "city_trip": 9, "nightlife": 8, "culture": 10, "beach": 1, "food": 7, "nature": 4, "transfer_minutes": 35, "distance_to_center_km": 17.0, "note": "Kompakte Altstadt, alles zu Fuß." },
+    { "iata": "BCN", "city_trip": 10, "nightlife": 9, "culture": 9, "beach": 8, "food": 10, "nature": 5, "transfer_minutes": 35, "distance_to_center_km": 15.0, "note": "Stadt und Strand in einem." },
+    { "iata": "FCO", "city_trip": 10, "nightlife": 7, "culture": 10, "beach": 4, "food": 10, "nature": 4, "transfer_minutes": 45, "distance_to_center_km": 32.0, "note": "Leonardo Express 32 min nach Termini." },
+    { "iata": "OPO", "city_trip": 8, "nightlife": 7, "culture": 8, "beach": 6, "food": 9, "nature": 6, "transfer_minutes": 35, "distance_to_center_km": 15.0, "note": "Metro direkt vom Flughafen." },
+    { "iata": "LIS", "city_trip": 9, "nightlife": 8, "culture": 9, "beach": 7, "food": 9, "nature": 6, "transfer_minutes": 30, "distance_to_center_km": 8.0, "note": "Sehr flughafennah." },
+    { "iata": "PMI", "city_trip": 6, "nightlife": 7, "culture": 5, "beach": 10, "food": 7, "nature": 8, "transfer_minutes": 25, "distance_to_center_km": 8.0, "note": "Strand in 20 Minuten." },
+    { "iata": "SPU", "city_trip": 6, "nightlife": 6, "culture": 7, "beach": 9, "food": 7, "nature": 9, "transfer_minutes": 40, "distance_to_center_km": 24.0, "note": "Diokletianpalast, Inselhopping." },
+    { "iata": "ATH", "city_trip": 8, "nightlife": 8, "culture": 10, "beach": 6, "food": 9, "nature": 5, "transfer_minutes": 50, "distance_to_center_km": 33.0, "note": "Metro Linie 3, ca. 40 min." },
+    { "iata": "IST", "city_trip": 9, "nightlife": 7, "culture": 10, "beach": 3, "food": 10, "nature": 4, "transfer_minutes": 70, "distance_to_center_km": 45.0, "note": "Langer Transfer - Zeitpuffer einplanen." },
+    { "iata": "FNC", "city_trip": 4, "nightlife": 3, "culture": 5, "beach": 7, "food": 7, "nature": 10, "transfer_minutes": 30, "distance_to_center_km": 18.0, "note": "Levadas und Berge, für ein Wochenende knapp." },
+    { "iata": "HER", "city_trip": 4, "nightlife": 6, "culture": 7, "beach": 10, "food": 8, "nature": 8, "transfer_minutes": 20, "distance_to_center_km": 5.0, "note": "Sehr kurzer Transfer." },
+    { "iata": "MLA", "city_trip": 7, "nightlife": 7, "culture": 9, "beach": 8, "food": 7, "nature": 6, "transfer_minutes": 25, "distance_to_center_km": 8.0, "note": "Kleine Insel, kurze Wege." }
+  ]
+}
