@@ -26,6 +26,8 @@ nichts findet. Stattdessen:
 * die Datenschicht ist vollständig gebaut und austauschbar,
 * der Condor-API-Vertrag wird **in den Einstellungen eingetragen**, sobald du ihn hast,
 * alternativ lädt die App jeden HTTPS-Feed nach einem dokumentierten JSON-Schema,
+* **OpenSky Network** liefert kostenlos und ohne Konto, welche `CFG`-Flüge ab FRA in den letzten
+  Wochen *tatsächlich* geflogen sind – daraus leitet die App einen beobachteten Flugplan ab,
 * und ohne konfigurierte Quelle zeigt sie **Beispieldaten hinter einem permanenten roten Banner**,
   mit Flugnummern, die mit `DEMO` beginnen.
 
@@ -58,6 +60,16 @@ Filter nach Reisetagen, Klasse, Preis, Mindestscore und Zieltyp.
 Segment oder als Roundtrip, mit optionalen Steuern. Die App fragt MyID Travel **nicht** ab und
 speichert **keine** Zugangsdaten.
 
+**Flughafen-Referenz.** 6.442 Flughäfen aus öffentlichen Datensätzen (OurAirports, OpenFlights,
+IANA tzdata), jeder mit belegter Zeitzone. Flughäfen, deren Zone sich nicht belegen ließ, sind
+bewusst nicht enthalten – die App rät keine Zeitzone. Ein Feed muss deshalb nur IATA-Codes liefern.
+
+**Zweisprachig.** Deutsch und Englisch (US). Datumsformate sind in beiden Sprachen Tag-vor-Monat,
+**MM/DD/YYYY wird nirgends verwendet**, Uhrzeiten sind durchgängig 24-Stunden. Ab Android 13 pro App
+umstellbar.
+
+**Hell und dunkel.** System / Hell / Dunkel, umschaltbar ohne Neustart.
+
 **Ehrliche Zustände.** Jede Angabe trägt ihre Herkunft: `LIVE`, `KÜRZLICH AKTUALISIERT`,
 `FLUGPLAN`, `GECACHT`, `MANUELL` oder `BEISPIELDATEN`, dazu immer „Zuletzt aktualisiert: HH:MM“.
 Ohne Netz zeigt die App den Cache statt abzustürzen. Leere Listen gibt es nicht — stattdessen den
@@ -67,9 +79,13 @@ Grund, warum nichts passt.
 
 ## APK bekommen
 
-**Fertig gebaut aus CI:** Der GitHub-Actions-Workflow `Build APK` baut bei jedem Push Debug- und
-Release-APK. Unter *Actions → Build APK → letzter Lauf → Artifacts* liegen
-`condorino-debug-apk` und `condorino-release-apk` zum Download.
+**Release:** Die jeweils aktuelle Alpha liegt unter
+[Releases](https://github.com/kevinluca1-ctrl/Condorino/releases) – `condorino-alpha-01.apk`
+herunterladen und auf dem Telefon öffnen.
+
+**Fertig gebaut aus CI:** Der Workflow `Build APK` baut bei jedem Push Debug- und Release-APK.
+Unter *Actions → Build APK → letzter Lauf → Artifacts* liegen `condorino-debug-apk` und
+`condorino-release-apk`.
 
 **Selbst bauen:** siehe **[docs/BUILD.md](docs/BUILD.md)**. Kurzfassung:
 
@@ -113,9 +129,10 @@ Aufbau und Begründungen: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ### Tests
 
-79 Unit-Tests über Pattern-Erkennung, Workday-Penalty, effektive Aufenthaltsdauer,
+84 Unit-Tests über Pattern-Erkennung, Workday-Penalty, effektive Aufenthaltsdauer,
 Nächte-Berechnung über Mitternacht, Zeitzonen (UK, Madeira, Griechenland, Sommer/Winter),
-Kosten-Scoring, Zufallsauswahl, Feed-Parsing und die Rangfolge-Fälle aus dem Briefing:
+Kosten-Scoring, Zufallsauswahl, Feed-Parsing, Datumsformate (inkl. der Zusicherung, dass Englisch
+nie monatsführend formatiert) und die Rangfolge-Fälle aus dem Briefing:
 
 ```bash
 ./gradlew testDebugUnitTest
@@ -133,6 +150,10 @@ Netzwerkzugriffe gehen ausschließlich an die von dir selbst konfigurierten Date
 | --- | --- | --- |
 | Condor Developer API (`developer.condor.com`) | primär vorgesehen | Vertrag vom Nutzer einzutragen |
 | Eigener HTTPS-Feed (Condorino-Feed-Schema) | funktioniert sofort | URL vom Nutzer einzutragen |
+| [OpenSky Network](https://opensky-network.org/) | Abgleich: tatsächlich geflogene Flüge | kostenlos, Konto optional |
+| [OurAirports](https://github.com/davidmegginson/ourairports-data) | Flughafen-Codes, Städte, Länder | Public Domain, gebündelt |
+| [OpenFlights](https://github.com/jpatokal/openflights) | Zeitzonen je Flughafen | ODbL, gebündelt |
+| [IANA tzdata](https://github.com/eggert/tz) | Zeitzonen je Land | Public Domain, gebündelt |
 | `assets/demo_schedule.json` | Beispieldaten | mitgeliefert, rot markiert, abschaltbar |
 | `assets/destination_profiles.json` | redaktionelle Zielbewertungen | mitgeliefert, editierbar |
 | MyID Travel | **nicht** angebunden | Preise manuell |

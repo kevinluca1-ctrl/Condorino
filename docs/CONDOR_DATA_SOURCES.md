@@ -169,3 +169,85 @@ oder
 1. Eine Datei nach obigem Schema erzeugen (aus dem Abzug deiner Wahl) und per HTTPS bereitstellen.
 2. Die URL in *Einstellungen → Eigener Flight-Feed* eintragen und die Quelle aktivieren.
 3. Beispieldaten in den Einstellungen abschalten.
+
+---
+
+# Frei zugängliche Datenquellen anderer Anbieter
+
+Recherche vom 28.08.2026. Die Frage war: *gibt es freie Quellen zum Abgleich, oder wenigstens eine
+öffentlich einsehbare, weitreichende Liste als Datenbasis?* Beides — und beides ist inzwischen
+eingebaut.
+
+## Eingebaut
+
+### 1. Flughafen-Referenzdatensatz (`assets/airports_reference.json`)
+
+**6.442 Flughäfen**, gebündelt aus drei öffentlichen Quellen:
+
+| Quelle | Lizenz | Was daraus kommt |
+| --- | --- | --- |
+| [OurAirports](https://github.com/davidmegginson/ourairports-data) | Public Domain | IATA- und ICAO-Code, Name, Stadt, ISO-Ländercode |
+| [OpenFlights](https://github.com/jpatokal/openflights) | ODbL | IANA-Zeitzone je Flughafen |
+| [IANA tzdata `zone1970.tab`](https://github.com/eggert/tz) | Public Domain | Zeitzone dort, wo OpenFlights keine hat |
+
+Die Zeitzone ist der kritische Wert — sie entscheidet über jede angezeigte Uhrzeit. Deshalb gilt
+eine strenge Reihenfolge:
+
+1. **Kuratierte Korrektur** für Inselgruppen, deren Land mehrere Zonen hat (Madeira, Azoren,
+   Kanaren) — 18 Einträge, jeder gegen die tzdata-Zonenliste des Landes geprüft.
+2. **OpenFlights**, wenn es den Flughafen kennt (5.373 Einträge).
+3. **tzdata-Länderregel**: hat ein Land laut `zone1970.tab` *genau eine* Zone, gilt sie für jeden
+   Flughafen des Landes (1.051 Einträge). So löst sich z. B. Istanbul (LTFM) korrekt auf, das
+   OpenFlights noch ohne Zone führt — die Türkei hat nur `Europe/Istanbul`.
+4. **Sonst: nicht aufnehmen.** 2.359 Flughäfen sind bewusst *nicht* enthalten, weil sich ihre Zone
+   nicht belegen ließ. Die App rät keine Zeitzone.
+
+Praktischer Nutzen: ein Feed muss nur noch IATA-Codes und Zeiten liefern; Name, Land und Zeitzone
+kommen aus der Referenz. Der Datensatz lässt sich nachbauen — die drei Quell-URLs stehen in der
+Datei.
+
+### 2. OpenSky Network — Abgleich mit tatsächlich geflogenen Flügen
+
+[OpenSky](https://opensky-network.org/) betreibt eine **kostenlose, öffentliche REST-API** über
+crowdgesammelte ADS-B-Empfänge. Sie beantwortet eine andere Frage als ein Flugplan, und genau darin
+liegt der Wert:
+
+* Ein Flugplan sagt: *„diese Route ist geplant."*
+* OpenSky sagt: **„dieses Flugzeug ist tatsächlich geflogen, an diesem Tag, zu dieser Zeit."**
+
+Geprüfter Vertrag:
+
+```
+GET https://opensky-network.org/api/flights/departure?airport=EDDF&begin=<unix>&end=<unix>
+GET https://opensky-network.org/api/flights/arrival  ?airport=EDDF&begin=<unix>&end=<unix>
+```
+
+Antwort: JSON-Array mit `icao24`, `callsign`, `estDepartureAirport`, `estArrivalAirport`,
+`firstSeen`, `lastSeen`. Flughäfen als **ICAO** (Frankfurt = `EDDF`), Zeiten als Unix-Sekunden.
+HTTP 404 heißt „nichts in diesem Fenster", nicht Fehler. Anonymer Zugriff funktioniert mit engeren
+Limits; ein kostenloses Konto liefert per OAuth2-Client-Credentials höhere Limits.
+
+`OpenSkyFlightDataSource` filtert auf Condors Rufzeichen-Präfix **`CFG`** (IATA `DE`, ICAO `CFG`),
+gruppiert die Beobachtungen nach Wochentag und Route und nimmt **Median**-Abflugzeit und
+-Blockzeit — der Median, weil ein einzelner stark verspäteter Flug den Eintrag sonst aus seinem
+echten Slot zöge. Daraus entsteht ein *beobachteter Flugplan*.
+
+**Wichtige Einschränkung:** `firstSeen` ist der erste Transponder-Empfang, nicht die planmäßige
+Abflugzeit, und nichts davon sagt etwas über Buchbarkeit. Deshalb trägt alles aus dieser Quelle
+`DataProvenance.SCHEDULE` und wird in der UI als **FLUGPLAN** markiert, nie als LIVE.
+
+Einrichten: *Einstellungen → OpenSky-Abgleich* aktivieren. Ohne Konto sofort nutzbar.
+
+## Geprüft, aber nicht eingebaut
+
+| Quelle | Warum nicht |
+| --- | --- |
+| [Duffel](https://duffel.com/flights/airlines/condor) | Echte Such- und Buchungsdaten inkl. Condor, aber vertrags- und kostenpflichtig; kein freier Zugang. |
+| [AirLabs](https://airlabs.co/condor-developer-api) | Flugpläne und Status inkl. Condor, kostenpflichtig. |
+| OAG, Cirium | Die Referenz für Flugpläne, rein kommerziell. |
+| AviationStack | Free-Tier mit 100 Anfragen/Monat — zu wenig für eine Mehr-Wochenend-Suche, und der Free-Tier ist HTTP-only. |
+| ADS-B-Communities (adsb.lol, airplanes.live) | Frei und offen, liefern aber Live-Positionen statt Flug-Aggregaten; für „welche Route wurde wann geflogen" ist OpenSky die passendere Abstraktion. |
+
+Alle drei eingebauten Quellen und die Condor-API laufen über dasselbe `FlightDataSource`-Interface
+und sind in *Einstellungen → Datenquellen* einzeln an- und abschaltbar. Die Reihenfolge ist:
+Condor Developer API → eigener Feed → OpenSky → (falls erlaubt) Beispieldaten.
