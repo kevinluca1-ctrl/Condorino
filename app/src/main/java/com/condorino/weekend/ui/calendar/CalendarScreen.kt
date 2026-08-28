@@ -16,11 +16,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,8 +44,11 @@ import com.condorino.weekend.ui.theme.CondorinoColors
 import java.time.LocalDate
 import kotlin.math.roundToInt
 
-private enum class RangePreset(val label: String, val months: Long) {
+private enum class RangePreset(val label: String, val months: Long?) {
     ONE("1 Monat", 1), THREE("3 Monate", 3), SIX("6 Monate", 6),
+
+    /** Explicit Von/Bis selection (spec §16). */
+    CUSTOM("Zeitraum…", null),
 }
 
 /**
@@ -57,6 +64,20 @@ fun CalendarScreen(
     modifier: Modifier = Modifier,
 ) {
     var preset by remember { mutableStateOf(RangePreset.THREE) }
+    var showRangePicker by remember { mutableStateOf(false) }
+
+    if (showRangePicker) {
+        RangePickerDialog(
+            initialFrom = state.from,
+            initialTo = state.to,
+            onDismiss = { showRangePicker = false },
+            onConfirm = { from, to ->
+                showRangePicker = false
+                preset = RangePreset.CUSTOM
+                viewModel.setRange(from, to)
+            },
+        )
+    }
 
     Box(modifier.fillMaxSize().background(CondorinoColors.Background)) {
         LazyColumn(
@@ -104,9 +125,14 @@ fun CalendarScreen(
                         FilterChip(
                             selected = preset == option,
                             onClick = {
-                                preset = option
-                                val from = LocalDate.now()
-                                viewModel.setRange(from, from.plusMonths(option.months))
+                                val months = option.months
+                                if (months == null) {
+                                    showRangePicker = true
+                                } else {
+                                    preset = option
+                                    val from = LocalDate.now()
+                                    viewModel.setRange(from, from.plusMonths(months))
+                                }
                             },
                             label = { Text(option.label, fontSize = 12.sp) },
                             colors = FilterChipDefaults.filterChipColors(
@@ -272,3 +298,69 @@ internal fun stars(score: Double): String {
     val filled = ((score / 100.0) * 5.0).roundToInt().coerceIn(0, 5)
     return "★".repeat(filled) + "☆".repeat(5 - filled)
 }
+
+/**
+ * Von/Bis selection for the multi-weekend search.
+ *
+ * The Material date-range picker works in UTC midnight millis, so the conversion is pinned to
+ * [ZoneOffset.UTC] on the way in and out — reading those millis in the device zone would shift the
+ * chosen day by one either side of midnight.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RangePickerDialog(
+    initialFrom: LocalDate,
+    initialTo: LocalDate,
+    onDismiss: () -> Unit,
+    onConfirm: (LocalDate, LocalDate) -> Unit,
+) {
+    val pickerState = rememberDateRangePickerState(
+        initialSelectedStartDateMillis = initialFrom.toUtcMillis(),
+        initialSelectedEndDateMillis = initialTo.toUtcMillis(),
+    )
+
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val from = pickerState.selectedStartDateMillis?.toUtcLocalDate()
+                    val to = pickerState.selectedEndDateMillis?.toUtcLocalDate()
+                    if (from != null && to != null && !to.isBefore(from)) onConfirm(from, to)
+                },
+                enabled = pickerState.selectedStartDateMillis != null &&
+                    pickerState.selectedEndDateMillis != null,
+            ) {
+                Text("Übernehmen", color = CondorinoColors.Amber)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Abbrechen", color = CondorinoColors.TextSecondary)
+            }
+        },
+        colors = androidx.compose.material3.DatePickerDefaults.colors(
+            containerColor = CondorinoColors.Surface,
+        ),
+    ) {
+        DateRangePicker(
+            state = pickerState,
+            title = {
+                Text(
+                    "Zeitraum wählen",
+                    color = CondorinoColors.TextPrimary,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(start = 24.dp, top = 16.dp),
+                )
+            },
+            showModeToggle = false,
+        )
+    }
+}
+
+private fun LocalDate.toUtcMillis(): Long =
+    atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+
+private fun Long.toUtcLocalDate(): LocalDate =
+    java.time.Instant.ofEpochMilli(this).atZone(java.time.ZoneOffset.UTC).toLocalDate()
