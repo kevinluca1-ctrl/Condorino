@@ -23,6 +23,7 @@ import com.condorino.weekend.domain.model.WeekendPattern
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.time.Instant
 import java.time.LocalTime
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "condorino_settings")
@@ -88,6 +89,16 @@ class PreferencesStore(private val context: Context) {
         val openSkyLookbackWeeks = intPreferencesKey("opensky_lookback_weeks")
 
         val themeMode = stringPreferencesKey("theme_mode")
+
+        val updateAutoCheckEnabled = booleanPreferencesKey("update_auto_check_enabled")
+        val updateWifiOnly = booleanPreferencesKey("update_wifi_only")
+        val updateLastCheckedAt = longPreferencesKey("update_last_checked_at")
+        val updateLastNotifiedTag = stringPreferencesKey("update_last_notified_tag")
+        val updatePendingDownloadId = longPreferencesKey("update_pending_download_id")
+        val updatePendingDownloadTag = stringPreferencesKey("update_pending_download_tag")
+        val updatePendingDownloadApkAssetName = stringPreferencesKey("update_pending_download_apk_asset_name")
+        val updateReadyTag = stringPreferencesKey("update_ready_tag")
+        val updateReadyApkAssetName = stringPreferencesKey("update_ready_apk_asset_name")
     }
 
     val preferences: Flow<UserPreferences> = context.dataStore.data.map { p ->
@@ -179,6 +190,20 @@ class PreferencesStore(private val context: Context) {
     /** Whether the bundled demo data may be used when no real source is configured. */
     val allowDemoData: Flow<Boolean> = context.dataStore.data.map { it[Keys.allowDemoData] ?: true }
 
+    val updatePrefs: Flow<UpdatePrefs> = context.dataStore.data.map { p ->
+        UpdatePrefs(
+            autoCheckEnabled = p[Keys.updateAutoCheckEnabled] ?: true,
+            wifiOnly = p[Keys.updateWifiOnly] ?: true,
+            lastCheckedAt = p[Keys.updateLastCheckedAt]?.let { Instant.ofEpochMilli(it) },
+            lastNotifiedTag = p[Keys.updateLastNotifiedTag],
+            pendingDownloadId = p[Keys.updatePendingDownloadId],
+            pendingDownloadTag = p[Keys.updatePendingDownloadTag],
+            pendingDownloadApkAssetName = p[Keys.updatePendingDownloadApkAssetName],
+            readyTag = p[Keys.updateReadyTag],
+            readyApkAssetName = p[Keys.updateReadyApkAssetName],
+        )
+    }
+
     suspend fun currentPreferences(): UserPreferences = preferences.first()
 
     suspend fun update(transform: (UserPreferences) -> UserPreferences) {
@@ -255,4 +280,75 @@ class PreferencesStore(private val context: Context) {
     suspend fun setAllowDemoData(allow: Boolean) {
         context.dataStore.edit { it[Keys.allowDemoData] = allow }
     }
+
+    suspend fun setUpdateAutoCheckEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.updateAutoCheckEnabled] = enabled }
+    }
+
+    suspend fun setUpdateWifiOnly(wifiOnly: Boolean) {
+        context.dataStore.edit { it[Keys.updateWifiOnly] = wifiOnly }
+    }
+
+    suspend fun recordUpdateCheckedAt(at: Instant) {
+        context.dataStore.edit { it[Keys.updateLastCheckedAt] = at.toEpochMilli() }
+    }
+
+    suspend fun recordUpdateNotified(tag: String) {
+        context.dataStore.edit { it[Keys.updateLastNotifiedTag] = tag }
+    }
+
+    /** Persisted so a still-running download survives the app process being killed and restarted. */
+    suspend fun recordPendingDownload(id: Long, tag: String, apkAssetName: String) {
+        context.dataStore.edit { p ->
+            p[Keys.updatePendingDownloadId] = id
+            p[Keys.updatePendingDownloadTag] = tag
+            p[Keys.updatePendingDownloadApkAssetName] = apkAssetName
+            p.remove(Keys.updateReadyTag)
+            p.remove(Keys.updateReadyApkAssetName)
+        }
+    }
+
+    suspend fun recordDownloadReady(tag: String, apkAssetName: String) {
+        context.dataStore.edit { p ->
+            p.remove(Keys.updatePendingDownloadId)
+            p.remove(Keys.updatePendingDownloadTag)
+            p.remove(Keys.updatePendingDownloadApkAssetName)
+            p[Keys.updateReadyTag] = tag
+            p[Keys.updateReadyApkAssetName] = apkAssetName
+        }
+    }
+
+    suspend fun clearPendingDownload() {
+        context.dataStore.edit { p ->
+            p.remove(Keys.updatePendingDownloadId)
+            p.remove(Keys.updatePendingDownloadTag)
+            p.remove(Keys.updatePendingDownloadApkAssetName)
+        }
+    }
+
+    suspend fun clearReadyDownload() {
+        context.dataStore.edit { p ->
+            p.remove(Keys.updateReadyTag)
+            p.remove(Keys.updateReadyApkAssetName)
+        }
+    }
+
+    suspend fun currentUpdatePrefs(): UpdatePrefs = updatePrefs.first()
 }
+
+/**
+ * Everything the update flow needs to remember across app restarts: whether a download is still in
+ * flight (so it can be picked back up rather than silently forgotten) and which tag, if any, is
+ * already sitting on disk ready to install.
+ */
+data class UpdatePrefs(
+    val autoCheckEnabled: Boolean = true,
+    val wifiOnly: Boolean = true,
+    val lastCheckedAt: Instant? = null,
+    val lastNotifiedTag: String? = null,
+    val pendingDownloadId: Long? = null,
+    val pendingDownloadTag: String? = null,
+    val pendingDownloadApkAssetName: String? = null,
+    val readyTag: String? = null,
+    val readyApkAssetName: String? = null,
+)

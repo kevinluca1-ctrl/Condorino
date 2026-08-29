@@ -69,6 +69,11 @@ Android 13 on.
 
 **Light and dark.** System / Light / Dark, switchable without a restart.
 
+**In-app updates.** Once a day the app checks this repository's own GitHub Releases, downloads a
+newer APK in the background over Wi-Fi (configurable) and notifies you — one tap installs it. Only
+works for a build produced by the release workflow (it needs to know its own release date to
+compare against); a CI or hand-built APK says so plainly instead of guessing.
+
 **Honest states.** Every figure carries its provenance: `LIVE`, `RECENTLY UPDATED`, `TIMETABLE`,
 `CACHED`, `MANUAL` or `SAMPLE DATA`, always alongside “Last updated: HH:MM”. With no network the
 app shows the cache instead of crashing. There are no empty lists — instead you get the reason why
@@ -129,10 +134,11 @@ Structure and reasoning: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ### Tests
 
-103 unit tests covering pattern detection, the workday penalty, effective length of stay, counting
+111 unit tests covering pattern detection, the workday penalty, effective length of stay, counting
 nights across midnight, time zones (UK, Madeira, Greece, summer/winter), cost scoring, random
-selection, feed parsing, price-field text handling, airport search ranking, date formats (including
-the guarantee that English never formats month-first) and the ranking cases from the brief:
+selection, feed parsing, price-field text handling, airport search ranking, update-release selection,
+date formats (including the guarantee that English never formats month-first) and the ranking cases
+from the brief:
 
 ```bash
 ./gradlew testDebugUnitTest

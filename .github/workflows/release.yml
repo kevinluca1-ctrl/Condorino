@@ -3,7 +3,8 @@ name: Release
 # Publishes a GitHub Release with both APKs attached whenever a version tag is pushed.
 on:
   push:
-    tags: ["alpha-*", "beta-*", "v*"]
+    # No hyphen required: a plain "alpha" tag matches too, not just "alpha-01".
+    tags: ["alpha*", "beta*", "v*"]
   workflow_dispatch:
     inputs:
       tag:
@@ -23,6 +24,13 @@ jobs:
           ref: ${{ github.event.inputs.tag || github.ref }}
           fetch-depth: 0
 
+      - name: Resolve the tag and this build's release timestamp
+        id: names
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "published_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -39,13 +47,18 @@ jobs:
         run: ./gradlew --no-daemon testDebugUnitTest
 
       - name: Build APKs
-        run: ./gradlew --no-daemon assembleDebug assembleRelease
+        # RELEASE_TAG/RELEASE_PUBLISHED_AT are baked into BuildConfig so the installed app can
+        # honestly tell whether a later GitHub release is newer than itself (see
+        # data/update/GitHubReleaseUpdateSource.kt). A build outside this workflow never sets them.
+        run: >
+          ./gradlew --no-daemon
+          -PreleaseTag="${{ steps.names.outputs.tag }}"
+          -PreleasePublishedAt="${{ steps.names.outputs.published_at }}"
+          assembleDebug assembleRelease
 
       - name: Name the artefacts after the tag
-        id: names
         run: |
-          TAG="${{ github.event.inputs.tag || github.ref_name }}"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          TAG="${{ steps.names.outputs.tag }}"
           mkdir -p dist
           cp app/build/outputs/apk/release/app-release.apk "dist/condorino-$TAG.apk"
           cp app/build/outputs/apk/debug/app-debug.apk "dist/condorino-$TAG-debug.apk"

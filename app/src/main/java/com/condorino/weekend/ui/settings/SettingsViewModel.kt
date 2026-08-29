@@ -11,6 +11,8 @@ import com.condorino.weekend.data.source.OpenSkyConfig
 import com.condorino.weekend.data.source.FlightDataSource
 import com.condorino.weekend.data.source.SourceStatus
 import com.condorino.weekend.data.source.SourceTestResult
+import com.condorino.weekend.data.update.UpdateRepository
+import com.condorino.weekend.data.update.UpdateUiState
 import com.condorino.weekend.domain.model.Airport
 import com.condorino.weekend.domain.model.StandbyPrice
 import com.condorino.weekend.domain.model.ThemeMode
@@ -49,6 +51,7 @@ data class SettingsUiState(
     val testingSourceId: String? = null,
     /** Destination whose price card the prices screen should open expanded, if any. */
     val focusPriceIata: String? = null,
+    val updateState: UpdateUiState = UpdateUiState(),
 )
 
 class SettingsViewModel(
@@ -57,6 +60,7 @@ class SettingsViewModel(
     private val tripRepository: TripRepository,
     private val sources: List<FlightDataSource>,
     private val airportReferenceCatalog: AirportReferenceCatalog,
+    private val updateRepository: UpdateRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SettingsUiState())
@@ -100,6 +104,9 @@ class SettingsViewModel(
                 referenceAirportCount = reference.size,
                 allAirports = reference.values.sortedBy { it.city },
             )
+        }
+        viewModelScope.launch {
+            updateRepository.state.collectLatest { _state.value = _state.value.copy(updateState = it) }
         }
         refreshSourceStates()
     }
@@ -156,6 +163,29 @@ class SettingsViewModel(
         }
     }
 
+    fun checkForUpdate() {
+        viewModelScope.launch { updateRepository.checkNow() }
+    }
+
+    fun downloadUpdate() {
+        viewModelScope.launch { updateRepository.startDownload() }
+    }
+
+    /** Returns false if the special "install unknown apps" access has to be granted first. */
+    fun installUpdate(): Boolean = updateRepository.install()
+
+    fun canInstallPackages(): Boolean = updateRepository.canInstallPackages()
+
+    fun openUnknownSourcesSettingsIntent() = updateRepository.openUnknownSourcesSettings()
+
+    fun setUpdateAutoCheckEnabled(enabled: Boolean) {
+        viewModelScope.launch { updateRepository.setAutoCheckEnabled(enabled) }
+    }
+
+    fun setUpdateWifiOnly(wifiOnly: Boolean) {
+        viewModelScope.launch { updateRepository.setWifiOnly(wifiOnly) }
+    }
+
     fun savePrice(price: StandbyPrice) {
         viewModelScope.launch { standbyPriceRepository.save(price) }
     }
@@ -171,6 +201,7 @@ class SettingsViewModel(
             tripRepository: TripRepository,
             sources: List<FlightDataSource>,
             airportReferenceCatalog: AirportReferenceCatalog,
+            updateRepository: UpdateRepository,
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T = SettingsViewModel(
@@ -179,6 +210,7 @@ class SettingsViewModel(
                 tripRepository,
                 sources,
                 airportReferenceCatalog,
+                updateRepository,
             ) as T
         }
     }

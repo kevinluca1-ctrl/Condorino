@@ -74,6 +74,9 @@ fun SettingsScreen(
             letterSpacing = (-1).sp,
         )
 
+        // ---------------------------------------------------------------- updates
+        UpdateSection(state, viewModel)
+
         // ---------------------------------------------------------------- appearance
         SettingsSection(stringResource(R.string.settings_appearance)) {
             Text(

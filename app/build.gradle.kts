@@ -6,6 +6,12 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+// Baked into BuildConfig only when the release workflow passes them (-PreleaseTag=... on a tag
+// build). A CI or locally built APK carries neither, and the in-app update checker treats that as
+// "this build cannot say what release it is" rather than guessing — see GitHubReleaseUpdateSource.
+val releaseTag: String = (project.findProperty("releaseTag") as? String).orEmpty()
+val releasePublishedAt: String = (project.findProperty("releasePublishedAt") as? String).orEmpty()
+
 android {
     namespace = "com.condorino.weekend"
     compileSdk = 35
@@ -23,6 +29,13 @@ android {
 
         // German is the default; English (US) is the second shipped language.
         resourceConfigurations += listOf("de", "en")
+
+        buildConfigField("String", "RELEASE_TAG", "\"$releaseTag\"")
+        buildConfigField("String", "RELEASE_PUBLISHED_AT", "\"$releasePublishedAt\"")
+        // The repository the in-app update checker asks GitHub about. A fork only needs to change
+        // these two lines to point the same feature at its own releases.
+        buildConfigField("String", "UPDATE_REPO_OWNER", "\"kevinluca1-ctrl\"")
+        buildConfigField("String", "UPDATE_REPO_NAME", "\"Condorino\"")
     }
 
     buildTypes {

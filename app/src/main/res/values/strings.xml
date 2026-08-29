@@ -435,4 +435,42 @@
     </plurals>
     <string name="settings_source_test">Testen</string>
     <string name="settings_source_testing">Test läuft…</string>
+
+    <!-- Automatisches Update aus den GitHub Releases -->
+    <string name="settings_updates">Updates</string>
+    <string name="settings_updates_body">Du hast Version %1$s installiert.</string>
+    <string name="settings_updates_body_dev">Entwickler-Build – keine getaggte Version, daher kein Update-Check möglich.</string>
+    <string name="update_auto_check">Automatisch nach Updates suchen</string>
+    <string name="update_auto_check_body">Prüft einmal täglich die GitHub Releases dieser App und lädt ein neues Release im Hintergrund herunter.</string>
+    <string name="update_wifi_only">Nur über WLAN herunterladen</string>
+    <string name="update_last_checked">Zuletzt geprüft: %1$s</string>
+    <string name="update_check_now">Jetzt prüfen</string>
+    <string name="update_checking">Suche läuft…</string>
+    <string name="update_up_to_date">Du hast die aktuellste Version.</string>
+    <string name="update_available_title">%1$s verfügbar</string>
+    <string name="update_download">Herunterladen</string>
+    <string name="update_view_on_github">Auf GitHub ansehen</string>
+    <string name="update_downloading">%1$s wird heruntergeladen…</string>
+    <string name="update_ready_title">%1$s heruntergeladen</string>
+    <string name="update_install">Installieren</string>
+    <string name="update_grant_install_access">Installationen von Condorino erlauben</string>
+    <string name="update_grant_install_access_body">Android verlangt einmalig deine Erlaubnis, damit Condorino Apps installieren darf.</string>
+    <string name="update_download_failed">Der Download ist fehlgeschlagen.</string>
+    <string name="update_retry">Erneut versuchen</string>
+
+    <string name="update_not_a_release_build">Dieser Build stammt nicht aus einem getaggten Release und kann daher nicht sagen, ob er aktuell ist.</string>
+    <string name="update_not_found">GitHub-Repository nicht gefunden – ist es öffentlich?</string>
+    <string name="update_rate_limited">GitHub-Anfragelimit erreicht. Später erneut versuchen.</string>
+    <string name="update_http">GitHub antwortet mit HTTP %1$d.</string>
+    <string name="update_empty_response">GitHub hat eine leere Antwort geliefert.</string>
+    <string name="update_no_releases">Es sind noch keine Releases veröffentlicht.</string>
+    <string name="update_unparseable_date">Das Veröffentlichungsdatum des Release konnte nicht gelesen werden.</string>
+    <string name="update_no_apk_asset">Release %1$s enthält keine APK-Datei.</string>
+    <string name="update_offline">GitHub nicht erreichbar – bist du offline?</string>
+    <string name="update_parse_failed">Die Release-Liste konnte nicht verarbeitet werden.</string>
+
+    <string name="update_notification_channel_name">Updates</string>
+    <string name="update_notification_channel_desc">Benachrichtigt dich, wenn eine neue Condorino-Version verfügbar ist.</string>
+    <string name="update_notification_title">Update verfügbar: %1$s</string>
+    <string name="update_notification_body">Wird im Hintergrund heruntergeladen. Zum Öffnen tippen.</string>
 </resources>

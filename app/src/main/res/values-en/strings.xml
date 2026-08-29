@@ -391,4 +391,42 @@
     </plurals>
     <string name="settings_source_test">Test</string>
     <string name="settings_source_testing">Testing…</string>
+
+    <!-- Automatic updates from the GitHub Releases -->
+    <string name="settings_updates">Updates</string>
+    <string name="settings_updates_body">You have version %1$s installed.</string>
+    <string name="settings_updates_body_dev">Development build - not a tagged release, so update checks are unavailable.</string>
+    <string name="update_auto_check">Check for updates automatically</string>
+    <string name="update_auto_check_body">Checks this app's GitHub releases once a day and downloads a new release in the background.</string>
+    <string name="update_wifi_only">Only download over Wi-Fi</string>
+    <string name="update_last_checked">Last checked: %1$s</string>
+    <string name="update_check_now">Check now</string>
+    <string name="update_checking">Checking…</string>
+    <string name="update_up_to_date">You have the latest version.</string>
+    <string name="update_available_title">%1$s available</string>
+    <string name="update_download">Download</string>
+    <string name="update_view_on_github">View on GitHub</string>
+    <string name="update_downloading">Downloading %1$s…</string>
+    <string name="update_ready_title">%1$s downloaded</string>
+    <string name="update_install">Install</string>
+    <string name="update_grant_install_access">Allow installs from Condorino</string>
+    <string name="update_grant_install_access_body">Android asks for this permission once, so Condorino can install apps.</string>
+    <string name="update_download_failed">The download failed.</string>
+    <string name="update_retry">Retry</string>
+
+    <string name="update_not_a_release_build">This build did not come from a tagged release, so it cannot tell whether it is current.</string>
+    <string name="update_not_found">GitHub repository not found — is it public?</string>
+    <string name="update_rate_limited">GitHub rate limit reached. Try again later.</string>
+    <string name="update_http">GitHub answered with HTTP %1$d.</string>
+    <string name="update_empty_response">GitHub returned an empty response.</string>
+    <string name="update_no_releases">No releases have been published yet.</string>
+    <string name="update_unparseable_date">The release's publish date could not be read.</string>
+    <string name="update_no_apk_asset">Release %1$s has no APK file attached.</string>
+    <string name="update_offline">GitHub is unreachable — are you offline?</string>
+    <string name="update_parse_failed">The release list could not be processed.</string>
+
+    <string name="update_notification_channel_name">Updates</string>
+    <string name="update_notification_channel_desc">Notifies you when a new Condorino version is available.</string>
+    <string name="update_notification_title">Update available: %1$s</string>
+    <string name="update_notification_body">Downloading in the background. Tap to open.</string>
 </resources>

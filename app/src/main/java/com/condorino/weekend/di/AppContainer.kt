@@ -16,6 +16,11 @@ import com.condorino.weekend.data.source.FlightDataSource
 import com.condorino.weekend.data.source.HttpFeedFlightDataSource
 import com.condorino.weekend.data.source.OpenSkyFlightDataSource
 import com.condorino.weekend.data.source.SourceStrings
+import com.condorino.weekend.data.update.DefaultUpdateRepository
+import com.condorino.weekend.data.update.GitHubReleaseUpdateSource
+import com.condorino.weekend.data.update.UpdateDownloader
+import com.condorino.weekend.data.update.UpdateNotifier
+import com.condorino.weekend.data.update.UpdateRepository
 import com.condorino.weekend.domain.model.Airport
 import com.condorino.weekend.domain.repository.FavoriteRepository
 import com.condorino.weekend.domain.repository.StandbyPriceRepository
@@ -132,4 +137,21 @@ class AppContainer(context: Context) {
 
     /** Exposed for the settings screen so it can show each source's configuration status. */
     val allSources: List<FlightDataSource> get() = liveSources + demoSource
+
+    val updateNotifier: UpdateNotifier by lazy { UpdateNotifier(appContext) }
+
+    private val updateDownloader: UpdateDownloader by lazy { UpdateDownloader(appContext) }
+
+    private val updateSource: GitHubReleaseUpdateSource by lazy {
+        GitHubReleaseUpdateSource(client = httpClient, strings = sourceStrings)
+    }
+
+    val updateRepository: UpdateRepository by lazy {
+        DefaultUpdateRepository(
+            source = updateSource,
+            downloader = updateDownloader,
+            notifier = updateNotifier,
+            preferencesStore = preferencesStore,
+        )
+    }
 }

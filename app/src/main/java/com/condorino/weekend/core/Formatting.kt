@@ -85,4 +85,8 @@ object Formatting {
 
     /** Whole minutes between now and [instant]; the wording lives in the string resources. */
     fun minutesSince(instant: Instant): Long = Duration.between(instant, Instant.now()).toMinutes()
+
+    /** "12.3 MB" — the decimal separator follows the locale, same as every other number in the app. */
+    fun megabytes(bytes: Long, locale: Locale = current()): String =
+        String.format(locale, "%.1f MB", bytes / 1_000_000.0)
 }
