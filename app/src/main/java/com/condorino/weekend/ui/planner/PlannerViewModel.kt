@@ -4,7 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.condorino.weekend.data.prefs.PreferencesStore
+import com.condorino.weekend.data.source.CommercialPriceResult
+import com.condorino.weekend.data.source.CommercialPriceSource
 import com.condorino.weekend.domain.model.Cabin
+import com.condorino.weekend.domain.model.CommercialPriceQuote
 import com.condorino.weekend.domain.model.DestinationType
 import com.condorino.weekend.domain.model.StandbyPrice
 import com.condorino.weekend.domain.model.UserPreferences
@@ -42,6 +45,18 @@ data class TripFilters(
             destinationTypes.size != DestinationType.entries.size
 }
 
+/**
+ * On-demand commercial-price lookup state for one trip (keyed by [WeekendTrip.id] in
+ * [PlannerUiState.commercialPrices]). Absent from the map entirely means "never asked for" —
+ * that's the normal state for almost every trip, since this is only fetched on a tap.
+ */
+sealed interface CommercialPriceUiState {
+    data object Loading : CommercialPriceUiState
+    data class Success(val quote: CommercialPriceQuote) : CommercialPriceUiState
+    data class NotConfigured(val reason: String, val howToFix: String) : CommercialPriceUiState
+    data class Failure(val message: String) : CommercialPriceUiState
+}
+
 /** Why a trip list came back empty. Rendered by the UI, see `ui/text/DomainText.kt`. */
 sealed interface EmptyReason {
     data object NoFlightData : EmptyReason
@@ -71,6 +86,8 @@ data class PlannerUiState(
      * of subtle breakage for no benefit.
      */
     val selectedTripId: String? = null,
+    /** On-demand commercial-price lookups keyed by trip id — see [CommercialPriceUiState]. */
+    val commercialPrices: Map<String, CommercialPriceUiState> = emptyMap(),
 ) {
     /** Trips after the on-screen filters — this is what every list renders. */
     val trips: List<WeekendTrip>
@@ -138,6 +155,7 @@ class PlannerViewModel(
     private val preferencesStore: PreferencesStore,
     private val standbyPriceRepository: StandbyPriceRepository,
     private val favoriteRepository: FavoriteRepository,
+    private val commercialPriceSource: CommercialPriceSource,
     private val randomSelector: RandomDestinationSelector = RandomDestinationSelector(),
 ) : ViewModel() {
 
@@ -244,6 +262,36 @@ class PlannerViewModel(
         viewModelScope.launch { standbyPriceRepository.save(price) }
     }
 
+    // ---------------------------------------------------------------- commercial price
+
+    /**
+     * Fetches what a real ticket for this exact trip would cost today, on demand — never called
+     * automatically (see [CommercialPriceSource] doc). Re-tapping while a lookup is already in
+     * flight for this trip is a no-op rather than firing a second request.
+     */
+    fun checkCommercialPrice(trip: WeekendTrip) {
+        val tripId = trip.id
+        if (_state.value.commercialPrices[tripId] is CommercialPriceUiState.Loading) return
+        _state.update { it.copy(commercialPrices = it.commercialPrices + (tripId to CommercialPriceUiState.Loading)) }
+        viewModelScope.launch {
+            val result = commercialPriceSource.quote(
+                origin = trip.outbound.origin,
+                destination = trip.outbound.destination,
+                outboundDate = trip.outbound.departureDateLocal,
+                returnDate = trip.inbound.departureDateLocal,
+                cabin = _state.value.preferences.preferredCabin,
+            )
+            val next = when (result) {
+                is CommercialPriceResult.Success -> CommercialPriceUiState.Success(result.quote)
+                is CommercialPriceResult.NotConfigured -> CommercialPriceUiState.NotConfigured(result.reason, result.howToFix)
+                is CommercialPriceResult.Failure -> CommercialPriceUiState.Failure(
+                    result.userMessage + (result.technicalDetail?.let { " ($it)" } ?: ""),
+                )
+            }
+            _state.update { it.copy(commercialPrices = it.commercialPrices + (tripId to next)) }
+        }
+    }
+
     // ---------------------------------------------------------------- surprise me
 
     fun setSurpriseMode(mode: RandomMode) {
@@ -281,6 +329,7 @@ class PlannerViewModel(
             preferencesStore: PreferencesStore,
             standbyPriceRepository: StandbyPriceRepository,
             favoriteRepository: FavoriteRepository,
+            commercialPriceSource: CommercialPriceSource,
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T =
@@ -289,6 +338,7 @@ class PlannerViewModel(
                     preferencesStore,
                     standbyPriceRepository,
                     favoriteRepository,
+                    commercialPriceSource,
                 ) as T
         }
     }

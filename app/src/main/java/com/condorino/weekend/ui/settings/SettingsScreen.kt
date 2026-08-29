@@ -48,6 +48,10 @@ import com.condorino.weekend.ui.text.label
 import com.condorino.weekend.ui.theme.CondorinoColors
 import java.time.LocalTime
 
+/** Matches [com.condorino.weekend.data.source.GoogleFlightsPriceSource.id] — it isn't in
+ *  [SettingsUiState.sources], so its self-test result is looked up by this literal instead. */
+private const val GOOGLE_FLIGHTS_SOURCE_ID = "google-flights"
+
 /** Everything from spec §7 (work times, buffers, limits), §8 (weights) and §3 (data sources). */
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -315,6 +319,94 @@ fun SettingsScreen(
             TextField(stringResource(R.string.settings_api_field_flight_number), state.condorApiConfig.fieldFlightNumber) {
                 viewModel.updateCondorApiConfig(state.condorApiConfig.copy(fieldFlightNumber = it.trim()))
             }
+        }
+
+        SettingsSection(
+            stringResource(R.string.settings_google_flights),
+            stringResource(R.string.settings_google_flights_body),
+        ) {
+            SwitchRow(
+                label = stringResource(R.string.settings_api_active),
+                checked = state.googleFlightsApiConfig.enabled,
+                onCheckedChange = { viewModel.updateGoogleFlightsApiConfig(state.googleFlightsApiConfig.copy(enabled = it)) },
+            )
+            state.googleFlightsStatus?.let { status ->
+                Text(
+                    when (status) {
+                        is SourceStatus.Ready -> stringResource(R.string.settings_source_ready)
+                        is SourceStatus.NotConfigured -> "${status.reason} ${status.howToFix}"
+                        is SourceStatus.Unavailable -> status.reason
+                    },
+                    color = if (status is SourceStatus.Ready) CondorinoColors.Mint else CondorinoColors.TextTertiary,
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp,
+                )
+            }
+            state.sourceTests[GOOGLE_FLIGHTS_SOURCE_ID]?.let { result ->
+                Text(
+                    when (result) {
+                        is SourceTestResult.Ok -> result.message
+                        is SourceTestResult.Problem -> result.message
+                    },
+                    color = when (result) {
+                        is SourceTestResult.Ok -> CondorinoColors.Mint
+                        is SourceTestResult.Problem -> CondorinoColors.Warning
+                    },
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
+                )
+            }
+            OutlinedButton(
+                onClick = { viewModel.testSource(GOOGLE_FLIGHTS_SOURCE_ID) },
+                enabled = state.testingSourceId == null,
+            ) {
+                Text(
+                    stringResource(
+                        if (state.testingSourceId == GOOGLE_FLIGHTS_SOURCE_ID) R.string.settings_source_testing
+                        else R.string.settings_source_test,
+                    ),
+                    color = CondorinoColors.Amber,
+                    fontSize = 12.sp,
+                )
+            }
+            TextField(stringResource(R.string.settings_gf_api_host), state.googleFlightsApiConfig.apiHost) {
+                viewModel.updateGoogleFlightsApiConfig(state.googleFlightsApiConfig.copy(apiHost = it.trim()))
+            }
+            PasswordField(stringResource(R.string.settings_gf_api_key), state.googleFlightsApiConfig.apiKey) {
+                viewModel.updateGoogleFlightsApiConfig(state.googleFlightsApiConfig.copy(apiKey = it.trim()))
+            }
+            TextField(stringResource(R.string.settings_gf_path), state.googleFlightsApiConfig.path) {
+                viewModel.updateGoogleFlightsApiConfig(state.googleFlightsApiConfig.copy(path = it.trim()))
+            }
+            TextField(stringResource(R.string.settings_gf_items_path), state.googleFlightsApiConfig.itemsPath, placeholder = "data.itineraries.topFlights") {
+                viewModel.updateGoogleFlightsApiConfig(state.googleFlightsApiConfig.copy(itemsPath = it.trim()))
+            }
+            Text(
+                stringResource(R.string.settings_api_fields),
+                color = CondorinoColors.TextTertiary,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            TextField(stringResource(R.string.settings_gf_field_price), state.googleFlightsApiConfig.fieldPrice) {
+                viewModel.updateGoogleFlightsApiConfig(state.googleFlightsApiConfig.copy(fieldPrice = it.trim()))
+            }
+            TextField(stringResource(R.string.settings_gf_field_airline), state.googleFlightsApiConfig.fieldAirline) {
+                viewModel.updateGoogleFlightsApiConfig(state.googleFlightsApiConfig.copy(fieldAirline = it.trim()))
+            }
+            TextField(stringResource(R.string.settings_gf_field_carry_on_included), state.googleFlightsApiConfig.fieldCarryOnIncluded) {
+                viewModel.updateGoogleFlightsApiConfig(state.googleFlightsApiConfig.copy(fieldCarryOnIncluded = it.trim()))
+            }
+            TextField(stringResource(R.string.settings_gf_field_carry_on_note), state.googleFlightsApiConfig.fieldCarryOnNote) {
+                viewModel.updateGoogleFlightsApiConfig(state.googleFlightsApiConfig.copy(fieldCarryOnNote = it.trim()))
+            }
+            Text(
+                stringResource(R.string.settings_gf_unverified_hint),
+                color = CondorinoColors.TextTertiary,
+                fontSize = 11.sp,
+                lineHeight = 15.sp,
+                modifier = Modifier.padding(top = 4.dp),
+            )
         }
 
         // ---------------------------------------------------------------- work / travel times

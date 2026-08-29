@@ -79,6 +79,16 @@
     <string name="detail_leave_home_at">Losfahren in %1$s um</string>
     <string name="detail_home_again">Wieder zu Hause</string>
     <string name="detail_transfer">Transfer Flughafen ↔ Zentrum</string>
+    <string name="detail_commercial_price">Kommerzieller Preis</string>
+    <string name="detail_commercial_price_hint">Was ein regulär gebuchtes Ticket für diesen Trip heute kosten würde – zum Vergleich, falls Standby nicht klappt. Wird nur auf Wunsch abgefragt.</string>
+    <string name="detail_check_commercial_price">Preis abfragen</string>
+    <string name="detail_refresh_commercial_price">Erneut abfragen</string>
+    <string name="detail_commercial_roundtrip">Preis (Roundtrip)</string>
+    <string name="detail_carry_on_included">Handgepäck inklusive</string>
+    <string name="detail_carry_on_not_included">Handgepäck nicht inklusive</string>
+    <string name="detail_carry_on_unknown">Handgepäck: von der Quelle nicht angegeben</string>
+    <string name="detail_commercial_airline">Airline: %1$s</string>
+    <string name="action_retry">Erneut versuchen</string>
     <string name="detail_why">Warum dieser Trip?</string>
     <string name="detail_score_breakdown">Score-Zusammensetzung</string>
     <string name="detail_nonstop">Nonstop</string>
@@ -302,6 +312,18 @@
     <string name="settings_api_field_arrival">Feld: Ankunftszeit (ISO-8601)</string>
     <string name="settings_api_field_flight_number">Feld: Flugnummer</string>
 
+    <string name="settings_google_flights">Google Flights (RapidAPI)</string>
+    <string name="settings_google_flights_body">Kommerzieller Vergleichspreis pro Trip, auf Anfrage abgerufen (nicht automatisch). Die Feldnamen unten sind ein unbestätigter Ausgangspunkt aus öffentlich zugänglichen Suchergebnis-Schnipseln, kein verifizierter Vertrag – korrigiere sie aus deinem eigenen RapidAPI-Testfenster.</string>
+    <string name="settings_gf_api_host">API-Host</string>
+    <string name="settings_gf_api_key">RapidAPI-Key</string>
+    <string name="settings_gf_path">Endpunkt-Pfad</string>
+    <string name="settings_gf_items_path">Pfad zum (billigsten) Angebot in der Antwort</string>
+    <string name="settings_gf_field_price">Feld: Preis</string>
+    <string name="settings_gf_field_airline">Feld: Airline</string>
+    <string name="settings_gf_field_carry_on_included">Feld: Handgepäck inklusive (leer = nicht verfügbar)</string>
+    <string name="settings_gf_field_carry_on_note">Feld: Handgepäck-Freitext (leer = nicht verfügbar)</string>
+    <string name="settings_gf_unverified_hint">Bewusst mit leeren Handgepäck-Feldern ausgeliefert: in den recherchierten Beispielen war kein Gepäckfeld zu finden. Bis du die echten Feldnamen einträgst, zeigt die App „von der Quelle nicht angegeben“.</string>
+
     <string name="settings_work">Arbeitszeiten &amp; Anfahrt</string>
     <string name="settings_work_body">Daraus berechnet die App den frühesten realistisch erreichbaren Flug.</string>
     <string name="settings_work_end_hour">Arbeitsende (Stunde)</string>
@@ -403,6 +425,24 @@
     <string name="src_condor_unmapped">Die Condor-API-Antwort enthielt keine auswertbaren Flüge. Feld-Zuordnung in den Einstellungen prüfen.</string>
     <string name="src_condor_offline">Condor-API nicht erreichbar – bist du offline?</string>
     <string name="src_condor_parse_failed">Condor-API-Antwort konnte nicht verarbeitet werden.</string>
+
+    <string name="src_unknown">unbekannt</string>
+
+    <string name="src_google_flights_name">Google Flights (RapidAPI)</string>
+    <string name="src_google_flights_disabled">Google Flights ist nicht eingerichtet.</string>
+    <string name="src_google_flights_disabled_fix">In den Einstellungen unter „Google Flights“ aktivieren und RapidAPI-Key eintragen.</string>
+    <string name="src_google_flights_no_key">Es ist kein RapidAPI-Key hinterlegt.</string>
+    <string name="src_google_flights_no_key_fix">RapidAPI-Key in den Einstellungen eintragen.</string>
+    <string name="src_google_flights_no_host">API-Host oder Endpunkt-Pfad fehlt.</string>
+    <string name="src_google_flights_no_host_fix">Beides in den Einstellungen prüfen (Standardwerte sind ein unbestätigter Ausgangspunkt).</string>
+    <string name="src_google_flights_denied">Google Flights hat den Zugriff abgelehnt – RapidAPI-Key prüfen.</string>
+    <string name="src_google_flights_rate_limited">RapidAPI-Limit erreicht. Später erneut versuchen.</string>
+    <string name="src_google_flights_http">Google Flights antwortet mit HTTP %1$d.</string>
+    <string name="src_google_flights_empty">Google Flights lieferte eine leere Antwort.</string>
+    <string name="src_google_flights_unmapped">Die Antwort enthielt keinen auswertbaren Preis. Feld-Zuordnung in den Einstellungen prüfen.</string>
+    <string name="src_google_flights_offline">Google Flights nicht erreichbar – bist du offline?</string>
+    <string name="src_google_flights_parse_failed">Antwort von Google Flights konnte nicht verarbeitet werden.</string>
+    <string name="src_google_flights_test_ok">Preis erhalten: %1$s (%2$s).</string>
 
     <string name="src_feed_name">Eigener Flight-Feed (HTTPS)</string>
     <string name="src_feed_disabled">Eigener Flight-Feed ist deaktiviert.</string>

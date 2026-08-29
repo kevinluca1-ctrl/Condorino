@@ -5,9 +5,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.condorino.weekend.data.export.PriceExport
 import com.condorino.weekend.data.prefs.PreferencesStore
+import com.condorino.weekend.data.source.CommercialPriceSource
 import com.condorino.weekend.data.source.CondorApiConfig
 import com.condorino.weekend.data.reference.AirportReferenceCatalog
 import com.condorino.weekend.data.source.FeedConfig
+import com.condorino.weekend.data.source.GoogleFlightsApiConfig
 import com.condorino.weekend.data.source.OpenSkyConfig
 import com.condorino.weekend.data.source.FlightDataSource
 import com.condorino.weekend.data.source.SourceStatus
@@ -57,6 +59,10 @@ data class SettingsUiState(
     val prices: Map<String, StandbyPrice> = emptyMap(),
     val destinations: List<Destination> = emptyList(),
     val openSkyConfig: OpenSkyConfig = OpenSkyConfig(),
+    val googleFlightsApiConfig: GoogleFlightsApiConfig = GoogleFlightsApiConfig(),
+    /** Status of [SettingsViewModel]'s commercial-price source — separate from [sources] because
+     *  it isn't a [FlightDataSource] (it prices one trip on demand, not a timetable). */
+    val googleFlightsStatus: SourceStatus? = null,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     /** How many airports the bundled public reference covers. */
     val referenceAirportCount: Int = 0,
@@ -76,6 +82,7 @@ class SettingsViewModel(
     private val standbyPriceRepository: StandbyPriceRepository,
     private val tripRepository: TripRepository,
     private val sources: List<FlightDataSource>,
+    private val commercialPriceSource: CommercialPriceSource,
     private val airportReferenceCatalog: AirportReferenceCatalog,
     private val updateRepository: UpdateRepository,
 ) : ViewModel() {
@@ -120,6 +127,12 @@ class SettingsViewModel(
             preferencesStore.openSkyConfig.collectLatest { config ->
                 _state.update { it.copy(openSkyConfig = config) }
                 refreshSourceStates()
+            }
+        }
+        viewModelScope.launch {
+            preferencesStore.googleFlightsApiConfig.collectLatest { config ->
+                _state.update { it.copy(googleFlightsApiConfig = config) }
+                _state.update { it.copy(googleFlightsStatus = commercialPriceSource.status()) }
             }
         }
         viewModelScope.launch {
@@ -169,6 +182,10 @@ class SettingsViewModel(
         viewModelScope.launch { preferencesStore.updateOpenSkyConfig(config) }
     }
 
+    fun updateGoogleFlightsApiConfig(config: GoogleFlightsApiConfig) {
+        viewModelScope.launch { preferencesStore.updateGoogleFlightsApiConfig(config) }
+    }
+
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { preferencesStore.setThemeMode(mode) }
     }
@@ -181,12 +198,19 @@ class SettingsViewModel(
         _state.update { it.copy(focusPriceIata = iata) }
     }
 
-    /** Runs one source's self-test and keeps the result for display. */
+    /**
+     * Runs one source's self-test and keeps the result for display. Also handles
+     * [commercialPriceSource], which isn't in [sources] (it's a [CommercialPriceSource], not a
+     * [FlightDataSource]) but is tested the same way and shares the same result map by id.
+     */
     fun testSource(id: String) {
-        val source = sources.firstOrNull { it.id == id } ?: return
+        val flightSource = sources.firstOrNull { it.id == id }
+        if (flightSource == null && id != commercialPriceSource.id) return
         viewModelScope.launch {
             _state.update { it.copy(testingSourceId = id) }
-            val result = runCatching { source.selfTest() }.getOrElse {
+            val result = runCatching {
+                if (flightSource != null) flightSource.selfTest() else commercialPriceSource.selfTest()
+            }.getOrElse {
                 SourceTestResult.Problem(it.message ?: it::class.simpleName.orEmpty())
             }
             _state.update {
@@ -195,7 +219,8 @@ class SettingsViewModel(
                     testingSourceId = null,
                 )
             }
-            refreshSourceStates()
+            if (flightSource != null) refreshSourceStates()
+            else _state.update { it.copy(googleFlightsStatus = commercialPriceSource.status()) }
         }
     }
 
@@ -265,6 +290,7 @@ class SettingsViewModel(
             standbyPriceRepository: StandbyPriceRepository,
             tripRepository: TripRepository,
             sources: List<FlightDataSource>,
+            commercialPriceSource: CommercialPriceSource,
             airportReferenceCatalog: AirportReferenceCatalog,
             updateRepository: UpdateRepository,
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
@@ -274,6 +300,7 @@ class SettingsViewModel(
                 standbyPriceRepository,
                 tripRepository,
                 sources,
+                commercialPriceSource,
                 airportReferenceCatalog,
                 updateRepository,
             ) as T

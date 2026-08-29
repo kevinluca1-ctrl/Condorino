@@ -92,6 +92,30 @@ So the app is usable on a fresh device with no configuration, a specimen timetab
 > every flight produced carries `DataProvenance.DEMO`, and the app shows a permanent red banner
 > above it. The source can be switched off entirely in Settings.
 
+### 5. `GoogleFlightsPriceSource` — commercial comparison price, on demand
+
+Separate from the four `FlightDataSource` implementations above: it doesn't search a timetable, it
+prices one already-decided trip's exact dates against what a normal paying passenger would be
+charged today — useful if standby doesn't work out. See `CommercialPriceSource` for why this is a
+different interface, and the app's trip detail screen for the "Check price" button that triggers it.
+
+It talks to the "Google Flights" API published on RapidAPI by DataCrawler. That listing's playground
+page could not be reached from the environment this was built in (blocked by network egress), so —
+same situation and same fix as `CondorDeveloperApiDataSource` above — **every endpoint path,
+parameter name and response field name in `GoogleFlightsApiConfig` is a best-effort reconstruction
+from public search-engine snippets, not a verified contract**. Nothing is hard-coded as fact:
+*Settings → Google Flights* exposes every one of those names for you to correct once you have real
+RapidAPI access, and `GoogleFlightsPriceSource.mapQuote()` is the only place that interprets them.
+
+The carry-on/baggage fields in particular had no confirmed example anywhere in the researched
+snippets, so their defaults ship blank on purpose — until you fill them in, the app reports "not
+reported by source" for carry-on rather than guessing.
+
+Queried strictly on demand — one trip, one tap — never automatically for every trip on screen, since
+this is a metered third-party subscription and firing it for every candidate trip would burn through
+a RapidAPI quota for data most of it would never be looked at. It is not wired into cost scoring:
+it is informational, shown next to the standby price rather than folded into `TripScore`.
+
 ## The Condorino feed schema
 
 ```jsonc
