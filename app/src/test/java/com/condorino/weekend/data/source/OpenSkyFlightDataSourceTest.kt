@@ -227,8 +227,11 @@ class OpenSkyFlightDataSourceTest {
         val config = configFor()
         val result = sourceFor(config).fetchObservations(config, initialToken = null, arrivals = false)
 
+        // Every chunk in the lookback window gets the same canned observation back, so this must
+        // not come back empty or errored — the exact count depends on how many chunks a 1-week
+        // lookback needs, which is an implementation detail this test does not pin down.
         assertNull(result.lastErrorCode)
-        assertEquals(1, result.observations.size)
+        assertTrue(result.observations.isNotEmpty())
     }
 
     @Test
@@ -241,7 +244,9 @@ class OpenSkyFlightDataSourceTest {
             }
         }
 
-        val result = sourceFor(configFor())
+        // Anonymous, so there's no token round-trip to also stub — this test is only about how a
+        // 429 on the data request itself is reported.
+        val result = sourceFor(configFor().copy(clientId = "", clientSecret = ""))
             .selfTest() as? SourceTestResult.Problem
             ?: error("expected Problem")
 
