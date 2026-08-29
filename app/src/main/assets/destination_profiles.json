@@ -1,0 +1,173 @@
+{
+  "_comment": "Editorial destination ratings (0-10) and transfer times. These are judgements, NOT flight data. Freely editable - destinations without a profile are rated neutrally.",
+  "profiles": [
+    {
+      "iata": "LGW",
+      "city_trip": 10,
+      "nightlife": 9,
+      "culture": 10,
+      "beach": 1,
+      "food": 9,
+      "nature": 3,
+      "transfer_minutes": 45,
+      "distance_to_center_km": 45.0,
+      "note": "Gatwick Express reaches the city in about 30 min."
+    },
+    {
+      "iata": "BUD",
+      "city_trip": 9,
+      "nightlife": 10,
+      "culture": 9,
+      "beach": 2,
+      "food": 8,
+      "nature": 4,
+      "transfer_minutes": 40,
+      "distance_to_center_km": 24.0,
+      "note": "Ruin bars, thermal baths, very cheap."
+    },
+    {
+      "iata": "PRG",
+      "city_trip": 9,
+      "nightlife": 8,
+      "culture": 10,
+      "beach": 1,
+      "food": 7,
+      "nature": 4,
+      "transfer_minutes": 35,
+      "distance_to_center_km": 17.0,
+      "note": "Compact old town, everything on foot."
+    },
+    {
+      "iata": "BCN",
+      "city_trip": 10,
+      "nightlife": 9,
+      "culture": 9,
+      "beach": 8,
+      "food": 10,
+      "nature": 5,
+      "transfer_minutes": 35,
+      "distance_to_center_km": 15.0,
+      "note": "City and beach in one."
+    },
+    {
+      "iata": "FCO",
+      "city_trip": 10,
+      "nightlife": 7,
+      "culture": 10,
+      "beach": 4,
+      "food": 10,
+      "nature": 4,
+      "transfer_minutes": 45,
+      "distance_to_center_km": 32.0,
+      "note": "Leonardo Express, 32 min to Termini."
+    },
+    {
+      "iata": "OPO",
+      "city_trip": 8,
+      "nightlife": 7,
+      "culture": 8,
+      "beach": 6,
+      "food": 9,
+      "nature": 6,
+      "transfer_minutes": 35,
+      "distance_to_center_km": 15.0,
+      "note": "Metro straight from the airport."
+    },
+    {
+      "iata": "LIS",
+      "city_trip": 9,
+      "nightlife": 8,
+      "culture": 9,
+      "beach": 7,
+      "food": 9,
+      "nature": 6,
+      "transfer_minutes": 30,
+      "distance_to_center_km": 8.0,
+      "note": "Airport is very close to the city."
+    },
+    {
+      "iata": "PMI",
+      "city_trip": 6,
+      "nightlife": 7,
+      "culture": 5,
+      "beach": 10,
+      "food": 7,
+      "nature": 8,
+      "transfer_minutes": 25,
+      "distance_to_center_km": 8.0,
+      "note": "Beach within 20 minutes."
+    },
+    {
+      "iata": "SPU",
+      "city_trip": 6,
+      "nightlife": 6,
+      "culture": 7,
+      "beach": 9,
+      "food": 7,
+      "nature": 9,
+      "transfer_minutes": 40,
+      "distance_to_center_km": 24.0,
+      "note": "Diocletian's Palace, island hopping."
+    },
+    {
+      "iata": "ATH",
+      "city_trip": 8,
+      "nightlife": 8,
+      "culture": 10,
+      "beach": 6,
+      "food": 9,
+      "nature": 5,
+      "transfer_minutes": 50,
+      "distance_to_center_km": 33.0,
+      "note": "Metro line 3, about 40 min."
+    },
+    {
+      "iata": "IST",
+      "city_trip": 9,
+      "nightlife": 7,
+      "culture": 10,
+      "beach": 3,
+      "food": 10,
+      "nature": 4,
+      "transfer_minutes": 70,
+      "distance_to_center_km": 45.0,
+      "note": "Long transfer - allow extra time."
+    },
+    {
+      "iata": "FNC",
+      "city_trip": 4,
+      "nightlife": 3,
+      "culture": 5,
+      "beach": 7,
+      "food": 7,
+      "nature": 10,
+      "transfer_minutes": 30,
+      "distance_to_center_km": 18.0,
+      "note": "Levadas and mountains; tight for a single weekend."
+    },
+    {
+      "iata": "HER",
+      "city_trip": 4,
+      "nightlife": 6,
+      "culture": 7,
+      "beach": 10,
+      "food": 8,
+      "nature": 8,
+      "transfer_minutes": 20,
+      "distance_to_center_km": 5.0,
+      "note": "Very short transfer."
+    },
+    {
+      "iata": "MLA",
+      "city_trip": 7,
+      "nightlife": 7,
+      "culture": 9,
+      "beach": 8,
+      "food": 7,
+      "nature": 6,
+      "transfer_minutes": 25,
+      "distance_to_center_km": 8.0,
+      "note": "Small island, short distances."
+    }
+  ]
+}

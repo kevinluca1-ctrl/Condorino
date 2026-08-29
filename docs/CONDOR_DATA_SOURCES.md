@@ -1,0 +1,271 @@
+# Phase 1 — Technical analysis of the Condor data sources
+
+This document is the result of the feasibility analysis required by §27 (“Phase 1”) and the
+reasoning behind why the app is built the way it is.
+
+## Summary
+
+**The app contains no invented Condor endpoints and no invented flight times passed off as real.**
+
+There is an official Condor developer portal, but its actual API contract requires registration and
+could not be inspected while this app was built. Rather than guessing endpoints, parameter names
+and response fields — which would produce an app that appears to work and quietly returns nothing —
+the data layer is built so that the contract is **entered by the user at runtime**, once they have
+it.
+
+## What exists
+
+Researched on 2026-08-28. The following publicly discoverable Condor offerings exist:
+
+| Resource | URL | Assessment |
+| --- | --- | --- |
+| Condor Developer Portal | `https://developer.condor.com/` | Exists. Entry point for the API products. |
+| Flight Information API | `https://developer.condor.com/api/flight` | Product page exists. Contract not publicly inspectable. |
+| Flight Offer API | `https://developer.condor.com/api/flightoffer` | Product page exists (“Best Flight Deals”). |
+| Travel Shopping Carts API | `https://developer.condor.com/api/cart` | Booking-side, not relevant to this app. |
+| API gateway | `https://api.condor.com/` | Exists as a host. |
+
+In addition there are commercial third-party aggregators that carry Condor data — among them
+[Duffel](https://duffel.com/flights/airlines/condor) (search/booking, contract required) and
+[AirLabs](https://airlabs.co/condor-developer-api) (flight status/routes/schedules, paid). For
+timetables, OAG and Cirium are also candidates. All of them require a contract and payment.
+
+## What could not be verified — and why
+
+The build environment this app was created in has an egress filter that blocks `condor.com`,
+`developer.condor.com` and `api.condor.com`. It was therefore **not** possible to:
+
+* read the Flight Information API documentation,
+* verify endpoint paths, query parameters or header names,
+* determine the response format,
+* establish rate limits or the auth method (API key vs. OAuth),
+* observe the network calls made by Condor's public flight search.
+
+Requirement §3 therefore applies literally: *“No invented API endpoints. No hardcoded flight times.
+No assuming that a particular API exists.”*
+
+### On the public flight search
+
+Even if the Condor website's XHR endpoints had been observable, they would be a poor foundation:
+they are internal endpoints with no stability guarantee, they are typically behind bot protection,
+and automated use of them generally falls under the site's terms of use. An official API contract
+or a schedule provider is the viable route. The architecture keeps both doors open.
+
+## How the app solves this
+
+Four swappable implementations of the `FlightDataSource` interface, in this order:
+
+### 1. `CondorDeveloperApiDataSource` — the official route, configured by the user
+
+A complete HTTP client whose **contract comes from Settings**: base URL, path, query parameter
+names, auth header, plus the response field names and the path to the flight list inside the
+response envelope. None of it is guessed or pre-filled with an invented endpoint.
+
+As long as nothing is entered, the source reports `SourceStatus.NotConfigured` with an explanation
+— it never silently returns nothing.
+
+Once you have portal access, you only need to fill in *Settings → Condor Developer API*. If the
+response format differs substantially, `CondorDeveloperApiDataSource.mapFlights()` is the only
+place that has to be adapted.
+
+### 2. `HttpFeedFlightDataSource` — the route that works today
+
+Loads a JSON document following the **Condorino feed schema** documented below from any HTTPS URL.
+This lets you put real data into the app immediately, wherever it comes from: a GDS/OAG/Cirium
+extract, a Condor partner contract, or a small self-hosted bridge that translates your source into
+this format.
+
+The feed states for itself whether it is live (`"is_live": true`) or a published timetable. The app
+**never** upgrades a provenance on its own.
+
+### 3. `OpenSkyFlightDataSource` — cross-check against flights actually flown
+
+Free and usable without an account; see the second half of this document.
+
+### 4. `AssetDemoFlightDataSource` — sample data, unmistakably flagged
+
+So the app is usable on a fresh device with no configuration, a specimen timetable ships in
+`app/src/main/assets/demo_schedule.json`.
+
+> ⚠️ The flight numbers there start with `DEMO`, the source is called “SAMPLE DATA - an invented
+> specimen timetable. These are NOT Condor flight times and say nothing about real availability.”,
+> every flight produced carries `DataProvenance.DEMO`, and the app shows a permanent red banner
+> above it. The source can be switched off entirely in Settings.
+
+## The Condorino feed schema
+
+```jsonc
+{
+  "schema_version": 1,
+  "source": "Where the data comes from - shown to the user",
+  "is_live": false,          // true only for real, bookable availability
+  "generated_at": "2026-09-01T08:00:00Z",
+
+  "airports": [
+    {
+      "iata": "LGW",
+      "name": "London Gatwick Airport",   // optional if the bundled reference knows the code
+      "city": "London",
+      "country_code": "GB",
+      "time_zone": "Europe/London"        // IANA zone, required - the app never guesses one
+    }
+  ],
+
+  "flights": [
+    {
+      "flight_number": "DE 1234",
+      "airline": "Condor",
+      "airline_code": "DE",
+      "origin": "FRA",
+      "destination": "LGW",
+      "departure": "2026-09-04T18:15:00+02:00",  // ISO-8601 with offset, or ...Z
+      "arrival":   "2026-09-04T18:35:00+01:00",
+      "is_direct": true,
+      "fare_cents": 12900,             // optional; omit when unknown, never send 0
+      "availability_note": "3 seats"   // optional
+    }
+  ]
+}
+```
+
+Rules the parser enforces:
+
+* An airport with no valid IANA time zone is **discarded**, not guessed.
+* For any airport the bundled reference knows, the reference supplies the name, country and time
+  zone — one consistent set of labels rather than a mix of whatever each feed writes. A feed's own
+  declaration still covers anything the reference does not have, so the `airports` block is
+  optional for well-known codes.
+* A flight whose airports are declared in neither the feed nor the reference is discarded.
+* A flight with an unreadable timestamp, or with arrival ≤ departure, is discarded.
+* Discarded rows are counted and reported to the user — never silently swallowed.
+* `fare_cents` stays `null` when unknown; “unknown” never becomes “0 €”.
+
+Per weekend the app needs **Thursday through Monday**, in both directions from and to FRA.
+
+## Timetable vs. availability
+
+The app distinguishes the two concepts consistently through `DataProvenance`:
+
+| Value | Meaning | Display |
+| --- | --- | --- |
+| `LIVE` | Fetched from a live source, less than 30 minutes old | green `LIVE` |
+| `RECENTLY_UPDATED` | Fetched live, but older than 30 minutes | blue `RECENTLY UPDATED` |
+| `SCHEDULE` | Published timetable, says nothing about bookability | yellow `TIMETABLE` |
+| `CACHED` | From the local Room database (offline) | grey `CACHED` |
+| `MANUAL` | Entered by the user (standby prices) | `MANUAL` |
+| `DEMO` | Sample data | red `SAMPLE DATA` + warning banner |
+
+A trip always inherits the **weakest** provenance of its two legs. Reading back from the cache
+downgrades `LIVE` to `CACHED`; `DEMO` stays `DEMO` forever.
+
+## MyID Travel / staff travel
+
+Deliberately **not** integrated. The app stores no credentials and calls nothing (§26). Standby
+prices are entered by the user (*Settings → Standby prices*), per destination, either per segment
+or as a round trip, optionally with separate taxes.
+
+## If you want real data — the shortest route
+
+1. Request access at `developer.condor.com`.
+2. Enter the contract under *Settings → Condor Developer API* and enable the source.
+
+or
+
+1. Produce a file following the schema above (from the extract of your choice) and serve it over
+   HTTPS.
+2. Enter the URL under *Settings → Custom flight feed* and enable the source.
+3. Switch the sample data off in Settings.
+
+Either way, press **Test** on the source afterwards: it calls the real endpoint and repeats the
+answer verbatim, so a wrong URL or a rejected key is stated rather than inferred.
+
+---
+
+# Freely accessible data sources from other providers
+
+Research from 2026-08-28. The question was: *are there free sources to cross-check against, or at
+least a publicly inspectable, comprehensive list to use as a data basis?* Both — and both are now
+built in.
+
+## Built in
+
+### 1. Airport reference dataset (`assets/airports_reference.json`)
+
+**6,442 airports**, bundled from three public sources:
+
+| Source | Licence | What comes from it |
+| --- | --- | --- |
+| [OurAirports](https://github.com/davidmegginson/ourairports-data) | public domain | IATA and ICAO code, name, city, ISO country code |
+| [OpenFlights](https://github.com/jpatokal/openflights) | ODbL | IANA time zone per airport |
+| [IANA tzdata `zone1970.tab`](https://github.com/eggert/tz) | public domain | time zone where OpenFlights has none |
+
+The time zone is the critical value — it decides every time the app displays. Hence a strict
+precedence:
+
+1. **Curated correction** for island groups whose country has several zones (Madeira, the Azores,
+   the Canaries) — 18 entries, each checked against the country's tzdata zone list.
+2. **OpenFlights**, where it knows the airport (5,373 entries).
+3. **tzdata country rule**: if a country has *exactly one* zone according to `zone1970.tab`, it
+   applies to every airport in that country (1,051 entries). This is how Istanbul (LTFM) resolves
+   correctly, which OpenFlights still carries without a zone — Turkey only has `Europe/Istanbul`.
+4. **Otherwise: do not include it.** 2,359 airports are deliberately *absent* because their zone
+   could not be established. The app never guesses a time zone.
+
+Practical benefit: a feed only has to supply IATA codes and times; name, country and time zone come
+from the reference. The dataset can be rebuilt — the three source URLs are in the file.
+
+Country names are not stored at all: they are derived from the ISO code at render time, so they
+follow the device language rather than being frozen into the file.
+
+### 2. OpenSky Network — cross-check against flights actually flown
+
+[OpenSky](https://opensky-network.org/) runs a **free, public REST API** over crowd-sourced ADS-B
+receptions. It answers a different question from a timetable, and that is exactly where its value
+lies:
+
+* A timetable says: *“this route is planned.”*
+* OpenSky says: **“this aircraft actually flew, on this day, at this time.”**
+
+Verified contract:
+
+```
+GET https://opensky-network.org/api/flights/departure?airport=EDDF&begin=<unix>&end=<unix>
+GET https://opensky-network.org/api/flights/arrival  ?airport=EDDF&begin=<unix>&end=<unix>
+```
+
+Response: a JSON array with `icao24`, `callsign`, `estDepartureAirport`, `estArrivalAirport`,
+`firstSeen`, `lastSeen`. Airports as **ICAO** (Frankfurt = `EDDF`), times as Unix seconds. HTTP 404
+means “nothing in this window”, not an error. Anonymous access works with tighter limits; a free
+account gives higher limits via OAuth2 client credentials against
+
+```
+POST https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token
+```
+
+A rejected client ID or secret is reported as a failure — the source never falls back to anonymous
+access quietly, because that looks exactly like “my credentials do not work”.
+
+`OpenSkyFlightDataSource` filters on Condor's callsign prefix **`CFG`** (IATA `DE`, ICAO `CFG`),
+groups the observations by weekday and route, and takes the **median** departure time and block
+time — the median, because a single heavily delayed flight would otherwise drag the entry out of
+its real slot. The result is an *observed timetable*.
+
+**Important limitation:** `firstSeen` is the first transponder reception, not the scheduled
+departure time, and none of it says anything about bookability. Everything from this source
+therefore carries `DataProvenance.SCHEDULE` and is marked **TIMETABLE** in the UI, never LIVE.
+
+Setting it up: enable *Settings → OpenSky cross-check*. Usable immediately without an account.
+
+## Evaluated but not built in
+
+| Source | Why not |
+| --- | --- |
+| [Duffel](https://duffel.com/flights/airlines/condor) | Real search and booking data including Condor, but contract-bound and paid; no free access. |
+| [AirLabs](https://airlabs.co/condor-developer-api) | Timetables and status including Condor, paid. |
+| OAG, Cirium | The reference for timetables, purely commercial. |
+| AviationStack | Free tier with 100 requests/month — too few for a multi-weekend search, and the free tier is HTTP-only. |
+| ADS-B communities (adsb.lol, airplanes.live) | Free and open, but they serve live positions rather than flight aggregates; for “which route was flown when”, OpenSky is the better-suited abstraction. |
+
+All the built-in sources and the Condor API run through the same `FlightDataSource` interface and
+can be enabled and disabled individually under *Settings → Data sources*. The order is: Condor
+Developer API → custom feed → OpenSky → (if allowed) sample data.

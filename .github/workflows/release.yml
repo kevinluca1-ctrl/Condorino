@@ -1,0 +1,77 @@
+name: Release
+
+# Publishes a GitHub Release with both APKs attached whenever a version tag is pushed.
+on:
+  push:
+    # No hyphen required: a plain "alpha" tag matches too, not just "alpha-01".
+    tags: ["alpha*", "beta*", "v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build and publish (must already exist)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - name: Resolve the tag and this build's release timestamp
+        id: names
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "published_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run unit tests
+        run: ./gradlew --no-daemon testDebugUnitTest
+
+      - name: Build APKs
+        # RELEASE_TAG/RELEASE_PUBLISHED_AT are baked into BuildConfig so the installed app can
+        # honestly tell whether a later GitHub release is newer than itself (see
+        # data/update/GitHubReleaseUpdateSource.kt). A build outside this workflow never sets them.
+        run: >
+          ./gradlew --no-daemon
+          -PreleaseTag="${{ steps.names.outputs.tag }}"
+          -PreleasePublishedAt="${{ steps.names.outputs.published_at }}"
+          assembleDebug assembleRelease
+
+      - name: Name the artefacts after the tag
+        run: |
+          TAG="${{ steps.names.outputs.tag }}"
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk "dist/condorino-$TAG.apk"
+          cp app/build/outputs/apk/debug/app-debug.apk "dist/condorino-$TAG-debug.apk"
+          ls -la dist
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.names.outputs.tag }}
+          name: Condorino ${{ steps.names.outputs.tag }}
+          prerelease: true
+          generate_release_notes: false
+          body_path: docs/RELEASE_NOTES_ALPHA_01.md
+          files: |
+            dist/condorino-${{ steps.names.outputs.tag }}.apk
+            dist/condorino-${{ steps.names.outputs.tag }}-debug.apk

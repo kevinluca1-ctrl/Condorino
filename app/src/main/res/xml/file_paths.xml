@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Exposes only this app's own external-files "Download" directory — where UpdateDownloader
+    writes the fetched APK — through the FileProvider content:// URI the package installer needs.
+-->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <external-files-path name="update_downloads" path="Download/" />
+</paths>
