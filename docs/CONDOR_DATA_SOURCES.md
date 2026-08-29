@@ -245,6 +245,21 @@ POST https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openi
 A rejected client ID or secret is reported as a failure — the source never falls back to anonymous
 access quietly, because that looks exactly like “my credentials do not work”.
 
+**Tokens and credits (re-verified 2026-08-29).** A token lasts 30 minutes; OpenSky's own guidance is
+that a 401 on a data request means it just expired, not that the credentials are wrong, so the
+source refreshes once and retries before reporting a real denial. `/flights/*` also now bills from a
+daily/hourly credit quota, and the cost per request is not flat: a request whose window stays under
+24 hours is cheap, but one that merely crosses into a second calendar day costs several times more.
+Earlier builds requested multi-day windows and could burn a whole day's quota — sometimes more than
+one — in a single search, which is the most likely actual explanation for "OpenSky reports nothing
+even with correct credentials". The source now requests many short (<24h) windows instead; a 429 is
+reported with OpenSky's own `Retry-After` value rather than a bare HTTP code. One documentation
+oddity: `/flights/departure`'s own page currently says its interval "must cover more than two days",
+the reverse of `/flights/arrival`'s "must not be larger than two days" — almost certainly a
+documentation error, since it would make requesting a small window from that one endpoint
+impossible. The source does not trust either reading blindly: a 400 from the departure endpoint
+specifically triggers one retry with a several-day window before that chunk is given up on.
+
 `OpenSkyFlightDataSource` filters on Condor's callsign prefix **`CFG`** (IATA `DE`, ICAO `CFG`),
 groups the observations by weekday and route, and takes the **median** departure time and block
 time — the median, because a single heavily delayed flight would otherwise drag the entry out of

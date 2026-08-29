@@ -38,7 +38,10 @@ private data class ReferenceFile(
  * and arrival time the app displays, which is the one thing it must not do.
  */
 class AirportReferenceCatalog(
-    private val context: Context,
+    // Nullable purely so a data source's unit tests can construct this without loading any
+    // airports, by never calling airports()/byIata()/byIcao() — production always passes a real
+    // Context. (See SourceStrings for the same pattern, used for the same reason.)
+    private val context: Context?,
     private val json: Json = Json { ignoreUnknownKeys = true },
     private val assetName: String = ASSET,
 ) {
@@ -75,7 +78,7 @@ class AirportReferenceCatalog(
 
     private suspend fun load(): Map<String, Airport> = withContext(Dispatchers.IO) {
         try {
-            val raw = context.assets.open(assetName).bufferedReader().use { it.readText() }
+            val raw = context!!.assets.open(assetName).bufferedReader().use { it.readText() }
             val file = json.decodeFromString(ReferenceFile.serializer(), raw)
             sourceDescription = file.source
 

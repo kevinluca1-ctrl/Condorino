@@ -11,12 +11,16 @@ import androidx.annotation.StringRes
  * turns those into sentences. Data sources are different: they already do I/O and already hold a
  * `Context`, and their messages are diagnostics full of HTTP codes and counts. Handing them a
  * resource lookup is both simpler and less lossy than modelling every failure mode as a type.
+ *
+ * Open, and [context] nullable, purely so a data source's unit tests can subclass this with a
+ * plain in-memory fake ("id=%d") instead of needing a real Android `Context` (e.g. Robolectric) —
+ * production always constructs this with a real, non-null one.
  */
-class SourceStrings(private val context: Context) {
+open class SourceStrings(private val context: Context?) {
 
-    fun get(@StringRes id: Int, vararg args: Any?): String =
-        if (args.isEmpty()) context.getString(id) else context.getString(id, *args)
+    open fun get(@StringRes id: Int, vararg args: Any?): String =
+        if (args.isEmpty()) context!!.getString(id) else context!!.getString(id, *args)
 
-    fun plural(@PluralsRes id: Int, count: Int, vararg args: Any?): String =
-        context.resources.getQuantityString(id, count, *args)
+    open fun plural(@PluralsRes id: Int, count: Int, vararg args: Any?): String =
+        context!!.resources.getQuantityString(id, count, *args)
 }

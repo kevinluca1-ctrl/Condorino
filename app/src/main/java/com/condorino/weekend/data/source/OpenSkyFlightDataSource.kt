@@ -50,16 +50,32 @@ import java.time.temporal.ChronoUnit
  *
  * ### Contract
  *
- * Verified against OpenSky's public API documentation:
+ * Verified against OpenSky's public API documentation (re-checked 2026-08-29):
  *  * `GET {base}/flights/departure?airport={ICAO}&begin={unix}&end={unix}`
  *  * `GET {base}/flights/arrival?airport={ICAO}&begin={unix}&end={unix}`
  *  * response: JSON array of objects with `icao24`, `firstSeen`, `estDepartureAirport`,
  *    `lastSeen`, `estArrivalAirport`, `callsign` (airport codes are **ICAO**, times are Unix
  *    seconds). HTTP 404 means "nothing in this window", not an error.
+ *  * auth is OAuth2 client-credentials only (basic auth was retired); a token lasts 30 minutes,
+ *    and OpenSky's own guidance is that a 401 from a data endpoint means it just expired — refresh
+ *    and retry, don't treat it as a rejected credential. [fetchObservations] and [selfTest] both do
+ *    exactly one such refresh-and-retry before reporting a 401/403 as an actual denial.
+ *  * `/flights/*` spends from a daily/hourly credit quota (400-14,400 depending on account tier)
+ *    that is independent of `/states/*`. Critically, the cost of a single request is not flat: a
+ *    request whose window stays under 24 hours costs 4 credits, but one that merely crosses into a
+ *    second calendar day jumps to 30, and gets steeper again from there. Many short requests are
+ *    therefore *much* cheaper than a few long ones for the same total lookback — which is why
+ *    [CHUNK_WINDOW_SECONDS] is kept safely under 24 hours rather than the multi-day chunks this
+ *    source used to request (those could burn an entire day's quota, sometimes more than one, in a
+ *    single search — the most likely explanation for "OpenSky reports nothing even with correct
+ *    credentials" reports where credits, not credentials, had actually run out).
+ *  * `/flights/departure`'s own docs currently read "the given time interval must cover more than
+ *    two days", the reverse of `/flights/arrival`'s "must not be larger than two days" — almost
+ *    certainly a documentation error rather than an intentional asymmetry, since it would leave no
+ *    way to request a small, cheap window from that one endpoint at all. This source does not
+ *    trust either reading blindly: if a departure-endpoint chunk is rejected with 400, it retries
+ *    that one chunk with a larger window before giving up on it (see [fetchChunk]'s caller).
  *  * anonymous access works but is rate-limited; OAuth2 client-credentials raise the limits.
- *
- * The interval per request is limited by OpenSky, so the lookback is fetched in chunks
- * ([OpenSkyConfig.chunkDays], default 7) and capped.
  */
 class OpenSkyFlightDataSource(
     private val client: OkHttpClient,
@@ -136,11 +152,14 @@ class OpenSkyFlightDataSource(
                     // this is not the same fact as "OpenSky checked and there really is nothing",
                     // and must not be reported as if it were.
                     val failedCode = departureFetch.lastErrorCode ?: arrivalFetch.lastErrorCode
+                    val retryAfter = departureFetch.retryAfterSeconds ?: arrivalFetch.retryAfterSeconds
                     return@withContext if (failedCode != null) {
-                        val message = if (failedCode == 401 || failedCode == 403) {
-                            strings.get(R.string.src_opensky_denied, failedCode)
-                        } else {
-                            strings.get(R.string.src_opensky_http, failedCode)
+                        val message = when {
+                            failedCode == 429 && retryAfter != null ->
+                                strings.get(R.string.src_opensky_rate_limited_retry, retryAfter)
+                            failedCode == 429 -> strings.get(R.string.src_opensky_rate_limited)
+                            failedCode == 401 || failedCode == 403 -> strings.get(R.string.src_opensky_denied, failedCode)
+                            else -> strings.get(R.string.src_opensky_http, failedCode)
                         }
                         FlightSearchResult.Failure(message)
                     } else {
@@ -210,59 +229,124 @@ class OpenSkyFlightDataSource(
      *   "nothing in this window" 404 — set when at least one chunk request failed outright, so the
      *   caller can tell "OpenSky genuinely reported zero flights" apart from "every request to
      *   OpenSky failed and this is not actually zero flights".
+     * @param retryAfterSeconds set alongside a 429 [lastErrorCode] when OpenSky's own
+     *   `X-Rate-Limit-Retry-After-Seconds` response header said how long to wait.
      */
-    internal data class ObservationFetch(val observations: List<Observation>, val lastErrorCode: Int? = null)
+    internal data class ObservationFetch(
+        val observations: List<Observation>,
+        val lastErrorCode: Int? = null,
+        val retryAfterSeconds: Long? = null,
+    )
 
-    private suspend fun fetchObservations(
+    /** The outcome of one `/flights/{departure,arrival}` request for a single time window. */
+    private sealed interface ChunkResult {
+        data class Observations(val list: List<Observation>) : ChunkResult
+        data object NotFound : ChunkResult
+        data class RateLimited(val retryAfterSeconds: Long?) : ChunkResult
+        data class Denied(val code: Int) : ChunkResult
+        data class OtherError(val code: Int) : ChunkResult
+    }
+
+    private fun fetchChunk(url: String, token: String?, callsignPrefix: String): ChunkResult {
+        val builder = Request.Builder().url(url).get().addHeader("Accept", "application/json")
+        if (token != null) builder.addHeader("Authorization", "Bearer $token")
+        client.newCall(builder.build()).execute().use { response ->
+            return when (response.code) {
+                // OpenSky answers 404 when it simply has nothing for the window — a real answer,
+                // not a failure.
+                404 -> ChunkResult.NotFound
+                // The response header says exactly how long to back off; pass it on rather than
+                // discarding it, so the failure message can tell the user *when* to try again
+                // instead of just that it failed.
+                429 -> ChunkResult.RateLimited(
+                    response.header("X-Rate-Limit-Retry-After-Seconds")?.toLongOrNull(),
+                )
+                401, 403 -> ChunkResult.Denied(response.code)
+                else -> if (response.isSuccessful) {
+                    val body = response.body?.string().orEmpty()
+                    ChunkResult.Observations(if (body.isBlank()) emptyList() else parseObservations(body, callsignPrefix))
+                } else {
+                    ChunkResult.OtherError(response.code)
+                }
+            }
+        }
+    }
+
+    internal suspend fun fetchObservations(
         config: OpenSkyConfig,
-        token: String?,
+        initialToken: String?,
         arrivals: Boolean,
     ): ObservationFetch {
         val endpoint = if (arrivals) "arrival" else "departure"
         val nowSeconds = now().epochSecond
-        // OpenSky caps the interval for this endpoint at seven days; six keeps a safety margin
-        // so a boundary-exact request is never rejected outright.
-        val chunk = config.chunkDays.coerceIn(1, 6) * 24L * 3600L
-        val chunks = ((config.lookbackWeeks * 7L * 24L * 3600L) / chunk)
-            .toInt().coerceIn(1, MAX_CHUNKS)
+        val totalSeconds = config.lookbackWeeks.coerceAtLeast(1) * 7L * 24L * 3600L
+        val chunks = ceilDiv(totalSeconds, CHUNK_WINDOW_SECONDS).coerceIn(1, MAX_CHUNKS)
 
         val out = mutableListOf<Observation>()
         var lastErrorCode: Int? = null
+        var retryAfterSeconds: Long? = null
+        var token = initialToken
+        var triedTokenRefresh = false
+
         for (i in 0 until chunks) {
-            val end = nowSeconds - i * chunk
-            val begin = end - chunk
+            val end = nowSeconds - i * CHUNK_WINDOW_SECONDS
+            val begin = end - CHUNK_WINDOW_SECONDS
             val url = "${config.baseUrl.trimEnd('/')}/flights/$endpoint" +
                 "?airport=${config.homeIcao}&begin=$begin&end=$end"
 
-            val builder = Request.Builder().url(url).get().addHeader("Accept", "application/json")
-            if (token != null) builder.addHeader("Authorization", "Bearer $token")
+            var result = fetchChunk(url, token, config.callsignPrefix)
 
-            client.newCall(builder.build()).execute().use { response ->
-                when (response.code) {
-                    // OpenSky answers 404 when it simply has nothing for the window — a real
-                    // answer, not a failure, so it does not set lastErrorCode.
-                    404 -> return@use
+            // A 401 on a data request most plausibly means the (30-minute-lived) token expired
+            // between being issued and being used, not that the credentials are actually wrong —
+            // that is OpenSky's own documented reading of a 401 here. Refresh once and retry this
+            // exact chunk before believing the denial; only one refresh per search, since a second
+            // 401 right after a fresh token really is a rejection.
+            if (result is ChunkResult.Denied && token != null && !triedTokenRefresh) {
+                triedTokenRefresh = true
+                when (val refreshed = obtainToken(config, forceRefresh = true)) {
+                    is TokenResult.Success -> {
+                        token = refreshed.token
+                        result = fetchChunk(url, token, config.callsignPrefix)
+                    }
+                    is TokenResult.Failure -> Unit // keep the original denial
+                }
+            }
+
+            // The departure endpoint's own docs disagree with its siblings about which interval
+            // lengths it accepts (see the class doc). A 400 specifically on that endpoint is
+            // treated as "maybe this window length was the problem" rather than a hard failure:
+            // retry once with a several-day window, which every reading of the docs agrees is
+            // valid, before giving up on this chunk.
+            if (result is ChunkResult.OtherError && result.code == 400 && endpoint == "departure") {
+                val wideBegin = end - WIDE_FALLBACK_WINDOW_SECONDS
+                val wideUrl = "${config.baseUrl.trimEnd('/')}/flights/$endpoint" +
+                    "?airport=${config.homeIcao}&begin=$wideBegin&end=$end"
+                result = fetchChunk(wideUrl, token, config.callsignPrefix)
+            }
+
+            when (val r = result) {
+                is ChunkResult.Observations -> out += r.list
+                ChunkResult.NotFound -> Unit
+                is ChunkResult.RateLimited -> {
                     // Back off rather than hammering a rate-limited free service, but say so:
-                    // silently returning whatever was found so far looked exactly like "that's
+                    // silently returning whatever was found so far would look exactly like "that's
                     // everything there is" instead of "the rest of the window was never checked".
-                    429 -> return ObservationFetch(out, lastErrorCode = 429)
-                    // A rejected token would fail identically on every remaining chunk — stop
-                    // immediately rather than repeat the same denial N times. Reported through
-                    // lastErrorCode, not thrown: the outer catch (IOException) generalises the
-                    // message to "are you offline?", which would bury the actual reason.
-                    401, 403 -> return ObservationFetch(out, lastErrorCode = response.code)
+                    return ObservationFetch(out, lastErrorCode = 429, retryAfterSeconds = r.retryAfterSeconds)
                 }
-                if (!response.isSuccessful) {
-                    lastErrorCode = response.code
-                    return@use
+                is ChunkResult.Denied -> {
+                    // A rejected token/credential fails identically on every remaining chunk — stop
+                    // immediately rather than repeat the same denial N times.
+                    return ObservationFetch(out, lastErrorCode = r.code)
                 }
-                val body = response.body?.string().orEmpty()
-                if (body.isBlank()) return@use
-                out += parseObservations(body, config.callsignPrefix)
+                is ChunkResult.OtherError -> lastErrorCode = r.code
             }
         }
-        return ObservationFetch(out, lastErrorCode)
+        return ObservationFetch(out, lastErrorCode, retryAfterSeconds)
     }
+
+    /** Integer ceiling division for positive [numerator]/[denominator]. */
+    private fun ceilDiv(numerator: Long, denominator: Long): Int =
+        ((numerator + denominator - 1) / denominator).toInt()
 
     internal fun parseObservations(body: String, callsignPrefix: String): List<Observation> {
         val root = json.parseToJsonElement(body) as? JsonArray ?: return emptyList()
@@ -400,9 +484,18 @@ class OpenSkyFlightDataSource(
      * OAuth2 client-credentials. Optional — without credentials OpenSky serves anonymous requests
      * under much tighter limits — but if credentials *are* configured and rejected, that is
      * reported rather than swallowed.
+     *
+     * @param forceRefresh skips the cached token even if it looks unexpired — used after a data
+     *   request comes back 401, since OpenSky's own guidance is to treat that as "the 30-minute
+     *   token just expired", not "the credentials are wrong". The stale token is dropped either
+     *   way, so a failed forced refresh can't leave an already-rejected token cached for next time.
      */
-    private fun obtainToken(config: OpenSkyConfig): TokenResult {
-        cachedToken?.let { if (now().isBefore(tokenExpiry)) return TokenResult.Success(it) }
+    private fun obtainToken(config: OpenSkyConfig, forceRefresh: Boolean = false): TokenResult {
+        if (forceRefresh) {
+            cachedToken = null
+        } else {
+            cachedToken?.let { if (now().isBefore(tokenExpiry)) return TokenResult.Success(it) }
+        }
 
         val form = FormBody.Builder()
             .add("grant_type", "client_credentials")
@@ -470,15 +563,38 @@ class OpenSkyFlightDataSource(
                 null
             }
 
-            // One day, a week back — recent enough to hold data, small enough to be cheap.
+            // A day ending yesterday — recent enough to hold data, small enough to be cheap (and,
+            // staying under 24 hours, in OpenSky's cheapest credit bracket for this endpoint).
             val end = now().epochSecond - 24L * 3600L
             val begin = end - 24L * 3600L
             val url = "${config.baseUrl.trimEnd('/')}/flights/departure" +
                 "?airport=${config.homeIcao}&begin=$begin&end=$end"
-            val builder = Request.Builder().url(url).get().addHeader("Accept", "application/json")
-            if (token != null) builder.addHeader("Authorization", "Bearer $token")
 
-            client.newCall(builder.build()).execute().use { response ->
+            fun call(bearer: String?): Response {
+                val builder = Request.Builder().url(url).get().addHeader("Accept", "application/json")
+                if (bearer != null) builder.addHeader("Authorization", "Bearer $bearer")
+                return client.newCall(builder.build()).execute()
+            }
+
+            var effectiveToken = token
+            var response = call(effectiveToken)
+            if (authenticated && (response.code == 401 || response.code == 403)) {
+                // Same reasoning as fetchObservations: a 401 here most plausibly means the token
+                // expired in the moment between being issued and being used, so refresh once and
+                // retry before reporting a denial. Only close the original response once a fresh
+                // token actually came back — closing it first and then failing to refresh would
+                // leave the denial's own response body unreadable below.
+                when (val refreshed = obtainToken(config, forceRefresh = true)) {
+                    is TokenResult.Success -> {
+                        response.close()
+                        effectiveToken = refreshed.token
+                        response = call(effectiveToken)
+                    }
+                    is TokenResult.Failure -> Unit // keep the original response/denial
+                }
+            }
+
+            response.use {
                 val authNote = strings.get(
                     if (authenticated) R.string.src_auth_signed_in else R.string.src_auth_anonymous,
                 )
@@ -505,7 +621,16 @@ class OpenSkyFlightDataSource(
                         strings.get(R.string.src_opensky_test_denied, response.code) +
                             responseDetailSuffix(response),
                     )
-                    429 -> SourceTestResult.Problem(strings.get(R.string.src_opensky_rate_limited))
+                    429 -> {
+                        val retryAfter = response.header("X-Rate-Limit-Retry-After-Seconds")?.toLongOrNull()
+                        SourceTestResult.Problem(
+                            if (retryAfter != null) {
+                                strings.get(R.string.src_opensky_rate_limited_retry, retryAfter)
+                            } else {
+                                strings.get(R.string.src_opensky_rate_limited)
+                            },
+                        )
+                    }
                     else -> SourceTestResult.Problem(
                         strings.get(R.string.src_opensky_http, response.code) + responseDetailSuffix(response),
                     )
@@ -529,8 +654,23 @@ class OpenSkyFlightDataSource(
     }
 
     companion object {
-        /** Hard ceiling on requests per refresh, so a free service is never hammered. */
-        private const val MAX_CHUNKS = 8
+        /**
+         * Kept under 24 hours so every chunk request lands in OpenSky's cheapest `/flights/*`
+         * credit bracket (4 credits) rather than the much steeper one a request spanning a second
+         * calendar day falls into (30+) — see the class doc. The 4-hour margin below 24h absorbs
+         * clock drift and the time this loop itself takes to run.
+         */
+        private const val CHUNK_WINDOW_SECONDS = 20L * 3600L
+
+        /** Used only as a departure-endpoint 400 fallback — see the class doc. */
+        private const val WIDE_FALLBACK_WINDOW_SECONDS = 2L * 24L * 3600L
+
+        /**
+         * Hard ceiling on requests per refresh. At the default 6-week lookback and a 20-hour
+         * window this needs ~51 chunks per endpoint; the cap leaves headroom for the 12-week
+         * maximum Settings allows while still bounding a single refresh's worst case.
+         */
+        private const val MAX_CHUNKS = 110
     }
 }
 
@@ -550,5 +690,4 @@ data class OpenSkyConfig(
     /** Condor's ICAO airline designator; its callsigns start with this. */
     val callsignPrefix: String = "CFG",
     val lookbackWeeks: Int = 6,
-    val chunkDays: Int = 6,
 )

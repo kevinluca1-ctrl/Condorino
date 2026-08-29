@@ -18,7 +18,15 @@ Second alpha. Everything in `alpha-01` still applies — see its [release notes]
 * **Masked secrets.** The OpenSky client secret, Condor API key, and feed auth value are now masked password fields with a show/hide toggle, instead of plain text on screen.
 * **A clearer path to working OpenSky credentials.** OpenSky retired password-based login in favour of a separately generated OAuth2 API client; the Client ID field now points at where to get one, and a rejected credential now shows the actual reason instead of a generic failure.
 
-117 unit tests (was 111).
+## Fixed (found from OpenSky's own current docs)
+
+Re-checked the OpenSky integration against OpenSky's live documentation and found the most likely actual cause of "OpenSky reports nothing even with correct credentials":
+
+* **Credits, not credentials.** OpenSky now bills `/flights/*` requests from a daily/hourly credit quota, and the cost is steep once a single request's time window crosses into a second calendar day — this app was requesting multi-day windows, which could exhaust an entire day's quota in one search. Requests now stay under 24 hours each, which is both far cheaper and, per OpenSky's own table, in the lowest cost bracket.
+* **A 401 no longer means "your credentials are wrong."** OpenSky's tokens last 30 minutes, and OpenSky's own guidance is that a 401 on a data request means the token just expired — refresh and retry, don't treat it as rejected. The app now does exactly that once before reporting an actual denial.
+* **A rate limit now says when to try again**, using OpenSky's own `Retry-After` value, instead of just "HTTP 429."
+
+125 unit tests (was 111), 8 of them new coverage for the retry and chunking behaviour above.
 
 ## Known limitations
 

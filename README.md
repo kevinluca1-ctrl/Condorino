@@ -134,11 +134,12 @@ Structure and reasoning: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ### Tests
 
-117 unit tests covering pattern detection, the workday penalty, effective length of stay, counting
+125 unit tests covering pattern detection, the workday penalty, effective length of stay, counting
 nights across midnight, time zones (UK, Madeira, Greece, summer/winter), cost scoring, random
 selection, feed parsing, price-field text handling, airport search ranking, update-release selection,
-standby-price export/import, date formats (including the guarantee that English never formats
-month-first) and the ranking cases from the brief:
+standby-price export/import, the OpenSky token-refresh and credit-safe chunking behaviour, date
+formats (including the guarantee that English never formats month-first) and the ranking cases from
+the brief:
 
 ```bash
 ./gradlew testDebugUnitTest
