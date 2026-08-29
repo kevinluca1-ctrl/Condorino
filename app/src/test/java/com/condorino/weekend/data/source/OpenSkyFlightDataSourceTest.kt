@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicInteger
 /**
  * Covers the two behaviours added after OpenSky's own docs turned out to require them: a 401 on a
  * data request means "the 30-minute token expired", not "the credentials are wrong" (refresh once
- * and retry), and `/flights/*` bills by a credit system that punishes any request whose window
+ * and retry), and the `flights` endpoints bill by a credit system that punishes any request whose window
  * crosses a calendar day — hence many short (<24h) chunk requests instead of a few long ones.
  */
 class OpenSkyFlightDataSourceTest {

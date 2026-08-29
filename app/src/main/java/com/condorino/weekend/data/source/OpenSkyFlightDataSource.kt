@@ -60,11 +60,12 @@ import java.time.temporal.ChronoUnit
  *    and OpenSky's own guidance is that a 401 from a data endpoint means it just expired — refresh
  *    and retry, don't treat it as a rejected credential. [fetchObservations] and [selfTest] both do
  *    exactly one such refresh-and-retry before reporting a 401/403 as an actual denial.
- *  * `/flights/*` spends from a daily/hourly credit quota (400-14,400 depending on account tier)
- *    that is independent of `/states/*`. Critically, the cost of a single request is not flat: a
- *    request whose window stays under 24 hours costs 4 credits, but one that merely crosses into a
- *    second calendar day jumps to 30, and gets steeper again from there. Many short requests are
- *    therefore *much* cheaper than a few long ones for the same total lookback — which is why
+ *  * the `flights` endpoints spend from a daily/hourly credit quota (400-14,400 depending on
+ *    account tier) that is independent of the `states` endpoints. Critically, the cost of a single
+ *    request is not flat: a request whose window stays under 24 hours costs 4 credits, but one that
+ *    merely crosses into a second calendar day jumps to 30, and gets steeper again from there. Many
+ *    short requests are therefore *much* cheaper than a few long ones for the same total lookback —
+ *    which is why
  *    [CHUNK_WINDOW_SECONDS] is kept safely under 24 hours rather than the multi-day chunks this
  *    source used to request (those could burn an entire day's quota, sometimes more than one, in a
  *    single search — the most likely explanation for "OpenSky reports nothing even with correct
@@ -655,8 +656,8 @@ class OpenSkyFlightDataSource(
 
     companion object {
         /**
-         * Kept under 24 hours so every chunk request lands in OpenSky's cheapest `/flights/*`
-         * credit bracket (4 credits) rather than the much steeper one a request spanning a second
+         * Kept under 24 hours so every chunk request lands in OpenSky's cheapest `flights` credit
+         * bracket (4 credits) rather than the much steeper one a request spanning a second
          * calendar day falls into (30+) — see the class doc. The 4-hour margin below 24h absorbs
          * clock drift and the time this loop itself takes to run.
          */
