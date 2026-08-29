@@ -64,6 +64,20 @@ jobs:
           cp app/build/outputs/apk/debug/app-debug.apk "dist/condorino-$TAG-debug.apk"
           ls -la dist
 
+      - name: Resolve this tag's release notes file
+        id: notes
+        # docs/RELEASE_NOTES_<TAG>.md, upper-cased with hyphens as underscores (alpha-02 ->
+        # RELEASE_NOTES_ALPHA_02.md). Falls back to alpha-01's notes if a tag has none of its own,
+        # rather than failing the release — that file predates this convention.
+        run: |
+          TAG="${{ steps.names.outputs.tag }}"
+          CANDIDATE="docs/RELEASE_NOTES_$(echo "$TAG" | tr '[:lower:]-' '[:upper:]_').md"
+          if [ -f "$CANDIDATE" ]; then
+            echo "path=$CANDIDATE" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=docs/RELEASE_NOTES_ALPHA_01.md" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
@@ -71,7 +85,7 @@ jobs:
           name: Condorino ${{ steps.names.outputs.tag }}
           prerelease: true
           generate_release_notes: false
-          body_path: docs/RELEASE_NOTES_ALPHA_01.md
+          body_path: ${{ steps.notes.outputs.path }}
           files: |
             dist/condorino-${{ steps.names.outputs.tag }}.apk
             dist/condorino-${{ steps.names.outputs.tag }}-debug.apk

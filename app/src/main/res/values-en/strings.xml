@@ -338,6 +338,7 @@
     <string name="src_opensky_test_nodata">OpenSky reachable (%1$s), but it has no data for this period.</string>
     <string name="src_opensky_test_denied">OpenSky refused access (HTTP %1$d) — check the client ID and secret.</string>
     <string name="src_opensky_rate_limited">OpenSky rate limit reached. Try again later.</string>
+    <string name="src_opensky_rate_limited_retry">OpenSky rate limit reached. Try again in %1$d seconds.</string>
     <string name="src_test_unreachable">Unreachable: %1$s</string>
     <string name="src_network_error">network error</string>
     <string name="src_test_failed">Test failed: %1$s</string>

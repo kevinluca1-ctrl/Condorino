@@ -382,6 +382,7 @@
     <string name="src_opensky_test_nodata">OpenSky erreichbar (%1$s), meldet aber für diesen Zeitraum keine Daten.</string>
     <string name="src_opensky_test_denied">OpenSky lehnte den Zugriff ab (HTTP %1$d) – Client-ID und Secret prüfen.</string>
     <string name="src_opensky_rate_limited">OpenSky-Anfragelimit erreicht. Später erneut versuchen.</string>
+    <string name="src_opensky_rate_limited_retry">OpenSky-Anfragelimit erreicht. Erneut versuchen in %1$d Sekunden.</string>
     <string name="src_test_unreachable">Nicht erreichbar: %1$s</string>
     <string name="src_network_error">Netzwerkfehler</string>
     <string name="src_test_failed">Test fehlgeschlagen: %1$s</string>
