@@ -50,7 +50,7 @@ class GoogleFlightsPriceSourceTest {
     private fun sourceFor(config: GoogleFlightsApiConfig) = GoogleFlightsPriceSource(
         client = OkHttpClient(),
         configProvider = { config },
-        strings = FakeStrings(),
+        strings = GoogleFlightsFakeStrings(),
         now = { fixedNow },
         scheme = "http",
     )
@@ -167,7 +167,7 @@ class GoogleFlightsPriceSourceTest {
             Airport.FRANKFURT, munich, LocalDate.now(), LocalDate.now().plusDays(2), Cabin.ECONOMY,
         ) as? CommercialPriceResult.Failure ?: error("expected Failure")
 
-        assertEquals(FakeStrings().get(com.condorino.weekend.R.string.src_google_flights_denied), result.userMessage)
+        assertEquals(GoogleFlightsFakeStrings().get(com.condorino.weekend.R.string.src_google_flights_denied), result.userMessage)
         assertEquals("HTTP 401", result.technicalDetail)
     }
 
@@ -179,7 +179,7 @@ class GoogleFlightsPriceSourceTest {
             Airport.FRANKFURT, munich, LocalDate.now(), LocalDate.now().plusDays(2), Cabin.ECONOMY,
         ) as? CommercialPriceResult.Failure ?: error("expected Failure")
 
-        assertEquals(FakeStrings().get(com.condorino.weekend.R.string.src_google_flights_rate_limited), result.userMessage)
+        assertEquals(GoogleFlightsFakeStrings().get(com.condorino.weekend.R.string.src_google_flights_rate_limited), result.userMessage)
     }
 
     @Test
@@ -194,7 +194,7 @@ class GoogleFlightsPriceSourceTest {
 }
 
 /** A [SourceStrings] that never touches Android — this test only cares which id/args were chosen. */
-private class FakeStrings : SourceStrings(null) {
+private class GoogleFlightsFakeStrings : SourceStrings(null) {
     override fun get(id: Int, vararg args: Any?): String = "id=$id;" + args.joinToString(",")
     override fun plural(id: Int, count: Int, vararg args: Any?): String = "id=$id;count=$count;" + args.joinToString(",")
 }
