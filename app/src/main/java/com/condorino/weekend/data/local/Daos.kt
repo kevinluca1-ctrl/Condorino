@@ -27,6 +27,9 @@ interface FlightDao {
 
     @Query("SELECT COUNT(*) FROM cached_flights")
     suspend fun count(): Int
+
+    @Query("DELETE FROM cached_flights")
+    suspend fun clearAll()
 }
 
 @Dao

@@ -57,6 +57,25 @@ object Routes {
     const val TRIP_DETAIL = "trip"
 }
 
+/**
+ * Switches to one of the five bottom-nav tabs, correctly, from anywhere — not just the nav bar
+ * itself.
+ *
+ * Any navigate() to a tab route that skips these options creates a *second*, independent back
+ * stack entry for that route alongside the one the nav bar already manages. The nav bar's own
+ * "which tab is selected" and "restore where I left off" logic then loses track of which entry is
+ * current, and a later tap on another tab can silently fail to bring its content to the front. Two
+ * call sites used to build this Intent by hand and get it slightly wrong — this is now the only way
+ * to reach a tab, so that class of bug cannot recur.
+ */
+private fun NavHostController.navigateToTab(route: String) {
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
+}
+
 private data class TabItem(val route: String, @StringRes val label: Int, val icon: ImageVector)
 
 private val tabs = listOf(
@@ -89,13 +108,7 @@ fun CondorinoNavigation(
                         val selected = currentRoute?.hierarchy?.any { it.route == tab.route } == true
                         NavigationBarItem(
                             selected = selected,
-                            onClick = {
-                                navController.navigate(tab.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
+                            onClick = { navController.navigateToTab(tab.route) },
                             icon = { Icon(tab.icon, contentDescription = stringResource(tab.label)) },
                             label = { Text(stringResource(tab.label), fontSize = 10.sp) },
                             colors = NavigationBarItemDefaults.colors(
@@ -127,7 +140,7 @@ fun CondorinoNavigation(
                         navController.navigate(Routes.TRIP_DETAIL)
                     },
                     onOpenSurprise = { navController.navigate(Routes.RANDOM) },
-                    onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                    onOpenSettings = { navController.navigateToTab(Routes.SETTINGS) },
                 )
             }
 
@@ -138,10 +151,7 @@ fun CondorinoNavigation(
                     viewModel = calendarViewModel,
                     onSelectWeekend = { friday ->
                         plannerViewModel.selectFriday(friday)
-                        navController.navigate(Routes.HOME) {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                        }
+                        navController.navigateToTab(Routes.HOME)
                     },
                 )
             }

@@ -473,4 +473,28 @@
     <string name="update_notification_channel_desc">Benachrichtigt dich, wenn eine neue Condorino-Version verfügbar ist.</string>
     <string name="update_notification_title">Update verfügbar: %1$s</string>
     <string name="update_notification_body">Wird im Hintergrund heruntergeladen. Zum Öffnen tippen.</string>
+
+    <!-- Passwortmaskierung -->
+    <string name="action_show_secret">Anzeigen</string>
+    <string name="action_hide_secret">Verbergen</string>
+
+    <!-- OpenSky: Hinweis auf OAuth2-API-Client -->
+    <string name="settings_opensky_client_hint">Client-ID und Secret kommen aus dem OAuth2-API-Client deines OpenSky-Kontos (Konto → API-Client), nicht aus deinem Login-Passwort. OpenSky akzeptiert seit dem 18.03.2026 kein Passwort mehr direkt.</string>
+    <string name="src_opensky_test_detail"> – %1$s</string>
+
+    <!-- Allgemein -->
+    <string name="settings_general">Allgemein</string>
+    <string name="settings_reset">Einstellungen zurücksetzen</string>
+    <string name="settings_reset_body">Setzt Arbeitszeiten, Filter und Gewichtungen auf die Standardwerte zurück. Datenquellen und gespeicherte Preise bleiben erhalten.</string>
+    <string name="settings_clear_cache">Zwischengespeicherte Flugdaten löschen</string>
+    <string name="settings_clear_cache_body">Erzwingt beim nächsten Laden einen frischen Abruf von den konfigurierten Datenquellen.</string>
+
+    <!-- Über die App -->
+    <string name="settings_about">Über die App</string>
+    <string name="about_tagline">Wochenendtrip-Planer ab Frankfurt (FRA) mit Condor.</string>
+    <string name="about_version">Version %1$s (%2$s)</string>
+    <string name="about_version_dev">Entwickler-Build</string>
+    <string name="about_view_source">Quellcode auf GitHub</string>
+    <string name="about_view_releases">Releases ansehen</string>
+    <string name="about_credits">Flughafendaten: OurAirports, OpenFlights, IANA tzdata. Flugbeobachtungen: OpenSky Network.</string>
 </resources>

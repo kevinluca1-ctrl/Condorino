@@ -63,6 +63,9 @@ interface TripRepository {
     suspend fun refreshRange(from: LocalDate, to: LocalDate): List<WeekendSearchResult>
 
     suspend fun destinations(): List<Destination>
+
+    /** Drops every cached flight. The next load re-fetches from the configured sources. */
+    suspend fun clearCache()
 }
 
 interface StandbyPriceRepository {

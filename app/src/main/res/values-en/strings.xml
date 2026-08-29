@@ -397,7 +397,7 @@
     <string name="settings_updates_body">You have version %1$s installed.</string>
     <string name="settings_updates_body_dev">Development build - not a tagged release, so update checks are unavailable.</string>
     <string name="update_auto_check">Check for updates automatically</string>
-    <string name="update_auto_check_body">Checks this app's GitHub releases once a day and downloads a new release in the background.</string>
+    <string name="update_auto_check_body">Checks this app\'s GitHub releases once a day and downloads a new release in the background.</string>
     <string name="update_wifi_only">Only download over Wi-Fi</string>
     <string name="update_last_checked">Last checked: %1$s</string>
     <string name="update_check_now">Check now</string>
@@ -420,7 +420,7 @@
     <string name="update_http">GitHub answered with HTTP %1$d.</string>
     <string name="update_empty_response">GitHub returned an empty response.</string>
     <string name="update_no_releases">No releases have been published yet.</string>
-    <string name="update_unparseable_date">The release's publish date could not be read.</string>
+    <string name="update_unparseable_date">The release\'s publish date could not be read.</string>
     <string name="update_no_apk_asset">Release %1$s has no APK file attached.</string>
     <string name="update_offline">GitHub is unreachable — are you offline?</string>
     <string name="update_parse_failed">The release list could not be processed.</string>
@@ -429,4 +429,28 @@
     <string name="update_notification_channel_desc">Notifies you when a new Condorino version is available.</string>
     <string name="update_notification_title">Update available: %1$s</string>
     <string name="update_notification_body">Downloading in the background. Tap to open.</string>
+
+    <!-- Password masking -->
+    <string name="action_show_secret">Show</string>
+    <string name="action_hide_secret">Hide</string>
+
+    <!-- OpenSky: pointer to the OAuth2 API client -->
+    <string name="settings_opensky_client_hint">Client ID and secret come from your OpenSky account\'s OAuth2 API client (Account → API Client), not from your login password. OpenSky has not accepted a password directly since 2026-03-18.</string>
+    <string name="src_opensky_test_detail"> — %1$s</string>
+
+    <!-- General -->
+    <string name="settings_general">General</string>
+    <string name="settings_reset">Reset settings</string>
+    <string name="settings_reset_body">Resets working hours, filters and weights to their defaults. Data sources and saved prices are kept.</string>
+    <string name="settings_clear_cache">Clear cached flight data</string>
+    <string name="settings_clear_cache_body">Forces a fresh fetch from the configured data sources next time the app loads.</string>
+
+    <!-- About -->
+    <string name="settings_about">About</string>
+    <string name="about_tagline">Weekend-trip planner from Frankfurt (FRA) with Condor.</string>
+    <string name="about_version">Version %1$s (%2$s)</string>
+    <string name="about_version_dev">development build</string>
+    <string name="about_view_source">Source on GitHub</string>
+    <string name="about_view_releases">View releases</string>
+    <string name="about_credits">Airport data: OurAirports, OpenFlights, IANA tzdata. Flight observations: OpenSky Network.</string>
 </resources>

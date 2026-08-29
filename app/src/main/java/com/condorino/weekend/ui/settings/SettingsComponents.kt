@@ -8,7 +8,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
@@ -24,12 +29,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.condorino.weekend.R
 import com.condorino.weekend.core.MoneyInput
 import com.condorino.weekend.ui.theme.CondorinoColors
 
@@ -89,6 +98,8 @@ private fun EditableField(
     suffix: String? = null,
     keyboardType: KeyboardType = KeyboardType.Text,
     sanitize: (String) -> String = { it },
+    visualTransformation: VisualTransformation = VisualTransformation.None,
+    trailingIcon: (@Composable () -> Unit)? = null,
 ) {
     var text by rememberSaveable { mutableStateOf(value) }
     var edited by rememberSaveable { mutableStateOf(false) }
@@ -120,6 +131,8 @@ private fun EditableField(
             }
         },
         suffix = suffix?.let { { Text(it, fontSize = 12.sp) } },
+        trailingIcon = trailingIcon,
+        visualTransformation = visualTransformation,
         singleLine = true,
         keyboardOptions = KeyboardOptions(
             keyboardType = keyboardType,
@@ -191,6 +204,42 @@ fun TextField(
         onValueChange = onValueChange,
         modifier = modifier,
         placeholder = placeholder,
+    )
+}
+
+/**
+ * A secret the user types once and never needs to read back character by character — an API
+ * client secret, a token. Masked by default, with a toggle to reveal it, so it stays off-screen in
+ * a shoulder-surfing situation but is still checkable if a paste went wrong.
+ */
+@Composable
+fun PasswordField(
+    label: String,
+    value: String,
+    placeholder: String? = null,
+    modifier: Modifier = Modifier,
+    onValueChange: (String) -> Unit,
+) {
+    var visible by rememberSaveable { mutableStateOf(false) }
+    EditableField(
+        label = label,
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier,
+        placeholder = placeholder,
+        keyboardType = KeyboardType.Password,
+        visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
+        trailingIcon = {
+            IconButton(onClick = { visible = !visible }) {
+                Icon(
+                    if (visible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                    contentDescription = stringResource(
+                        if (visible) R.string.action_hide_secret else R.string.action_show_secret,
+                    ),
+                    tint = CondorinoColors.TextTertiary,
+                )
+            }
+        },
     )
 }
 

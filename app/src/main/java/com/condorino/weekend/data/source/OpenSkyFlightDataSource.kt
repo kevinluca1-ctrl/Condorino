@@ -16,6 +16,7 @@ import kotlinx.serialization.json.longOrNull
 import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 import java.io.IOException
 import java.time.DayOfWeek
 import java.time.Duration
@@ -425,8 +426,12 @@ class OpenSkyFlightDataSource(
             val token = if (authenticated) {
                 when (val auth = obtainToken(config)) {
                     is TokenResult.Success -> auth.token
+                    // auth.detail is OpenSky's own error body — usually the one line that actually
+                    // says what's wrong ("invalid_client", "unauthorized_client", …), so it is
+                    // never dropped here the way it used to be.
                     is TokenResult.Failure -> return@withContext SourceTestResult.Problem(
-                        strings.get(R.string.src_opensky_auth_failed, auth.reason),
+                        strings.get(R.string.src_opensky_auth_failed, auth.reason) +
+                            (auth.detail?.let { strings.get(R.string.src_opensky_test_detail, it) } ?: ""),
                     )
                 }
             } else {
@@ -465,11 +470,12 @@ class OpenSkyFlightDataSource(
                         strings.get(R.string.src_opensky_test_nodata, authNote),
                     )
                     401, 403 -> SourceTestResult.Problem(
-                        strings.get(R.string.src_opensky_test_denied, response.code),
+                        strings.get(R.string.src_opensky_test_denied, response.code) +
+                            responseDetailSuffix(response),
                     )
                     429 -> SourceTestResult.Problem(strings.get(R.string.src_opensky_rate_limited))
                     else -> SourceTestResult.Problem(
-                        strings.get(R.string.src_opensky_http, response.code),
+                        strings.get(R.string.src_opensky_http, response.code) + responseDetailSuffix(response),
                     )
                 }
             }
@@ -482,6 +488,12 @@ class OpenSkyFlightDataSource(
                 strings.get(R.string.src_test_failed, e.message ?: e::class.simpleName.orEmpty()),
             )
         }
+    }
+
+    /** " — <first 300 chars of the response body>", or "" if there was none worth showing. */
+    private fun responseDetailSuffix(response: Response): String {
+        val body = runCatching { response.body?.string() }.getOrNull()?.trim()?.take(300)
+        return if (body.isNullOrBlank()) "" else strings.get(R.string.src_opensky_test_detail, body)
     }
 
     companion object {

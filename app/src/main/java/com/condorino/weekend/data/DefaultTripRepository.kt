@@ -147,6 +147,10 @@ class DefaultTripRepository(
             .sortedBy { it.airport.city }
     }
 
+    override suspend fun clearCache() {
+        flightDao.clearAll()
+    }
+
     // ------------------------------------------------------------------ internals
 
     private suspend fun score(

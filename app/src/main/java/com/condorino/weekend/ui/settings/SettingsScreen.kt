@@ -42,6 +42,7 @@ import com.condorino.weekend.domain.model.Cabin
 import com.condorino.weekend.domain.model.DestinationType
 import com.condorino.weekend.domain.model.ScoreComponent
 import com.condorino.weekend.domain.model.ThemeMode
+import com.condorino.weekend.domain.model.UserPreferences
 import com.condorino.weekend.domain.model.WeekendPattern
 import com.condorino.weekend.ui.text.label
 import com.condorino.weekend.ui.theme.CondorinoColors
@@ -215,7 +216,7 @@ fun SettingsScreen(
                 placeholder = "X-API-Key",
                 onValueChange = { viewModel.updateFeedConfig(state.feedConfig.copy(headerName = it.trim())) },
             )
-            TextField(
+            PasswordField(
                 label = stringResource(R.string.settings_auth_value),
                 value = state.feedConfig.headerValue,
                 onValueChange = { viewModel.updateFeedConfig(state.feedConfig.copy(headerValue = it.trim())) },
@@ -258,9 +259,15 @@ fun SettingsScreen(
             TextField(stringResource(R.string.settings_opensky_client_id), state.openSkyConfig.clientId) {
                 viewModel.updateOpenSkyConfig(state.openSkyConfig.copy(clientId = it.trim()))
             }
-            TextField(stringResource(R.string.settings_opensky_client_secret), state.openSkyConfig.clientSecret) {
+            PasswordField(stringResource(R.string.settings_opensky_client_secret), state.openSkyConfig.clientSecret) {
                 viewModel.updateOpenSkyConfig(state.openSkyConfig.copy(clientSecret = it.trim()))
             }
+            Text(
+                stringResource(R.string.settings_opensky_client_hint),
+                color = CondorinoColors.TextTertiary,
+                fontSize = 11.sp,
+                lineHeight = 15.sp,
+            )
         }
 
         SettingsSection(
@@ -275,13 +282,13 @@ fun SettingsScreen(
             TextField(stringResource(R.string.settings_api_base_url), state.condorApiConfig.baseUrl, placeholder = "https://api.condor.com") {
                 viewModel.updateCondorApiConfig(state.condorApiConfig.copy(baseUrl = it.trim()))
             }
-            TextField(stringResource(R.string.settings_api_path), state.condorApiConfig.path, placeholder = "z. B. /v1/flights") {
+            TextField(stringResource(R.string.settings_api_path), state.condorApiConfig.path, placeholder = "e.g. /v1/flights") {
                 viewModel.updateCondorApiConfig(state.condorApiConfig.copy(path = it.trim()))
             }
             TextField(stringResource(R.string.settings_api_key_header), state.condorApiConfig.apiKeyHeader, placeholder = "Ocp-Apim-Subscription-Key") {
                 viewModel.updateCondorApiConfig(state.condorApiConfig.copy(apiKeyHeader = it.trim()))
             }
-            TextField(stringResource(R.string.settings_api_key), state.condorApiConfig.apiKey) {
+            PasswordField(stringResource(R.string.settings_api_key), state.condorApiConfig.apiKey) {
                 viewModel.updateCondorApiConfig(state.condorApiConfig.copy(apiKey = it.trim()))
             }
             TextField(stringResource(R.string.settings_api_items_path), state.condorApiConfig.itemsPath, placeholder = "data.flights") {
@@ -498,6 +505,34 @@ fun SettingsScreen(
                 lineHeight = 18.sp,
             )
         }
+
+        // ---------------------------------------------------------------- general
+        SettingsSection(stringResource(R.string.settings_general)) {
+            Text(
+                stringResource(R.string.settings_reset_body),
+                color = CondorinoColors.TextTertiary,
+                fontSize = 11.sp,
+                lineHeight = 15.sp,
+            )
+            OutlinedButton(
+                onClick = { viewModel.updatePreferences { UserPreferences.DEFAULT } },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.settings_reset), color = CondorinoColors.Amber, fontSize = 13.sp)
+            }
+            Text(
+                stringResource(R.string.settings_clear_cache_body),
+                color = CondorinoColors.TextTertiary,
+                fontSize = 11.sp,
+                lineHeight = 15.sp,
+            )
+            OutlinedButton(onClick = viewModel::clearCache, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.settings_clear_cache), color = CondorinoColors.Amber, fontSize = 13.sp)
+            }
+        }
+
+        // ---------------------------------------------------------------- about
+        AboutSection()
 
         Spacer(Modifier.height(40.dp))
     }

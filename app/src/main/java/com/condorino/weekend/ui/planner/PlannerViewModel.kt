@@ -127,6 +127,11 @@ data class PlannerUiState(
         get() = compareSelection.mapNotNull { iata -> comparableTrips.firstOrNull { it.iata == iata } }
 }
 
+/** Returns this trip unchanged if its favourite flag already matches; copies it otherwise. */
+private fun WeekendTrip.withFavoriteFlag(isFavorite: Boolean): WeekendTrip =
+    if (destination.isFavorite == isFavorite) this
+    else copy(destination = destination.copy(isFavorite = isFavorite))
+
 class PlannerViewModel(
     private val repository: TripRepository,
     private val preferencesStore: PreferencesStore,
@@ -175,7 +180,14 @@ class PlannerViewModel(
         }
         viewModelScope.launch {
             favoriteRepository.favorites.collectLatest { favs ->
-                _state.value = _state.value.copy(favorites = favs)
+                // Every screen reads a trip's heart state off `trip.destination.isFavorite`, baked
+                // in once when TripBuilder assembled the list. Toggling a favourite must not wait
+                // for the next full reload to show — the already-held trips are corrected in place.
+                _state.value = _state.value.copy(
+                    favorites = favs,
+                    allTrips = _state.value.allTrips.map { it.withFavoriteFlag(it.iata in favs) },
+                    surprise = _state.value.surprise?.let { it.withFavoriteFlag(it.iata in favs) },
+                )
             }
         }
     }

@@ -186,6 +186,10 @@ class SettingsViewModel(
         viewModelScope.launch { updateRepository.setWifiOnly(wifiOnly) }
     }
 
+    fun clearCache() {
+        viewModelScope.launch { tripRepository.clearCache() }
+    }
+
     fun savePrice(price: StandbyPrice) {
         viewModelScope.launch { standbyPriceRepository.save(price) }
     }
