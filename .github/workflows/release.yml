@@ -46,15 +46,30 @@ jobs:
       - name: Run unit tests
         run: ./gradlew --no-daemon testDebugUnitTest
 
-      - name: Build APKs
-        # RELEASE_TAG/RELEASE_PUBLISHED_AT are baked into BuildConfig so the installed app can
-        # honestly tell whether a later GitHub release is newer than itself (see
-        # data/update/GitHubReleaseUpdateSource.kt). A build outside this workflow never sets them.
+      # Split into two steps (matching android.yml's CI build) rather than one
+      # `assembleDebug assembleRelease` invocation: a combined run has been observed to stall well
+      # past either variant's own build time with no forward progress, for reasons this workflow
+      # was not able to diagnose from the outside (log streaming isn't available for a running
+      # job). Two shorter, independently-timed steps also fail fast and legibly if it recurs,
+      # instead of the whole job sitting silent.
+      - name: Build debug APK
+        timeout-minutes: 10
         run: >
           ./gradlew --no-daemon
           -PreleaseTag="${{ steps.names.outputs.tag }}"
           -PreleasePublishedAt="${{ steps.names.outputs.published_at }}"
-          assembleDebug assembleRelease
+          assembleDebug
+
+      - name: Build release APK
+        # RELEASE_TAG/RELEASE_PUBLISHED_AT are baked into BuildConfig so the installed app can
+        # honestly tell whether a later GitHub release is newer than itself (see
+        # data/update/GitHubReleaseUpdateSource.kt). A build outside this workflow never sets them.
+        timeout-minutes: 10
+        run: >
+          ./gradlew --no-daemon
+          -PreleaseTag="${{ steps.names.outputs.tag }}"
+          -PreleasePublishedAt="${{ steps.names.outputs.published_at }}"
+          assembleRelease
 
       - name: Name the artefacts after the tag
         run: |
