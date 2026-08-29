@@ -10,6 +10,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
@@ -26,9 +27,17 @@ data class CalendarUiState(
     /** Same provenance/freshness contract as every other data-bearing screen (spec §4). */
     val status: DataStatus = DataStatus.EMPTY,
 ) {
-    /** Weekends that produced at least one trip, best first — the best-weekends list. */
+    /**
+     * Weekends that produced at least one trip, best first — the best-weekends list.
+     *
+     * Sample data repeats one weekly pattern, so several weekends often land on the exact same
+     * score; without a tiebreaker the order would depend on incidental floating-point noise (a
+     * DST-boundary week scoring a fraction of a point differently) rather than anything the user
+     * can make sense of. Soonest first among ties is at least a legible rule.
+     */
     val ranked: List<WeekendSearchResult>
-        get() = weekends.filter { it.trips.isNotEmpty() }.sortedByDescending { it.topScore }
+        get() = weekends.filter { it.trips.isNotEmpty() }
+            .sortedWith(compareByDescending<WeekendSearchResult> { it.topScore }.thenBy { it.friday })
 
     val byMonth: Map<String, List<WeekendSearchResult>>
         get() = weekends.groupBy { com.condorino.weekend.core.Formatting.month(it.friday) }
@@ -61,21 +70,20 @@ class CalendarViewModel(
     fun search(from: LocalDate, to: LocalDate) {
         job?.cancel()
         job = viewModelScope.launch {
-            _state.value = _state.value.copy(from = from, to = to, isLoading = true, message = null)
+            _state.update { it.copy(from = from, to = to, isLoading = true, message = null) }
 
             val cached = repository.searchRange(from, to)
-            _state.value = _state.value.copy(
-                weekends = cached,
-                status = cached.firstOrNull()?.status ?: _state.value.status,
-            )
+            _state.update { it.copy(weekends = cached, status = cached.firstOrNull()?.status ?: it.status) }
 
             val results = repository.refreshRange(from, to)
-            _state.value = _state.value.copy(
-                weekends = results,
-                isLoading = false,
-                message = messageFor(results),
-                status = results.firstOrNull()?.status ?: _state.value.status,
-            )
+            _state.update {
+                it.copy(
+                    weekends = results,
+                    isLoading = false,
+                    message = messageFor(results),
+                    status = results.firstOrNull()?.status ?: it.status,
+                )
+            }
         }
     }
 

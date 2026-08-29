@@ -497,4 +497,12 @@
     <string name="about_view_source">Quellcode auf GitHub</string>
     <string name="about_view_releases">Releases ansehen</string>
     <string name="about_credits">Flughafendaten: OurAirports, OpenFlights, IANA tzdata. Flugbeobachtungen: OpenSky Network.</string>
+
+    <!-- Preise exportieren/importieren -->
+    <string name="prices_export">Exportieren</string>
+    <string name="prices_import">Importieren</string>
+    <string name="prices_export_success">Preise exportiert.</string>
+    <string name="prices_export_failed">Export fehlgeschlagen.</string>
+    <string name="prices_import_success">%1$d Preis(e) importiert.</string>
+    <string name="prices_import_failed">Import fehlgeschlagen – keine lesbare Condorino-Preisdatei.</string>
 </resources>

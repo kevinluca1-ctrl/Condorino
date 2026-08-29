@@ -3,6 +3,7 @@ package com.condorino.weekend.ui.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.condorino.weekend.data.export.PriceExport
 import com.condorino.weekend.data.prefs.PreferencesStore
 import com.condorino.weekend.data.source.CondorApiConfig
 import com.condorino.weekend.data.reference.AirportReferenceCatalog
@@ -24,13 +25,28 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.Instant
 
 data class SourceState(
     val id: String,
     val name: String,
     val status: SourceStatus,
 )
+
+/**
+ * Outcome of the last export/import action, so the standby-price screen can say what happened —
+ * writing/reading the actual file is Android-specific (a content:// Uri from the system file
+ * picker) and stays in the UI layer; this is just the result of it.
+ */
+sealed interface PriceIoStatus {
+    data object Idle : PriceIoStatus
+    data object ExportSucceeded : PriceIoStatus
+    data object ExportFailed : PriceIoStatus
+    data class ImportSucceeded(val count: Int) : PriceIoStatus
+    data object ImportFailed : PriceIoStatus
+}
 
 data class SettingsUiState(
     val preferences: UserPreferences = UserPreferences.DEFAULT,
@@ -52,6 +68,7 @@ data class SettingsUiState(
     /** Destination whose price card the prices screen should open expanded, if any. */
     val focusPriceIata: String? = null,
     val updateState: UpdateUiState = UpdateUiState(),
+    val priceIoStatus: PriceIoStatus = PriceIoStatus.Idle,
 )
 
 class SettingsViewModel(
@@ -67,55 +84,72 @@ class SettingsViewModel(
     val state: StateFlow<SettingsUiState> = _state.asStateFlow()
 
     init {
+        // Every field lands via MutableStateFlow.update { }, not `_state.value = _state.value.copy(...)`:
+        // these collectors all watch the same underlying DataStore Preferences object (one write to
+        // any key re-emits all of them), so a plain read-then-write here can lose a concurrent
+        // collector's update. update{} retries against whatever _state.value actually is, so none of
+        // them can stomp another's change no matter how they interleave.
         viewModelScope.launch {
-            preferencesStore.preferences.collectLatest { _state.value = _state.value.copy(preferences = it) }
+            preferencesStore.preferences.collectLatest { prefs ->
+                _state.update { it.copy(preferences = prefs) }
+            }
         }
         viewModelScope.launch {
-            preferencesStore.feedConfig.collectLatest {
-                _state.value = _state.value.copy(feedConfig = it)
+            preferencesStore.feedConfig.collectLatest { config ->
+                _state.update { it.copy(feedConfig = config) }
                 refreshSourceStates()
             }
         }
         viewModelScope.launch {
-            preferencesStore.condorApiConfig.collectLatest {
-                _state.value = _state.value.copy(condorApiConfig = it)
+            preferencesStore.condorApiConfig.collectLatest { config ->
+                _state.update { it.copy(condorApiConfig = config) }
                 refreshSourceStates()
             }
         }
         viewModelScope.launch {
-            preferencesStore.allowDemoData.collectLatest { _state.value = _state.value.copy(allowDemoData = it) }
+            preferencesStore.allowDemoData.collectLatest { allow ->
+                _state.update { it.copy(allowDemoData = allow) }
+            }
         }
         viewModelScope.launch {
-            standbyPriceRepository.prices.collectLatest { _state.value = _state.value.copy(prices = it) }
+            standbyPriceRepository.prices.collectLatest { prices ->
+                _state.update { it.copy(prices = prices) }
+            }
         }
         viewModelScope.launch {
-            preferencesStore.openSkyConfig.collectLatest {
-                _state.value = _state.value.copy(openSkyConfig = it)
+            preferencesStore.openSkyConfig.collectLatest { config ->
+                _state.update { it.copy(openSkyConfig = config) }
                 refreshSourceStates()
             }
         }
         viewModelScope.launch {
-            preferencesStore.themeMode.collectLatest { _state.value = _state.value.copy(themeMode = it) }
+            preferencesStore.themeMode.collectLatest { mode ->
+                _state.update { it.copy(themeMode = mode) }
+            }
         }
         viewModelScope.launch {
             val reference = airportReferenceCatalog.airports()
-            _state.value = _state.value.copy(
-                destinations = tripRepository.destinations(),
-                referenceAirportCount = reference.size,
-                allAirports = reference.values.sortedBy { it.city },
-            )
+            val destinations = tripRepository.destinations()
+            _state.update {
+                it.copy(
+                    destinations = destinations,
+                    referenceAirportCount = reference.size,
+                    allAirports = reference.values.sortedBy { airport -> airport.city },
+                )
+            }
         }
         viewModelScope.launch {
-            updateRepository.state.collectLatest { _state.value = _state.value.copy(updateState = it) }
+            updateRepository.state.collectLatest { update ->
+                _state.update { it.copy(updateState = update) }
+            }
         }
         refreshSourceStates()
     }
 
     private fun refreshSourceStates() {
         viewModelScope.launch {
-            _state.value = _state.value.copy(
-                sources = sources.map { SourceState(it.id, it.displayName, it.status()) },
-            )
+            val states = sources.map { SourceState(it.id, it.displayName, it.status()) }
+            _state.update { it.copy(sources = states) }
         }
     }
 
@@ -144,21 +178,23 @@ class SettingsViewModel(
     }
 
     fun focusPrice(iata: String?) {
-        _state.value = _state.value.copy(focusPriceIata = iata)
+        _state.update { it.copy(focusPriceIata = iata) }
     }
 
     /** Runs one source's self-test and keeps the result for display. */
     fun testSource(id: String) {
         val source = sources.firstOrNull { it.id == id } ?: return
         viewModelScope.launch {
-            _state.value = _state.value.copy(testingSourceId = id)
+            _state.update { it.copy(testingSourceId = id) }
             val result = runCatching { source.selfTest() }.getOrElse {
                 SourceTestResult.Problem(it.message ?: it::class.simpleName.orEmpty())
             }
-            _state.value = _state.value.copy(
-                sourceTests = _state.value.sourceTests + (id to result),
-                testingSourceId = null,
-            )
+            _state.update {
+                it.copy(
+                    sourceTests = it.sourceTests + (id to result),
+                    testingSourceId = null,
+                )
+            }
             refreshSourceStates()
         }
     }
@@ -196,6 +232,31 @@ class SettingsViewModel(
 
     fun deletePrice(iata: String) {
         viewModelScope.launch { standbyPriceRepository.delete(iata) }
+    }
+
+    /** The text to write wherever the user chose to save it. */
+    suspend fun buildPricesExportJson(): String =
+        PriceExport.write(standbyPriceRepository.current().values, Instant.now().toString())
+
+    fun reportPricesExportResult(success: Boolean) {
+        _state.update { it.copy(priceIoStatus = if (success) PriceIoStatus.ExportSucceeded else PriceIoStatus.ExportFailed) }
+    }
+
+    /** @param text the file contents read from wherever the user picked it, or null if reading it failed. */
+    fun importPrices(text: String?) {
+        viewModelScope.launch {
+            val imported = text?.let { runCatching { PriceExport.read(it) }.getOrNull() }
+            if (imported.isNullOrEmpty()) {
+                _state.update { it.copy(priceIoStatus = PriceIoStatus.ImportFailed) }
+                return@launch
+            }
+            imported.forEach { standbyPriceRepository.save(it) }
+            _state.update { it.copy(priceIoStatus = PriceIoStatus.ImportSucceeded(imported.size)) }
+        }
+    }
+
+    fun clearPriceIoStatus() {
+        _state.update { it.copy(priceIoStatus = PriceIoStatus.Idle) }
     }
 
     companion object {

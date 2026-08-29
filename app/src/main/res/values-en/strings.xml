@@ -453,4 +453,12 @@
     <string name="about_view_source">Source on GitHub</string>
     <string name="about_view_releases">View releases</string>
     <string name="about_credits">Airport data: OurAirports, OpenFlights, IANA tzdata. Flight observations: OpenSky Network.</string>
+
+    <!-- Exporting/importing prices -->
+    <string name="prices_export">Export</string>
+    <string name="prices_import">Import</string>
+    <string name="prices_export_success">Prices exported.</string>
+    <string name="prices_export_failed">Export failed.</string>
+    <string name="prices_import_success">%1$d price(s) imported.</string>
+    <string name="prices_import_failed">Import failed - not a readable Condorino price file.</string>
 </resources>

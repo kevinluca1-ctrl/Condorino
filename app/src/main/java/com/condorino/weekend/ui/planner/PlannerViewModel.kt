@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
@@ -154,19 +155,21 @@ class PlannerViewModel(
     private fun observeSideChannels() {
         viewModelScope.launch {
             repository.dataStatus.collectLatest { status ->
-                _state.value = _state.value.copy(status = status)
+                _state.update { it.copy(status = status) }
             }
         }
         viewModelScope.launch {
             preferencesStore.preferences.collectLatest { prefs ->
                 val previous = _state.value.preferences
-                _state.value = _state.value.copy(
-                    preferences = prefs,
-                    filters = _state.value.filters.copy(
-                        patterns = prefs.enabledPatterns,
-                        destinationTypes = prefs.enabledDestinationTypes,
-                    ),
-                )
+                _state.update { current ->
+                    current.copy(
+                        preferences = prefs,
+                        filters = current.filters.copy(
+                            patterns = prefs.enabledPatterns,
+                            destinationTypes = prefs.enabledDestinationTypes,
+                        ),
+                    )
+                }
                 // Scoring depends on preferences, so a settings change re-runs the search.
                 if (previous != prefs) load(_state.value.friday, refresh = false)
             }
@@ -174,7 +177,7 @@ class PlannerViewModel(
         viewModelScope.launch {
             standbyPriceRepository.prices.collectLatest { prices ->
                 val changed = prices != _state.value.prices
-                _state.value = _state.value.copy(prices = prices)
+                _state.update { it.copy(prices = prices) }
                 if (changed) load(_state.value.friday, refresh = false)
             }
         }
@@ -183,11 +186,13 @@ class PlannerViewModel(
                 // Every screen reads a trip's heart state off `trip.destination.isFavorite`, baked
                 // in once when TripBuilder assembled the list. Toggling a favourite must not wait
                 // for the next full reload to show — the already-held trips are corrected in place.
-                _state.value = _state.value.copy(
-                    favorites = favs,
-                    allTrips = _state.value.allTrips.map { it.withFavoriteFlag(it.iata in favs) },
-                    surprise = _state.value.surprise?.let { it.withFavoriteFlag(it.iata in favs) },
-                )
+                _state.update { current ->
+                    current.copy(
+                        favorites = favs,
+                        allTrips = current.allTrips.map { trip -> trip.withFavoriteFlag(trip.iata in favs) },
+                        surprise = current.surprise?.let { trip -> trip.withFavoriteFlag(trip.iata in favs) },
+                    )
+                }
             }
         }
     }
@@ -195,22 +200,22 @@ class PlannerViewModel(
     fun load(friday: LocalDate, refresh: Boolean) {
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
-            _state.value = _state.value.copy(friday = friday, isLoading = true)
+            _state.update { it.copy(friday = friday, isLoading = true) }
             val cached = repository.searchWeekend(friday)
-            _state.value = _state.value.copy(
+            _state.update { it.copy(
                 allTrips = cached.trips,
                 rejections = cached.rejections,
                 status = cached.status,
                 isLoading = refresh,
-            )
+            ) }
             if (refresh) {
                 val fresh = repository.refresh(friday)
-                _state.value = _state.value.copy(
+                _state.update { it.copy(
                     allTrips = fresh.trips,
                     rejections = fresh.rejections,
                     status = fresh.status,
                     isLoading = false,
-                )
+                ) }
             }
         }
     }
@@ -224,11 +229,11 @@ class PlannerViewModel(
     fun selectFriday(friday: LocalDate) = load(WeekendCalendar.anchorFriday(friday), refresh = true)
 
     fun updateFilters(transform: (TripFilters) -> TripFilters) {
-        _state.value = _state.value.copy(filters = transform(_state.value.filters))
+        _state.update { it.copy(filters = transform(it.filters)) }
     }
 
     fun selectTrip(id: String) {
-        _state.value = _state.value.copy(selectedTripId = id)
+        _state.update { it.copy(selectedTripId = id) }
     }
 
     fun toggleFavorite(iata: String) {
@@ -242,13 +247,14 @@ class PlannerViewModel(
     // ---------------------------------------------------------------- surprise me
 
     fun setSurpriseMode(mode: RandomMode) {
-        _state.value = _state.value.copy(surpriseMode = mode)
+        _state.update { it.copy(surpriseMode = mode) }
     }
 
     fun surpriseMe() {
-        val current = _state.value
-        val pick = randomSelector.pick(current.trips, current.surpriseMode, current.preferences)
-        _state.value = current.copy(surprise = pick, surpriseFailed = pick == null)
+        _state.update { current ->
+            val pick = randomSelector.pick(current.trips, current.surpriseMode, current.preferences)
+            current.copy(surprise = pick, surpriseFailed = pick == null)
+        }
     }
 
     // ---------------------------------------------------------------- compare
@@ -260,11 +266,11 @@ class PlannerViewModel(
             current.size >= MAX_COMPARE -> current.drop(1) + iata
             else -> current + iata
         }
-        _state.value = _state.value.copy(compareSelection = next)
+        _state.update { it.copy(compareSelection = next) }
     }
 
     fun clearCompare() {
-        _state.value = _state.value.copy(compareSelection = emptyList())
+        _state.update { it.copy(compareSelection = emptyList()) }
     }
 
     companion object {

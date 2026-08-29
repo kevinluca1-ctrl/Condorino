@@ -127,17 +127,32 @@ class OpenSkyFlightDataSource(
                     null
                 }
 
-                val departures = fetchObservations(config, token, arrivals = false)
-                val arrivals = fetchObservations(config, token, arrivals = true)
+                val departureFetch = fetchObservations(config, token, arrivals = false)
+                val arrivalFetch = fetchObservations(config, token, arrivals = true)
+                val departures = departureFetch.observations
+                val arrivals = arrivalFetch.observations
                 if (departures.isEmpty() && arrivals.isEmpty()) {
-                    return@withContext FlightSearchResult.Failure(
-                        strings.get(
-                            R.string.src_opensky_no_flights,
-                            config.lookbackWeeks,
-                            config.callsignPrefix,
-                            config.homeIcao,
-                        ),
-                    )
+                    // Every chunk request either failed outright or returned an unexpected status —
+                    // this is not the same fact as "OpenSky checked and there really is nothing",
+                    // and must not be reported as if it were.
+                    val failedCode = departureFetch.lastErrorCode ?: arrivalFetch.lastErrorCode
+                    return@withContext if (failedCode != null) {
+                        val message = if (failedCode == 401 || failedCode == 403) {
+                            strings.get(R.string.src_opensky_denied, failedCode)
+                        } else {
+                            strings.get(R.string.src_opensky_http, failedCode)
+                        }
+                        FlightSearchResult.Failure(message)
+                    } else {
+                        FlightSearchResult.Failure(
+                            strings.get(
+                                R.string.src_opensky_no_flights,
+                                config.lookbackWeeks,
+                                config.callsignPrefix,
+                                config.homeIcao,
+                            ),
+                        )
+                    }
                 }
 
                 val outbound = buildTimetable(departures, home, outbound = true)
@@ -190,11 +205,19 @@ class OpenSkyFlightDataSource(
         val lastSeen: Instant,
     )
 
+    /**
+     * @param lastErrorCode the most recent HTTP status that was neither success nor a documented
+     *   "nothing in this window" 404 — set when at least one chunk request failed outright, so the
+     *   caller can tell "OpenSky genuinely reported zero flights" apart from "every request to
+     *   OpenSky failed and this is not actually zero flights".
+     */
+    internal data class ObservationFetch(val observations: List<Observation>, val lastErrorCode: Int? = null)
+
     private suspend fun fetchObservations(
         config: OpenSkyConfig,
         token: String?,
         arrivals: Boolean,
-    ): List<Observation> {
+    ): ObservationFetch {
         val endpoint = if (arrivals) "arrival" else "departure"
         val nowSeconds = now().epochSecond
         // OpenSky caps the interval for this endpoint at seven days; six keeps a safety margin
@@ -204,6 +227,7 @@ class OpenSkyFlightDataSource(
             .toInt().coerceIn(1, MAX_CHUNKS)
 
         val out = mutableListOf<Observation>()
+        var lastErrorCode: Int? = null
         for (i in 0 until chunks) {
             val end = nowSeconds - i * chunk
             val begin = end - chunk
@@ -215,21 +239,29 @@ class OpenSkyFlightDataSource(
 
             client.newCall(builder.build()).execute().use { response ->
                 when (response.code) {
-                    // OpenSky answers 404 when it simply has nothing for the window.
+                    // OpenSky answers 404 when it simply has nothing for the window — a real
+                    // answer, not a failure, so it does not set lastErrorCode.
                     404 -> return@use
-                    // Back off rather than hammering a rate-limited free service.
-                    429 -> return out
-                    401, 403 -> throw IOException(
-                        strings.get(R.string.src_opensky_denied, response.code),
-                    )
+                    // Back off rather than hammering a rate-limited free service, but say so:
+                    // silently returning whatever was found so far looked exactly like "that's
+                    // everything there is" instead of "the rest of the window was never checked".
+                    429 -> return ObservationFetch(out, lastErrorCode = 429)
+                    // A rejected token would fail identically on every remaining chunk — stop
+                    // immediately rather than repeat the same denial N times. Reported through
+                    // lastErrorCode, not thrown: the outer catch (IOException) generalises the
+                    // message to "are you offline?", which would bury the actual reason.
+                    401, 403 -> return ObservationFetch(out, lastErrorCode = response.code)
                 }
-                if (!response.isSuccessful) return@use
+                if (!response.isSuccessful) {
+                    lastErrorCode = response.code
+                    return@use
+                }
                 val body = response.body?.string().orEmpty()
                 if (body.isBlank()) return@use
                 out += parseObservations(body, config.callsignPrefix)
             }
         }
-        return out
+        return ObservationFetch(out, lastErrorCode)
     }
 
     internal fun parseObservations(body: String, callsignPrefix: String): List<Observation> {
