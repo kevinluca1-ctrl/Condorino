@@ -121,7 +121,10 @@ class GoogleFlightsPriceSource(
                     return@withContext CommercialPriceResult.Failure(strings.get(R.string.src_google_flights_empty))
                 }
                 val quote = mapQuote(body, config, destination.iata, cabin)
-                    ?: return@withContext CommercialPriceResult.Failure(strings.get(R.string.src_google_flights_unmapped))
+                    ?: return@withContext CommercialPriceResult.Failure(
+                        strings.get(R.string.src_google_flights_unmapped),
+                        diagnoseMappingFailure(body, config),
+                    )
                 CommercialPriceResult.Success(quote)
             }
         } catch (e: IOException) {
@@ -219,6 +222,42 @@ class GoogleFlightsPriceSource(
         return current
     }
 
+    /**
+     * Called only when [mapQuote] returns null, to say *where* it stopped and what was actually
+     * there instead of leaving a bare "no usable price" — the field mapping is an unverified guess
+     * (see the class doc), so the fastest way to a correct one is showing exactly what the real
+     * response looked like at the point resolution gave up. Never asserts what the right field name
+     * *should* be, only reports what this specific response contained.
+     */
+    internal fun diagnoseMappingFailure(body: String, config: GoogleFlightsApiConfig): String {
+        val root = runCatching { json.parseToJsonElement(body) }.getOrNull()
+            ?: return "response was not valid JSON"
+
+        var current: JsonElement = root
+        for (segment in config.itemsPath.split('.').filter { it.isNotBlank() }) {
+            val obj = current as? JsonObject
+            val next = obj?.get(segment)
+            if (next == null) {
+                return "items path \"${config.itemsPath}\" did not resolve past \"$segment\"; " +
+                    "keys there: ${obj?.keys?.joinToString(", ") ?: "(not an object)"}"
+            }
+            current = next
+        }
+
+        val item = when (current) {
+            is JsonArray -> current.firstOrNull() as? JsonObject ?: return if (current.isEmpty()) {
+                "items path \"${config.itemsPath}\" resolved to an empty list"
+            } else {
+                "the first entry at \"${config.itemsPath}\" isn't an object"
+            }
+            is JsonObject -> current
+            else -> return "\"${config.itemsPath}\" did not resolve to an object or a list of objects"
+        }
+
+        return "no numeric \"${config.fieldPrice}\" field in the resolved item; keys there: " +
+            item.keys.joinToString(", ").ifBlank { "(none)" }
+    }
+
     private fun JsonObject.at(key: String): JsonElement? {
         if (key.isBlank()) return null
         return if (key.contains('.')) resolvePath(this, key) else this[key]
@@ -235,7 +274,19 @@ class GoogleFlightsPriceSource(
         }
     }
 
-    private fun JsonObject.number(key: String): Double? = (at(key) as? JsonPrimitive)?.doubleOrNull
+    /**
+     * A plain number, but also tolerant of two shapes common across travel-price APIs that a bare
+     * [JsonPrimitive] cast would miss: a formatted currency string ("€312", "$1,234.50") and a price
+     * wrapped in its own object ({"amount": 312, "currency": "EUR"}) — tried under a short list of
+     * likely sub-field names rather than assumed to be any one of them.
+     */
+    private fun JsonObject.number(key: String): Double? = when (val element = at(key)) {
+        null -> null
+        is JsonPrimitive -> element.doubleOrNull
+            ?: element.contentOrNull?.let { PRICE_DIGITS.find(it.replace(",", ""))?.value?.toDoubleOrNull() }
+        is JsonObject -> PRICE_SUBFIELD_KEYS.firstNotNullOfOrNull { element.number(it) }
+        is JsonArray -> element.firstNotNullOfOrNull { (it as? JsonPrimitive)?.doubleOrNull }
+    }
 
     private fun JsonObject.bool(key: String): Boolean? {
         val element = at(key) as? JsonPrimitive ?: return null
@@ -249,6 +300,12 @@ class GoogleFlightsPriceSource(
     }
 
     private companion object {
+        /** First run of digits (thousands separators stripped) — for a formatted price string. */
+        val PRICE_DIGITS = Regex("""\d+(?:\.\d+)?""")
+
+        /** Tried in order when a price field resolves to an object rather than a plain number. */
+        val PRICE_SUBFIELD_KEYS = listOf("amount", "total", "value", "raw")
+
         /** A stand-in destination for [selfTest]; the public reference resolves MUC reliably. */
         val MUNICH_FOR_SELF_TEST = Airport(
             iata = "MUC",

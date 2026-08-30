@@ -160,6 +160,71 @@ class GoogleFlightsPriceSourceTest {
     }
 
     @Test
+    fun `mapQuote reads a price given as a formatted currency string`() {
+        val config = configFor(itemsPath = "")
+        val body = """{"price":"€1,234.50","airlines":"Condor"}"""
+        val quote = sourceFor(config).mapQuote(body, config, "MUC", Cabin.ECONOMY)
+
+        assertEquals(123450L, quote?.roundTripPrice?.cents)
+    }
+
+    @Test
+    fun `mapQuote reads a price wrapped in its own object under a common sub-field name`() {
+        val config = configFor(itemsPath = "")
+        val body = """{"price":{"amount":312,"currency":"EUR"},"airlines":"Condor"}"""
+        val quote = sourceFor(config).mapQuote(body, config, "MUC", Cabin.ECONOMY)
+
+        assertEquals(31200L, quote?.roundTripPrice?.cents)
+    }
+
+    @Test
+    fun `diagnoseMappingFailure says where the items path stopped resolving`() {
+        val config = configFor()
+        val body = """{"data":{"itineraries":{"otherFlights":[]}}}"""
+
+        val diagnosis = sourceFor(config).diagnoseMappingFailure(body, config)
+
+        assertTrue(diagnosis.contains("topFlights"))
+        assertTrue(diagnosis.contains("otherFlights"))
+    }
+
+    @Test
+    fun `diagnoseMappingFailure says the resolved list was empty`() {
+        val config = configFor()
+        val body = """{"data":{"itineraries":{"topFlights":[]}}}"""
+
+        val diagnosis = sourceFor(config).diagnoseMappingFailure(body, config)
+
+        assertTrue(diagnosis.contains("empty list"))
+    }
+
+    @Test
+    fun `diagnoseMappingFailure lists the keys actually present when the price field is missing`() {
+        val config = configFor()
+        val body = """{"data":{"itineraries":{"topFlights":[{"total_price":199,"stops":0}]}}}"""
+
+        val diagnosis = sourceFor(config).diagnoseMappingFailure(body, config)
+
+        assertTrue(diagnosis.contains("total_price"))
+        assertTrue(diagnosis.contains("stops"))
+    }
+
+    @Test
+    fun `a failed quote surfaces the diagnosis as its technical detail`() = runBlocking {
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """{"data":{"itineraries":{"topFlights":[]}}}""",
+            ),
+        )
+        val config = configFor()
+        val result = sourceFor(config).quote(
+            Airport.FRANKFURT, munich, LocalDate.now(), LocalDate.now().plusDays(2), Cabin.ECONOMY,
+        ) as? CommercialPriceResult.Failure ?: error("expected Failure")
+
+        assertTrue(result.technicalDetail?.contains("empty list") == true)
+    }
+
+    @Test
     fun `a 401 is reported as denied, not a generic failure`() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(401))
         val config = configFor()

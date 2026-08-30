@@ -31,11 +31,29 @@ scoped per airline. Everything in `alpha-07` still applies — see its
 airline filtering, and standby-price airline tagging including backward-compatible import of an
 export written before this feature existed.
 
+## Fixed
+
+* **Google Flights "The response contained no usable price" now tells you why.** This source's field
+  mapping was always an unverified best guess (its RapidAPI docs sit behind a subscription and
+  couldn't be reached from where this app was built — see the source's own class doc), so a mismatch
+  between the guessed defaults and a real account's response was always possible; that failure mode
+  is still here, but it was silent — a bare "no usable price" with nothing to act on. It now reports
+  exactly where the field mapping gave up: which segment of the items path didn't resolve and what
+  keys were actually there, whether the resolved list was empty, or which keys the item that *was*
+  found actually has if the price field wasn't among them — read from the real response your account
+  got, not guessed. Price extraction itself is also more tolerant of two shapes common across
+  travel-price APIs: a formatted currency string ("€1,234.50") and a price nested in its own object
+  (`{"amount": 312, "currency": "EUR"}`), tried automatically before giving up.
+
+6 more new unit tests (193 total, was 187) cover the new diagnostic and the more tolerant price
+parsing.
+
 ## Known limitations
 
-Unchanged from `alpha-07`. As with every RapidAPI source, AeroDataBox's and OpenSky's airline/ICAO
-field names are a confident but still unverified reconstruction pending real account access — correct
-them in Settings from your own account's Test Endpoint panel if a real response doesn't match.
+Unchanged from `alpha-07`. As with every RapidAPI source, AeroDataBox's, OpenSky's, and Google
+Flights' exact field names are a confident but still unverified reconstruction pending real account
+access — correct them in Settings from your own account's Test Endpoint panel if a real response
+doesn't match; Google Flights will now say specifically what it found instead of just failing blind.
 
 ## Installing
 
