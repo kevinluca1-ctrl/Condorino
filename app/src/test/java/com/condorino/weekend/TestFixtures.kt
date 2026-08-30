@@ -45,13 +45,16 @@ object Fixtures {
         flightNumber: String = "TEST 1",
         isDirect: Boolean = true,
         provenance: DataProvenance = DataProvenance.SCHEDULE,
+        // Deliberately last, so every existing positional call site still compiles. "TT" is not a
+        // real designator: a fixture flight is unattributed unless a test says otherwise.
+        airlineCode: String = "TT",
     ): Flight {
         val time = LocalTime.parse(departure)
         val dep: ZonedDateTime = ZonedDateTime.of(date, time, ZoneId.of(origin.timeZoneId))
         return Flight(
             flightNumber = flightNumber,
             airline = "Test",
-            airlineCode = "TT",
+            airlineCode = airlineCode,
             origin = origin,
             destination = destination,
             departure = dep.toInstant(),

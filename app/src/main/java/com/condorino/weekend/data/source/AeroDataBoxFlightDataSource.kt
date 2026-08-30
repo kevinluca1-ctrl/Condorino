@@ -251,8 +251,13 @@ class AeroDataBoxFlightDataSource(
     ): Flight? {
         val obj = element as? JsonObject ?: return null
 
-        val airlineIcao = obj.str(config.fieldAirlineIcao) ?: return null
-        if (selectedAirlines.none { it.equals(airlineIcao, ignoreCase = true) }) return null
+        val reportedAirline = obj.str(config.fieldAirlineIcao) ?: return null
+        // Resolved, not string-compared: the selection holds ICAO codes, but the field this reads
+        // is user-configurable and a response may well carry the IATA one ("DE" for Condor)
+        // instead. Comparing raw would silently drop every flight and report an empty airport.
+        val airline = Airlines.resolve(reportedAirline)
+        val airlineIcao = airline?.icaoCode ?: reportedAirline.trim().uppercase()
+        if (selectedAirlines.none { Airlines.canonicalIcao(it) == airlineIcao }) return null
 
         val otherCode = obj.str(if (outbound) config.fieldArrivalAirportCode else config.fieldDepartureAirportCode)
             ?: return null
@@ -268,7 +273,7 @@ class AeroDataBoxFlightDataSource(
 
         return Flight(
             flightNumber = obj.str(config.fieldFlightNumber),
-            airline = obj.str(config.fieldAirlineName) ?: Airlines.byIcao(airlineIcao)?.displayName ?: airlineIcao,
+            airline = obj.str(config.fieldAirlineName) ?: airline?.displayName ?: airlineIcao,
             airlineCode = airlineIcao,
             origin = origin,
             destination = destination,

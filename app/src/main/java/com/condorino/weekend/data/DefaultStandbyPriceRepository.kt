@@ -5,6 +5,7 @@ import com.condorino.weekend.data.local.FavoriteEntity
 import com.condorino.weekend.data.local.StandbyPriceDao
 import com.condorino.weekend.data.mapper.toDomain
 import com.condorino.weekend.data.mapper.toEntity
+import com.condorino.weekend.domain.model.Airlines
 import com.condorino.weekend.domain.model.StandbyPrice
 import com.condorino.weekend.domain.model.key
 import com.condorino.weekend.domain.repository.FavoriteRepository
@@ -29,7 +30,14 @@ class DefaultStandbyPriceRepository(
         dao.all().map { it.toDomain() }.associateBy { it.key }
 
     override suspend fun save(price: StandbyPrice) {
-        dao.upsert(price.copy(updatedAtEpochMillis = Instant.now().toEpochMilli()).toEntity())
+        // The one write chokepoint for every path (the price screen, and importing a file), so
+        // canonicalising the airline code here is what guarantees a stored price is always keyed
+        // by the ICAO designator flights are matched against — see Airlines.canonicalIcao.
+        val normalised = price.copy(
+            airlineIcao = Airlines.canonicalIcao(price.airlineIcao),
+            updatedAtEpochMillis = Instant.now().toEpochMilli(),
+        )
+        dao.upsert(normalised.toEntity())
     }
 
     override suspend fun delete(iata: String, airlineIcao: String) = dao.delete(iata, airlineIcao)

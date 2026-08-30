@@ -49,4 +49,43 @@ class AirlineTest {
     fun `describe of an empty set is an empty string`() {
         assertEquals("", Airlines.describe(emptySet()))
     }
+
+    @Test
+    fun `resolve accepts either the ICAO or the IATA designator`() {
+        // Sources genuinely disagree: the Condor Developer API says "DE", OpenSky says "CFG".
+        assertEquals(Airlines.CONDOR, Airlines.resolve("CFG"))
+        assertEquals(Airlines.CONDOR, Airlines.resolve("DE"))
+        assertEquals(Airlines.LUFTHANSA, Airlines.resolve("DLH"))
+        assertEquals(Airlines.LUFTHANSA, Airlines.resolve("LH"))
+    }
+
+    @Test
+    fun `resolve ignores case and surrounding whitespace`() {
+        assertEquals(Airlines.CONDOR, Airlines.resolve(" cfg "))
+        assertEquals(Airlines.CONDOR, Airlines.resolve("de"))
+    }
+
+    @Test
+    fun `resolve returns null for an airline this app does not know`() {
+        // "XX" is what the bundled demo schedule uses on purpose.
+        assertNull(Airlines.resolve("XX"))
+        assertNull(Airlines.resolve(""))
+        assertNull(Airlines.resolve("   "))
+    }
+
+    @Test
+    fun `an ICAO code is preferred when one airline's IATA collides with another's ICAO`() {
+        // Resolution checks every ICAO before any IATA, so a real ICAO code always wins.
+        Airlines.ALL.forEach { airline ->
+            assertEquals(airline, Airlines.resolve(airline.icaoCode))
+        }
+    }
+
+    @Test
+    fun `canonicalIcao normalises a known code and passes an unknown one through`() {
+        assertEquals("CFG", Airlines.canonicalIcao("DE"))
+        assertEquals("CFG", Airlines.canonicalIcao("cfg"))
+        assertEquals("XX", Airlines.canonicalIcao(" xx "))
+        assertNull(Airlines.canonicalIcaoOrNull("XX"))
+    }
 }

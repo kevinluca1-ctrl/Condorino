@@ -183,4 +183,44 @@ class TripBuilderTest {
         assertEquals(RejectionReason.NO_OUTBOUND, result.dominantRejection)
         assertNull(result.trips.firstOrNull())
     }
+
+    @Test
+    fun `a Condor price applies to a flight whose source reported the IATA code`() {
+        // The official Condor Developer API reports "DE" while prices are stored as "CFG": before
+        // these were resolved rather than string-compared, every trip from it read "not set".
+        val flights = listOf(
+            Fixtures.flight(Fixtures.FRA, Fixtures.LGW, Fixtures.FRIDAY, "18:15", 80, airlineCode = "DE"),
+            Fixtures.flight(Fixtures.LGW, Fixtures.FRA, Fixtures.SUNDAY, "19:35", 80, airlineCode = "DE"),
+        )
+        val price = StandbyPrice("LGW", PriceEntryMode.ROUND_TRIP, economyOutboundCents = 9_000, airlineIcao = "CFG")
+        val result = builder.build(flights, Fixtures.FRIDAY, destinations, mapOf(price.key to price))
+
+        assertEquals(9_000L, result.trips.first().standbyPrice?.economyOutboundCents)
+    }
+
+    @Test
+    fun `a price still applies to a flight whose airline the app cannot identify`() {
+        // The bundled demo schedule uses "XX"; such a flight is unattributed, not another airline,
+        // so the user's own Condor price is what belongs against it.
+        val flights = listOf(
+            Fixtures.flight(Fixtures.FRA, Fixtures.LGW, Fixtures.FRIDAY, "18:15", 80, airlineCode = "XX"),
+            Fixtures.flight(Fixtures.LGW, Fixtures.FRA, Fixtures.SUNDAY, "19:35", 80, airlineCode = "XX"),
+        )
+        val price = StandbyPrice("LGW", PriceEntryMode.ROUND_TRIP, economyOutboundCents = 9_000, airlineIcao = "CFG")
+        val result = builder.build(flights, Fixtures.FRIDAY, destinations, mapOf(price.key to price))
+
+        assertEquals(9_000L, result.trips.first().standbyPrice?.economyOutboundCents)
+    }
+
+    @Test
+    fun `a Lufthansa flight never picks up the Condor price`() {
+        val flights = listOf(
+            Fixtures.flight(Fixtures.FRA, Fixtures.LGW, Fixtures.FRIDAY, "18:15", 80, airlineCode = "LH"),
+            Fixtures.flight(Fixtures.LGW, Fixtures.FRA, Fixtures.SUNDAY, "19:35", 80, airlineCode = "LH"),
+        )
+        val price = StandbyPrice("LGW", PriceEntryMode.ROUND_TRIP, economyOutboundCents = 9_000, airlineIcao = "CFG")
+        val result = builder.build(flights, Fixtures.FRIDAY, destinations, mapOf(price.key to price))
+
+        assertNull(result.trips.first().standbyPrice)
+    }
 }

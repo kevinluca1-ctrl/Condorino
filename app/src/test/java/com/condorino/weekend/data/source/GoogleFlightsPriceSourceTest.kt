@@ -256,6 +256,46 @@ class GoogleFlightsPriceSourceTest {
         assertTrue(result is CommercialPriceResult.NotConfigured)
         assertEquals(0, server.requestCount)
     }
+
+    @Test
+    fun `an API error envelope is reported in the API's own words, not as a mapping problem`() {
+        // Exactly the shape a real account hit: HTTP 200, but the body is an error, not data.
+        val config = configFor()
+        val body = """{"status":false,"message":"You are not subscribed to this API."}"""
+
+        assertEquals("You are not subscribed to this API.", sourceFor(config).apiErrorMessage(body))
+    }
+
+    @Test
+    fun `apiErrorMessage also reads the other keys an error envelope commonly uses`() {
+        val source = sourceFor(configFor())
+        assertEquals("Invalid date format", source.apiErrorMessage("""{"error":"Invalid date format"}"""))
+        assertEquals("Quota exceeded", source.apiErrorMessage("""{"detail":"Quota exceeded"}"""))
+    }
+
+    @Test
+    fun `apiErrorMessage stays null when the body carries no explanation to relay`() {
+        val source = sourceFor(configFor())
+        // A response that simply mapped badly must fall through to the field-mapping diagnosis.
+        assertNull(source.apiErrorMessage("""{"data":{"itineraries":{"topFlights":[{"cost":250}]}}}"""))
+        assertNull(source.apiErrorMessage("""{"message":"ok"}"""))
+        assertNull(source.apiErrorMessage("not json at all"))
+    }
+
+    @Test
+    fun `a quote failing on an error envelope surfaces the API's message to the user`() = runBlocking {
+        server.enqueue(
+            MockResponse().setResponseCode(200)
+                .setBody("""{"status":false,"message":"You are not subscribed to this API."}"""),
+        )
+        val config = configFor()
+        val result = sourceFor(config).quote(
+            Airport.FRANKFURT, munich, LocalDate.now(), LocalDate.now().plusDays(2), Cabin.ECONOMY,
+        ) as? CommercialPriceResult.Failure ?: error("expected Failure")
+
+        assertTrue(result.userMessage.contains("You are not subscribed to this API."))
+    }
+
 }
 
 /** A [SourceStrings] that never touches Android — this test only cares which id/args were chosen. */

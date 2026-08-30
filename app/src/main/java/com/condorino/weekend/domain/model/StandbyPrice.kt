@@ -78,3 +78,50 @@ fun standbyPriceKey(destinationIata: String, airlineIcao: String): String = "$de
 
 /** [standbyPriceKey] built from this price's own fields. */
 val StandbyPrice.key: String get() = standbyPriceKey(destinationIata, airlineIcao)
+
+/**
+ * The standby price to show for a flight to [destinationIata] operated by [flightAirlineCode] —
+ * the one place that decides what "this trip's price" means, so the trip list, the detail screen
+ * and scoring can never disagree about it.
+ *
+ * Matching a flight to a price is not string equality, for two reasons found the hard way:
+ *
+ * 1. **Sources disagree on which code they report.** The official Condor Developer API says "DE"
+ *    (IATA); OpenSky and AeroDataBox both say "CFG" (ICAO). Both are Condor. Codes are therefore
+ *    resolved through [Airlines.resolve] before being compared, never compared raw.
+ * 2. **Not every flight carries an airline this app can identify.** The bundled demo schedule uses
+ *    a deliberately fake "XX", and a custom feed may use anything at all. Such a flight is
+ *    *unattributed*, not "some other airline": in a Condor-first app it is treated as Condor's, so
+ *    a price the user entered still shows against it instead of reading "not set" for no reason
+ *    the user can see.
+ *
+ * What this deliberately does **not** do is substitute one identified airline's fare for another's:
+ * if the flight is Lufthansa and only a Condor price exists, the answer is null. A Lufthansa staff
+ * fare and a Condor one are different products, and showing one as the other would misstate what
+ * the trip costs — the case the whole per-airline split exists for.
+ */
+fun Map<String, StandbyPrice>.standbyPriceFor(
+    destinationIata: String,
+    flightAirlineCode: String,
+): StandbyPrice? {
+    // Fast path: the flight's code is already exactly how the price was stored.
+    this[standbyPriceKey(destinationIata, flightAirlineCode)]?.let { return it }
+
+    val flightAirline = Airlines.resolve(flightAirlineCode)
+    if (flightAirline != null) {
+        // Identified airline: its own price, matched however either side spelled the code.
+        this[standbyPriceKey(destinationIata, flightAirline.icaoCode)]?.let { return it }
+        return values.firstOrNull {
+            it.destinationIata.equals(destinationIata, ignoreCase = true) &&
+                Airlines.resolve(it.airlineIcao)?.icaoCode == flightAirline.icaoCode
+        }
+    }
+
+    // Unattributed flight (demo data, an unrecognised custom feed): treat it as this app's
+    // baseline airline rather than as an unknown one, and show Condor's price if there is one.
+    this[standbyPriceKey(destinationIata, Airlines.CONDOR.icaoCode)]?.let { return it }
+    return values.firstOrNull {
+        it.destinationIata.equals(destinationIata, ignoreCase = true) &&
+            Airlines.resolve(it.airlineIcao)?.icaoCode == Airlines.CONDOR.icaoCode
+    }
+}

@@ -268,6 +268,46 @@ class AeroDataBoxFlightDataSourceTest {
             result.userMessage,
         )
     }
+
+    @Test
+    fun `a row is kept when the response reports the IATA designator instead of the ICAO one`() {
+        // The field this reads is user-configurable and may well be pointed at an "iata" field.
+        // Comparing designators raw dropped every such row and reported an empty airport.
+        val config = configFor()
+        val body = """{"departures":[
+            {"departure":{"airport":{"iata":"FRA"},"scheduledTimeUtc":"2026-09-11 18:00Z"},
+             "arrival":{"airport":{"iata":"MUC"},"scheduledTimeUtc":"2026-09-11 19:05Z"},
+             "number":"DE 100","airline":{"name":"Condor","icao":"DE"}}
+        ],"arrivals":[]}"""
+        val flights = sourceFor(config).mapFlights(body, config, Airport.FRANKFURT, airports, setOf("CFG"))
+        assertEquals(1, flights.size)
+        // Normalised to the one designator the rest of the app matches on.
+        assertEquals("CFG", flights[0].airlineCode)
+    }
+
+    @Test
+    fun `a selection given as an IATA code still matches a row reporting ICAO`() {
+        val config = configFor()
+        val body = """{"departures":[
+            {"departure":{"airport":{"iata":"FRA"},"scheduledTimeUtc":"2026-09-11 18:00Z"},
+             "arrival":{"airport":{"iata":"MUC"},"scheduledTimeUtc":"2026-09-11 19:05Z"},
+             "number":"DE 100","airline":{"name":"Condor","icao":"CFG"}}
+        ],"arrivals":[]}"""
+        val flights = sourceFor(config).mapFlights(body, config, Airport.FRANKFURT, airports, setOf("DE"))
+        assertEquals(1, flights.size)
+    }
+
+    @Test
+    fun `an airline outside the selection is still dropped`() {
+        val config = configFor()
+        val body = """{"departures":[
+            {"departure":{"airport":{"iata":"FRA"},"scheduledTimeUtc":"2026-09-11 18:00Z"},
+             "arrival":{"airport":{"iata":"MUC"},"scheduledTimeUtc":"2026-09-11 19:05Z"},
+             "number":"LH 100","airline":{"name":"Lufthansa","icao":"DLH"}}
+        ],"arrivals":[]}"""
+        assertTrue(sourceFor(config).mapFlights(body, config, Airport.FRANKFURT, airports, setOf("CFG")).isEmpty())
+    }
+
 }
 
 /** A [SourceStrings] that never touches Android — this test only cares which id/args were chosen. */

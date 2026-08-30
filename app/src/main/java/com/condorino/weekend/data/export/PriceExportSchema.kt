@@ -56,7 +56,10 @@ fun PriceExportEntry.toDomainOrNull(): StandbyPrice? {
     val entryMode = runCatching { PriceEntryMode.valueOf(mode) }.getOrElse { PriceEntryMode.PER_SEGMENT }
     return StandbyPrice(
         destinationIata = iataCode,
-        airlineIcao = airlineIcao?.trim()?.uppercase()?.takeIf { it.isNotBlank() } ?: Airlines.CONDOR.icaoCode,
+        // Canonicalised on the way in: an export may carry either designator ("DE" or "CFG"), and
+        // the app matches flights to prices by the ICAO one.
+        airlineIcao = airlineIcao?.takeIf { it.isNotBlank() }?.let { Airlines.canonicalIcao(it) }
+            ?: Airlines.CONDOR.icaoCode,
         mode = entryMode,
         economyOutboundCents = economyOutboundCents,
         economyInboundCents = economyInboundCents,

@@ -1,6 +1,7 @@
 package com.condorino.weekend.data.source
 
 import com.condorino.weekend.R
+import com.condorino.weekend.domain.model.Airlines
 import com.condorino.weekend.domain.model.Airport
 import com.condorino.weekend.domain.model.DataProvenance
 import com.condorino.weekend.domain.model.Flight
@@ -178,8 +179,11 @@ class CondorDeveloperApiDataSource(
 
             Flight(
                 flightNumber = obj.str(config.fieldFlightNumber),
-                airline = "Condor",
-                airlineCode = "DE",
+                airline = Airlines.CONDOR.displayName,
+                // The ICAO designator, not the "DE" this API reports: one airline must not look
+                // like two depending on which source a flight came from — standby prices and the
+                // airline selection are both matched on this. See Airlines.canonicalIcao.
+                airlineCode = Airlines.CONDOR.icaoCode,
                 origin = origin,
                 destination = destination,
                 departure = departure,

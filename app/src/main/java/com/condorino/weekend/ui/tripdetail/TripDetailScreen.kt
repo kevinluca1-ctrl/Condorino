@@ -58,7 +58,7 @@ fun TripDetailScreen(
     state: PlannerUiState,
     viewModel: PlannerViewModel,
     onBack: () -> Unit,
-    onEditPrice: (String) -> Unit,
+    onEditPrice: (String, String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val trip = state.selectedTrip
@@ -157,7 +157,7 @@ fun TripDetailScreen(
                     )
                 }
                 Spacer(Modifier.height(10.dp))
-                OutlinedButton(onClick = { onEditPrice(trip.iata) }) {
+                OutlinedButton(onClick = { onEditPrice(trip.iata, trip.outbound.airlineCode) }) {
                     Text(
                         stringResource(
                             if (trip.standbyPrice?.hasAnyPrice == true) R.string.detail_edit_prices

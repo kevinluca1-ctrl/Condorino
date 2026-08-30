@@ -5,7 +5,7 @@ import com.condorino.weekend.domain.model.Destination
 import com.condorino.weekend.domain.model.Flight
 import com.condorino.weekend.domain.model.StandbyPrice
 import com.condorino.weekend.domain.model.UserPreferences
-import com.condorino.weekend.domain.model.standbyPriceKey
+import com.condorino.weekend.domain.model.standbyPriceFor
 import com.condorino.weekend.domain.model.WeekendPattern
 import com.condorino.weekend.domain.model.WeekendTrip
 import java.time.LocalDate
@@ -142,9 +142,10 @@ class TripBuilder(
 
                     // Scoped to the airline actually operating this outbound leg — a Lufthansa
                     // fare and a Condor fare to the same destination are different products, so a
-                    // trip only ever picks up the price entered for its own airline (see the class
-                    // doc on StandbyPrice), never another one's as a stand-in.
-                    val price = prices[standbyPriceKey(iata, outbound.airlineCode)]
+                    // trip only ever picks up the price entered for its own airline, never another
+                    // identified airline's as a stand-in. Codes are resolved rather than compared
+                    // raw, since sources disagree on IATA vs ICAO — see standbyPriceFor's doc.
+                    val price = prices.standbyPriceFor(iata, outbound.airlineCode)
                     val cabinPrice = price?.roundTripFor(prefs.preferredCabin)
                     if (applyHardFilters && cabinPrice != null && cabinPrice.cents > prefs.maxBudgetCents) {
                         reject(RejectionReason.OVER_BUDGET)
