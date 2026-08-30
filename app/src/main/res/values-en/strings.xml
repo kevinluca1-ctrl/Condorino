@@ -462,6 +462,7 @@
     <string name="src_google_flights_http">Google Flights responded with HTTP %1$d.</string>
     <string name="src_google_flights_empty">Google Flights returned an empty response.</string>
     <string name="src_google_flights_unmapped">The response contained no usable price. Check the field mapping in Settings.</string>
+    <string name="src_google_flights_api_error">The Google Flights API replied: %1$s</string>
     <string name="src_google_flights_offline">Google Flights is unreachable – are you offline?</string>
     <string name="src_google_flights_parse_failed">The Google Flights response could not be processed.</string>
     <string name="src_google_flights_test_ok">Price received: %1$s (%2$s).</string>

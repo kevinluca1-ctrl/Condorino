@@ -240,6 +240,9 @@ fun StandbyPricesScreen(
                     destination = destination,
                     pricesByAirline = pricesByDestination[iata].orEmpty(),
                     availableAirlines = availableAirlines,
+                    // Only the card the user was sent to opens on a specific airline; every other
+                    // card keeps its own default.
+                    initialAirline = state.focusPriceAirlineIcao.takeIf { iata == state.focusPriceIata },
                     expanded = expanded == iata,
                     onToggle = { expanded = if (expanded == iata) null else iata },
                     onSave = viewModel::savePrice,
@@ -258,6 +261,10 @@ private fun PriceCard(
     pricesByAirline: Map<String, StandbyPrice>,
     /** Condor first, then whichever Lufthansa Group carriers are opted into search. */
     availableAirlines: List<Airline>,
+    /** The airline to open on when the user arrived here from a specific trip — so "Add standby
+     *  price" on, say, a Lufthansa trip fills in Lufthansa's fare and not Condor's, which that
+     *  trip would never have used. Null when the screen was opened on its own. */
+    initialAirline: String?,
     expanded: Boolean,
     onToggle: () -> Unit,
     onSave: (StandbyPrice) -> Unit,
@@ -265,7 +272,12 @@ private fun PriceCard(
     // Which airline's fields this card is currently showing/editing — Condor by default, since
     // it's always available and is this app's own baseline. Reset per destination so switching
     // cards doesn't leave a stale airline selected on the next one.
-    var selectedAirline by rememberSaveable(iata) { mutableStateOf(Airlines.CONDOR.icaoCode) }
+    // Ignored if that airline isn't on offer here (it was deselected since the trip was cached),
+    // so the card can never open on a chip the user has no way to see or change.
+    val openOn = initialAirline?.takeIf { code -> availableAirlines.any { it.icaoCode == code } }
+    var selectedAirline by rememberSaveable(iata, openOn) {
+        mutableStateOf(openOn ?: Airlines.CONDOR.icaoCode)
+    }
     val price = pricesByAirline[selectedAirline] ?: StandbyPrice.empty(iata, selectedAirline)
     // The collapsed summary always shows Condor's own price — the one entry every destination can
     // have — rather than whichever airline happened to be selected last time this card was open.

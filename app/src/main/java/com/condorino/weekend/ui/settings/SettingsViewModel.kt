@@ -19,6 +19,7 @@ import com.condorino.weekend.data.source.TravelRecommendationSource
 import com.condorino.weekend.data.source.TripAdvisorApiConfig
 import com.condorino.weekend.data.update.UpdateRepository
 import com.condorino.weekend.data.update.UpdateUiState
+import com.condorino.weekend.domain.model.Airlines
 import com.condorino.weekend.domain.model.Airport
 import com.condorino.weekend.domain.model.StandbyPrice
 import com.condorino.weekend.domain.model.ThemeMode
@@ -87,6 +88,9 @@ data class SettingsUiState(
     val testingSourceId: String? = null,
     /** Destination whose price card the prices screen should open expanded, if any. */
     val focusPriceIata: String? = null,
+    /** Which airline's fields to open that destination's card on — the operating airline of the
+     *  trip the user came from, so "Add standby price" fills in the price that trip will use. */
+    val focusPriceAirlineIcao: String? = null,
     val updateState: UpdateUiState = UpdateUiState(),
     val priceIoStatus: PriceIoStatus = PriceIoStatus.Idle,
 )
@@ -266,8 +270,12 @@ class SettingsViewModel(
         }
     }
 
-    fun focusPrice(iata: String?) {
-        _state.update { it.copy(focusPriceIata = iata) }
+    fun focusPrice(iata: String?, airlineCode: String? = null) {
+        // Resolved the same way a trip is matched to a price: a flight whose airline the app can't
+        // identify is Condor's for pricing purposes, so that is the card it should open on.
+        val airlineIcao = airlineCode
+            ?.let { Airlines.canonicalIcaoOrNull(it) ?: Airlines.CONDOR.icaoCode }
+        _state.update { it.copy(focusPriceIata = iata, focusPriceAirlineIcao = airlineIcao) }
     }
 
     /**

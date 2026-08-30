@@ -121,10 +121,15 @@ class GoogleFlightsPriceSource(
                     return@withContext CommercialPriceResult.Failure(strings.get(R.string.src_google_flights_empty))
                 }
                 val quote = mapQuote(body, config, destination.iata, cabin)
-                    ?: return@withContext CommercialPriceResult.Failure(
-                        strings.get(R.string.src_google_flights_unmapped),
-                        diagnoseMappingFailure(body, config),
-                    )
+                    ?: return@withContext apiErrorMessage(body)
+                        // The API answered 200 but its body is an error envelope, not an
+                        // itinerary — its own words explain this far better than any guess the
+                        // app could make about the field mapping.
+                        ?.let { CommercialPriceResult.Failure(strings.get(R.string.src_google_flights_api_error, it)) }
+                        ?: CommercialPriceResult.Failure(
+                            strings.get(R.string.src_google_flights_unmapped),
+                            diagnoseMappingFailure(body, config),
+                        )
                 CommercialPriceResult.Success(quote)
             }
         } catch (e: IOException) {
@@ -258,6 +263,29 @@ class GoogleFlightsPriceSource(
             item.keys.joinToString(", ").ifBlank { "(none)" }
     }
 
+    /**
+     * The API's *own* explanation of a failure, when a 200 response body turns out to be an error
+     * envelope rather than data — RapidAPI listings commonly answer this way ("You are not
+     * subscribed to this API", "Invalid date format", a quota notice) instead of using an HTTP
+     * status code, which is why an otherwise-successful request can still carry nothing usable.
+     *
+     * Only consulted once mapping has already failed, so it can never mistake a real itinerary for
+     * an error: at that point the choice is between the API's own sentence and a guess about field
+     * names, and the API's sentence is almost always the actual answer.
+     *
+     * Null when the body carries no such message — then the field mapping really is the thing to
+     * look at, and [diagnoseMappingFailure] describes it.
+     */
+    internal fun apiErrorMessage(body: String): String? {
+        val root = runCatching { json.parseToJsonElement(body) }.getOrNull() as? JsonObject ?: return null
+        // "status": false alone says a request failed but not why; the message field carries the why.
+        val message = ERROR_MESSAGE_KEYS.firstNotNullOfOrNull { key ->
+            (root[key] as? JsonPrimitive)?.contentOrNull?.trim()?.takeIf { it.isNotBlank() && it != "null" }
+        } ?: return null
+        // Guard against a "message": "ok"-style field on a response that simply mapped badly.
+        return message.takeIf { it.length > 2 && !it.equals("ok", ignoreCase = true) }
+    }
+
     private fun JsonObject.at(key: String): JsonElement? {
         if (key.isBlank()) return null
         return if (key.contains('.')) resolvePath(this, key) else this[key]
@@ -300,6 +328,9 @@ class GoogleFlightsPriceSource(
     }
 
     private companion object {
+        /** Where an API-level error envelope tends to put its explanation, most specific first. */
+        val ERROR_MESSAGE_KEYS = listOf("message", "error", "detail", "errorMessage")
+
         /** First run of digits (thousands separators stripped) — for a formatted price string. */
         val PRICE_DIGITS = Regex("""\d+(?:\.\d+)?""")
 

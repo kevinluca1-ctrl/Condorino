@@ -188,6 +188,26 @@ account has subscribed to — the app follows the same shape rather than asking 
 *Settings → RapidAPI* holds one key used by all three sources (and any future RapidAPI-hosted one),
 while each source keeps its own host, paths and field names, since those genuinely differ per API.
 
+#### Which designator a source reports
+
+Sources disagree about how they name an airline, and the app has to treat those names as the same
+airline or its own features quietly stop working:
+
+| Source | Reports | Meaning |
+| --- | --- | --- |
+| Condor Developer API | `DE` | Condor's IATA code |
+| AeroDataBox | whichever field you map (`icao` or `iata`) | usually `CFG`, sometimes `DE` |
+| OpenSky | `CFG` | ICAO, since ADS-B callsigns are built from it |
+| Custom feed | whatever the feed says | up to the feed |
+| Demo schedule | `XX` | deliberately not a real airline |
+
+Anything comparing airlines therefore resolves a code through `Airlines.resolve` first, rather than
+comparing the strings — `Airlines.canonicalIcao` gives the single (ICAO) designator the app stores
+and matches on. Two things depend on this: the airline selection above, and matching a trip to a
+standby price. Both were broken by raw comparison in `alpha-08` — see `standbyPriceFor`, which also
+documents why a flight with an *unrecognised* airline counts as unattributed (and so is priced as
+Condor's) rather than as some other carrier.
+
 ### Airline selection, shared
 
 `AeroDataBoxFlightDataSource` and `OpenSkyFlightDataSource` both query the *airport*, not any one

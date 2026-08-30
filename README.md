@@ -143,15 +143,16 @@ Structure and reasoning: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ### Tests
 
-193 unit tests covering pattern detection, the workday penalty, effective length of stay, counting
+224 unit tests covering pattern detection, the workday penalty, effective length of stay, counting
 nights across midnight, time zones (UK, Madeira, Greece, summer/winter), cost scoring, random
 selection, feed parsing, price-field text handling, airport search ranking, update-release selection,
 standby-price export/import (including per-airline tagging and backward compatibility with exports
 written before multi-airline pricing existed), the OpenSky token-refresh and credit-safe chunking
 behaviour, the AeroDataBox chunked-window request building and generic JSON field mapping, the
 Google Flights and TripAdvisor URL building and generic JSON field mapping (including TripAdvisor's
-two-step location-then-highlights request chain), Lufthansa Group airline selection and filtering,
-the scoring engine's piecewise interpolation against out-of-order and duplicate breakpoints, date
+two-step location-then-highlights request chain), Lufthansa Group airline selection and
+filtering, matching a flight to the right standby price across the IATA/ICAO designators that
+different sources report, the scoring engine's piecewise interpolation against out-of-order and duplicate breakpoints, date
 formats (including the guarantee that English never formats month-first) and the ranking cases from
 the brief:
 

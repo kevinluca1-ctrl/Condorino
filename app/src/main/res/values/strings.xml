@@ -505,6 +505,7 @@
     <string name="src_google_flights_http">Google Flights antwortet mit HTTP %1$d.</string>
     <string name="src_google_flights_empty">Google Flights lieferte eine leere Antwort.</string>
     <string name="src_google_flights_unmapped">Die Antwort enthielt keinen auswertbaren Preis. Feld-Zuordnung in den Einstellungen prüfen.</string>
+    <string name="src_google_flights_api_error">Die Google-Flights-API antwortete: %1$s</string>
     <string name="src_google_flights_offline">Google Flights nicht erreichbar – bist du offline?</string>
     <string name="src_google_flights_parse_failed">Antwort von Google Flights konnte nicht verarbeitet werden.</string>
     <string name="src_google_flights_test_ok">Preis erhalten: %1$s (%2$s).</string>

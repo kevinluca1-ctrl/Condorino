@@ -209,8 +209,8 @@ fun CondorinoNavigation(
                     state = plannerState,
                     viewModel = plannerViewModel,
                     onBack = { navController.popBackStack() },
-                    onEditPrice = { iata ->
-                        settingsViewModel.focusPrice(iata)
+                    onEditPrice = { iata, airlineCode ->
+                        settingsViewModel.focusPrice(iata, airlineCode)
                         navController.navigate(Routes.PRICES)
                     },
                 )
