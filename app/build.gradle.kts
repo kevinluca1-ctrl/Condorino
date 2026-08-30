@@ -22,8 +22,8 @@ android {
         // Correct time-zone maths is central to this app, so this is a deliberate choice.
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.1.0-alpha-03"
+        versionCode = 4
+        versionName = "0.1.0-alpha-04"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -36,6 +36,26 @@ android {
         // these two lines to point the same feature at its own releases.
         buildConfigField("String", "UPDATE_REPO_OWNER", "\"kevinluca1-ctrl\"")
         buildConfigField("String", "UPDATE_REPO_NAME", "\"Condorino\"")
+    }
+
+    signingConfigs {
+        getByName("debug") {
+            // Overrides AGP's implicit debug config, which otherwise points at
+            // $HOME/.android/debug.keystore — auto-generated with a *fresh random key* the first
+            // time it's needed on any machine (or CI runner) where it doesn't already exist. On
+            // GitHub Actions' ephemeral runners that meant every single release build (alpha-01,
+            // alpha-02, alpha-03) was silently signed with a different, unrelated key, so Android
+            // refused to install one as an "update" over another with the same applicationId —
+            // "App not installed", with no more specific reason surfaced to the user. Committing
+            // this keystore (public, standard debug credentials — never meant to be secret, which
+            // is exactly why AGP hands out well-known ones by default) is what makes every build
+            // from this repo, past this fix, share one signature. Replace with a real keystore
+            // before publishing anywhere that isn't "an alpha you sideload yourself".
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     buildTypes {

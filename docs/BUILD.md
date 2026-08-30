@@ -31,8 +31,20 @@ On Windows use `gradlew.bat` instead of `./gradlew`.
 ### Signing
 
 The release variant is deliberately signed with the **debug keystore**, so CI can produce an
-installable APK without secrets. For a real publication, replace the release build type's
-`signingConfig` in `app/build.gradle.kts` with your own keystore:
+installable APK without secrets. That keystore is `app/debug.keystore`, committed to the repo (its
+credentials are the long-standing Android-tooling defaults — `androiddebugkey` / `android` — never
+meant to be secret) and wired up explicitly in `app/build.gradle.kts`'s `signingConfigs`, rather than
+left to Android Gradle Plugin's *implicit* debug config. That distinction matters: AGP's implicit
+debug config auto-generates a keystore with a fresh random key the first time it's needed on any
+machine that doesn't already have `$HOME/.android/debug.keystore` — which is every GitHub Actions
+run, since runners are ephemeral. Before this file existed, every CI-built release was silently
+signed with a different, unrelated key, so Android refused to install one as an "update" over
+another with the same `applicationId` ("App not installed", with no more specific reason shown).
+Committing the keystore is what keeps every build from this repo — local or CI, past this fix —
+signed the same way, so updates actually install as updates.
+
+For a real publication, replace the release build type's `signingConfig` in `app/build.gradle.kts`
+with your own keystore:
 
 ```kotlin
 android {
