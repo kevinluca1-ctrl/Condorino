@@ -1,5 +1,6 @@
 package com.condorino.weekend.data.export
 
+import com.condorino.weekend.domain.model.Airlines
 import com.condorino.weekend.domain.model.PriceEntryMode
 import com.condorino.weekend.domain.model.StandbyPrice
 import kotlinx.serialization.SerialName
@@ -30,6 +31,11 @@ data class PriceExportEntry(
     @SerialName("business_inbound_cents") val businessInboundCents: Long? = null,
     @SerialName("taxes_cents") val taxesCents: Long? = null,
     @SerialName("updated_at_epoch_millis") val updatedAtEpochMillis: Long = 0L,
+    /** ICAO code of the airline this price applies to. Missing on any export written before
+     *  multi-airline pricing existed — those always meant Condor, so that is also this field's
+     *  default on *read*, keeping an older export file importable without any change on the
+     *  user's part. */
+    @SerialName("airline_icao") val airlineIcao: String? = null,
 )
 
 fun StandbyPrice.toExportEntry() = PriceExportEntry(
@@ -41,6 +47,7 @@ fun StandbyPrice.toExportEntry() = PriceExportEntry(
     businessInboundCents = businessInboundCents,
     taxesCents = taxesCents,
     updatedAtEpochMillis = updatedAtEpochMillis,
+    airlineIcao = airlineIcao,
 )
 
 /** Null (not thrown) if the row is unreadable — one bad entry must not fail the whole import. */
@@ -49,6 +56,7 @@ fun PriceExportEntry.toDomainOrNull(): StandbyPrice? {
     val entryMode = runCatching { PriceEntryMode.valueOf(mode) }.getOrElse { PriceEntryMode.PER_SEGMENT }
     return StandbyPrice(
         destinationIata = iataCode,
+        airlineIcao = airlineIcao?.trim()?.uppercase()?.takeIf { it.isNotBlank() } ?: Airlines.CONDOR.icaoCode,
         mode = entryMode,
         economyOutboundCents = economyOutboundCents,
         economyInboundCents = economyInboundCents,

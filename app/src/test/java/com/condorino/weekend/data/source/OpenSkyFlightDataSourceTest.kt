@@ -46,14 +46,14 @@ class OpenSkyFlightDataSourceTest {
         clientId = "client",
         clientSecret = "secret",
         homeIcao = "EDDF",
-        callsignPrefix = "CFG",
         lookbackWeeks = lookbackWeeks,
     )
 
-    private fun sourceFor(config: OpenSkyConfig) = OpenSkyFlightDataSource(
+    private fun sourceFor(config: OpenSkyConfig, selected: Set<String> = setOf("CFG")) = OpenSkyFlightDataSource(
         client = OkHttpClient(),
         configProvider = { config },
         airportCatalog = AirportReferenceCatalog(context = null),
+        selectedAirlinesProvider = { selected },
         strings = FakeStrings(),
         now = { fixedNow },
     )
@@ -89,7 +89,7 @@ class OpenSkyFlightDataSourceTest {
         }
 
         val config = configFor()
-        val result = sourceFor(config).fetchObservations(config, initialToken = "stale-token", arrivals = false)
+        val result = sourceFor(config).fetchObservations(config, initialToken = "stale-token", callsignPrefixes = setOf("CFG"), arrivals = false)
 
         assertNull(result.lastErrorCode)
         assertEquals(1, tokenHits.get())
@@ -115,7 +115,7 @@ class OpenSkyFlightDataSourceTest {
         }
 
         val config = configFor()
-        val result = sourceFor(config).fetchObservations(config, initialToken = "stale-token", arrivals = false)
+        val result = sourceFor(config).fetchObservations(config, initialToken = "stale-token", callsignPrefixes = setOf("CFG"), arrivals = false)
 
         assertEquals(401, result.lastErrorCode)
         assertEquals(1, tokenHits.get()) // exactly one refresh attempt, not one per remaining chunk
@@ -134,7 +134,7 @@ class OpenSkyFlightDataSourceTest {
         }
 
         val config = configFor()
-        val result = sourceFor(config).fetchObservations(config, initialToken = null, arrivals = false)
+        val result = sourceFor(config).fetchObservations(config, initialToken = null, callsignPrefixes = setOf("CFG"), arrivals = false)
 
         assertEquals(429, result.lastErrorCode)
         assertEquals(137L, result.retryAfterSeconds)
@@ -152,7 +152,7 @@ class OpenSkyFlightDataSourceTest {
         }
 
         val config = configFor(lookbackWeeks = 2)
-        sourceFor(config).fetchObservations(config, initialToken = null, arrivals = false)
+        sourceFor(config).fetchObservations(config, initialToken = null, callsignPrefixes = setOf("CFG"), arrivals = false)
 
         assertTrue("a 2-week lookback must be split into more than one request", windows.size > 1)
         windows.forEach { (begin, end) ->
@@ -182,7 +182,7 @@ class OpenSkyFlightDataSourceTest {
         }
 
         val config = configFor(lookbackWeeks = 1)
-        val result = sourceFor(config).fetchObservations(config, initialToken = null, arrivals = false)
+        val result = sourceFor(config).fetchObservations(config, initialToken = null, callsignPrefixes = setOf("CFG"), arrivals = false)
 
         assertNull("the wide retry resolved the chunk, so this must not surface as a failure", result.lastErrorCode)
         assertEquals(1, result.observations.size)
@@ -225,7 +225,7 @@ class OpenSkyFlightDataSourceTest {
         }
 
         val config = configFor()
-        val result = sourceFor(config).fetchObservations(config, initialToken = null, arrivals = false)
+        val result = sourceFor(config).fetchObservations(config, initialToken = null, callsignPrefixes = setOf("CFG"), arrivals = false)
 
         // Every chunk in the lookback window gets the same canned observation back, so this must
         // not come back empty or errored — the exact count depends on how many chunks a 1-week
@@ -251,6 +251,33 @@ class OpenSkyFlightDataSourceTest {
             ?: error("expected Problem")
 
         assertEquals(FakeStrings().get(R.string.src_opensky_rate_limited_retry, 42L), result.message)
+    }
+
+    @Test
+    fun `parseObservations keeps a row matching any one of several selected airline prefixes`() {
+        val body = """[
+            {"callsign":"CFG123 ","estDepartureAirport":"EDDF","estArrivalAirport":"LEBL","firstSeen":1700000000,"lastSeen":1700005000},
+            {"callsign":"DLH456 ","estDepartureAirport":"EDDF","estArrivalAirport":"LEBL","firstSeen":1700000100,"lastSeen":1700005100}
+        ]"""
+        val observations = sourceFor(configFor()).parseObservations(body, setOf("CFG", "DLH"))
+
+        assertEquals(2, observations.size)
+        assertEquals("CFG", observations[0].airlineIcao)
+        assertEquals("DLH", observations[1].airlineIcao)
+    }
+
+    @Test
+    fun `parseObservations drops a row matching none of the selected airline prefixes`() {
+        val body = """[{"callsign":"AUA789 ","estDepartureAirport":"EDDF","estArrivalAirport":"LEBL","firstSeen":1700000000,"lastSeen":1700005000}]"""
+        val observations = sourceFor(configFor()).parseObservations(body, setOf("CFG", "DLH"))
+        assertTrue(observations.isEmpty())
+    }
+
+    @Test
+    fun `parseObservations with an empty selection keeps every callsign, unattributed`() {
+        val observations = sourceFor(configFor()).parseObservations(oneObservation, emptySet())
+        assertEquals(1, observations.size)
+        assertEquals("", observations[0].airlineIcao)
     }
 }
 

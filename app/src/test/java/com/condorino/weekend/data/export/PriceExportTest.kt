@@ -72,4 +72,24 @@ class PriceExportTest {
     fun `unreadable text is reported as a failure rather than an empty import`() {
         PriceExport.read("not json at all")
     }
+
+    @Test
+    fun `a price tagged for a specific airline round-trips with that airline intact`() {
+        val original = StandbyPrice.empty("MUC", airlineIcao = "DLH").copy(economyOutboundCents = 3000)
+        val restored = PriceExport.read(PriceExport.write(listOf(original), "2026-08-29T09:00:00Z")).single()
+        assertEquals("DLH", restored.airlineIcao)
+    }
+
+    @Test
+    fun `an export written before multi-airline pricing existed imports as Condor`() {
+        // No airline_icao field at all — exactly what every export written before this feature
+        // looks like, the user's own included. It must still mean what it always meant: Condor.
+        val text = """
+            {"schema_version":1,"exported_at":"2026-08-29T09:00:00Z","prices":[
+              {"iata":"PRG","mode":"PER_SEGMENT","economy_outbound_cents":4500}
+            ]}
+        """.trimIndent()
+        val restored = PriceExport.read(text).single()
+        assertEquals("CFG", restored.airlineIcao)
+    }
 }

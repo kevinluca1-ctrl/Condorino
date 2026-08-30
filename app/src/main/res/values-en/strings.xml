@@ -250,11 +250,13 @@
     <string name="settings_feed_url">Feed URL</string>
     <string name="settings_auth_header">Auth header (optional)</string>
     <string name="settings_auth_value">Auth value (optional)</string>
+    <string name="settings_airlines">Airlines</string>
+    <string name="settings_airlines_body">Which airlines OpenSky and AeroDataBox search for at FRA, alongside Condor. Neither of those two sources can tell airlines apart on their own – the airport sees every airline that flies through it – so this list is what narrows their results down. Turning a carrier on here takes effect on the next refresh; the Condor Developer API, your own custom feed and sample data are unaffected, since they already only ever return what they were built to.</string>
+    <string name="settings_airlines_condor_note">Condor is always searched and can\'t be turned off here – it\'s this app\'s own baseline. Everything below is optional: turn on any Lufthansa Group carrier whose flights out of FRA you also want to see.</string>
     <string name="settings_opensky">OpenSky cross-check (observed flights)</string>
-    <string name="settings_opensky_body">Free, public ADS-B data: which Condor flights actually departed FRA over the past weeks. Works anonymously, no account or sign-up needed – just switch it on. The app derives an observed timetable from them. Says nothing about availability – always labelled TIMETABLE. Last priority behind every other source, and rate-limited on top of that: OpenSky\'s own anonymous daily credit quota is easy to exhaust, so this only kicks in when nothing else is configured, fetches at most once every few hours, and a lower look-back keeps each fetch cheap. A free OpenSky account (client ID/secret below) raises the limit.</string>
+    <string name="settings_opensky_body">Free, public ADS-B data: which of your selected airlines\' flights (Settings → Airlines above) actually departed FRA over the past weeks. Works anonymously, no account or sign-up needed – just switch it on. The app derives an observed timetable from them. Says nothing about availability – always labelled TIMETABLE. Last priority behind every other source, and rate-limited on top of that: OpenSky\'s own anonymous daily credit quota is easy to exhaust, so this only kicks in when nothing else is configured, fetches at most once every few hours, and a lower look-back keeps each fetch cheap. A free OpenSky account (client ID/secret below) raises the limit.</string>
     <string name="settings_opensky_active">OpenSky active</string>
     <string name="settings_opensky_home">Home airport (ICAO)</string>
-    <string name="settings_opensky_callsign">Airline callsign prefix</string>
     <string name="settings_opensky_lookback">Look-back (weeks)</string>
     <string name="settings_opensky_client_id">OpenSky client ID (optional)</string>
     <string name="settings_opensky_client_secret">OpenSky client secret (optional)</string>
@@ -278,12 +280,11 @@
     <string name="settings_rapidapi_key">RapidAPI key</string>
 
     <string name="settings_aerodatabox">AeroDataBox (RapidAPI)</string>
-    <string name="settings_aerodatabox_body">Real scheduled/live Condor departures and arrivals for the exact weekend you\'re looking at, fetched over RapidAPI. Uses the RapidAPI key above. Ranks ahead of OpenSky in the source order, since this queries an airport\'s actual current schedule rather than reconstructing one from historical observations. The endpoint and response shape below are cross-checked against several public sources rather than fetched from AeroDataBox\'s own docs, so they\'re more confident than most other RapidAPI defaults in this app – but still not a verified contract; correct any field from your own RapidAPI test panel if a real response doesn\'t match.</string>
+    <string name="settings_aerodatabox_body">Real scheduled/live departures and arrivals for your selected airlines (Settings → Airlines above) for the exact weekend you\'re looking at, fetched over RapidAPI. Uses the RapidAPI key above. Ranks ahead of OpenSky in the source order, since this queries an airport\'s actual current schedule rather than reconstructing one from historical observations. The endpoint and response shape below are cross-checked against several public sources rather than fetched from AeroDataBox\'s own docs, so they\'re more confident than most other RapidAPI defaults in this app – but still not a verified contract; correct any field from your own RapidAPI test panel if a real response doesn\'t match.</string>
     <string name="settings_adb_active">AeroDataBox active</string>
     <string name="settings_adb_api_host">API host</string>
     <string name="settings_adb_home">Home airport (IATA)</string>
     <string name="settings_adb_window_hours">Max. hours per request</string>
-    <string name="settings_adb_airline_filter">Airline ICAO filter (blank = every airline)</string>
     <string name="settings_adb_departures_path">Path to the departures list in the response</string>
     <string name="settings_adb_arrivals_path">Path to the arrivals list in the response</string>
     <string name="settings_adb_field_dep_airport">Field: the other airport, on a departure</string>
@@ -359,6 +360,7 @@
     <string name="prices_body">Enter the prices you see in MyID Travel. The app does not query MyID Travel and stores no credentials.</string>
     <string name="prices_empty_title">No destinations known yet</string>
     <string name="prices_empty_body">Once flight data has loaded, every reachable destination appears here and you can store a standby price for each.</string>
+    <string name="prices_airline">Airline</string>
     <string name="prices_entry_mode">Entry mode</string>
     <string name="prices_eco_out">Economy outbound</string>
     <string name="prices_eco_in">Economy return</string>
@@ -391,9 +393,9 @@
     <string name="src_opensky_no_secret_fix">Enter the secret, or clear the client ID to use anonymous access.</string>
     <string name="src_opensky_home_unknown">Home airport %1$s is not in the airport reference data.</string>
     <string name="src_opensky_auth_failed">OpenSky sign-in failed: %1$s</string>
-    <string name="src_opensky_no_flights">OpenSky reported no %2$s flights from %3$s in the past %1$d weeks.</string>
+    <string name="src_opensky_no_flights">OpenSky reported no flights for %2$s from %3$s in the past %1$d weeks.</string>
     <string name="src_opensky_no_timetable">No timetable for this date range could be derived from the OpenSky observations.</string>
-    <string name="src_opensky_note">OpenSky Network · derived from %1$d actually observed %2$s flights over the past %3$d weeks</string>
+    <string name="src_opensky_note">OpenSky Network · derived from %1$d actually observed flights for %2$s over the past %3$d weeks</string>
     <string name="src_opensky_offline">OpenSky is unreachable — are you offline?</string>
     <string name="src_opensky_parse_failed">The OpenSky response could not be processed.</string>
     <string name="src_opensky_denied">OpenSky refused access (HTTP %1$d).</string>
@@ -404,7 +406,7 @@
     <string name="src_opensky_token_no_access">The token response contained no access_token.</string>
     <string name="src_auth_signed_in">signed in</string>
     <string name="src_auth_anonymous">anonymous</string>
-    <string name="src_opensky_test_ok">OpenSky reachable (%1$s): %2$d departures from %3$s in 24 hours, %4$d of them with prefix %5$s.</string>
+    <string name="src_opensky_test_ok">OpenSky reachable (%1$s): %2$d departures from %3$s in 24 hours, %4$d of them matching your selected airlines (%5$s).</string>
     <string name="src_opensky_test_nodata">OpenSky reachable (%1$s), but it has no data for this period.</string>
     <string name="src_opensky_test_denied">OpenSky refused access (HTTP %1$d) — check the client ID and secret.</string>
     <string name="src_opensky_rate_limited">OpenSky rate limit reached. Try again later.</string>
@@ -443,8 +445,8 @@
     <string name="src_aerodatabox_http">AeroDataBox responded with HTTP %1$d.</string>
     <string name="src_aerodatabox_offline">AeroDataBox is unreachable – are you offline?</string>
     <string name="src_aerodatabox_parse_failed">The AeroDataBox response could not be processed.</string>
-    <string name="src_aerodatabox_no_flights">No %1$s flights found at %2$s in this window. Check the field mapping in Settings if this looks wrong.</string>
-    <string name="src_aerodatabox_note">AeroDataBox · scheduled %1$s flights</string>
+    <string name="src_aerodatabox_no_flights">No flights found for %1$s at %2$s in this window. Check the field mapping in Settings if this looks wrong.</string>
+    <string name="src_aerodatabox_note">AeroDataBox · scheduled flights for %1$s</string>
 
     <string name="src_unknown">unknown</string>
 

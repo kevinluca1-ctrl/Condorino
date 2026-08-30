@@ -13,7 +13,12 @@ import androidx.room.RoomDatabase
         FavoriteEntity::class,
         RefreshStateEntity::class,
     ],
-    version = 1,
+    // Bumped for standby_prices' new composite (destination, airline) primary key — see
+    // StandbyPriceEntity. Standby prices are the user's own hand-entered bookkeeping, not
+    // disposable cache, but this database has no real migrations yet (fallbackToDestructiveMigration
+    // below): anyone upgrading across this bump who wants to keep their prices should export them
+    // first (Settings → standby prices → export) and re-import afterwards.
+    version = 2,
     exportSchema = true,
 )
 abstract class CondorinoDatabase : RoomDatabase() {

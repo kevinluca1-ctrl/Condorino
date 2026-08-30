@@ -58,11 +58,12 @@ class AeroDataBoxFlightDataSourceTest {
         windowHours = windowHours,
     )
 
-    private fun sourceFor(config: AeroDataBoxConfig) = AeroDataBoxFlightDataSource(
+    private fun sourceFor(config: AeroDataBoxConfig, selected: Set<String> = setOf("CFG")) = AeroDataBoxFlightDataSource(
         client = OkHttpClient(),
         configProvider = { config },
         airportCatalog = { airports },
         apiKeyProvider = { "rapid-key" },
+        selectedAirlinesProvider = { selected },
         strings = AeroDataBoxFakeStrings(),
         now = { fixedNow },
         scheme = "http",
@@ -125,7 +126,7 @@ class AeroDataBoxFlightDataSourceTest {
     @Test
     fun `mapFlights maps a departures entry as an outbound flight from home`() {
         val config = configFor()
-        val flights = sourceFor(config).mapFlights(oneDeparture, config, Airport.FRANKFURT, airports)
+        val flights = sourceFor(config).mapFlights(oneDeparture, config, Airport.FRANKFURT, airports, setOf("CFG"))
 
         assertEquals(1, flights.size)
         val flight = flights[0]
@@ -133,6 +134,7 @@ class AeroDataBoxFlightDataSourceTest {
         assertEquals("MUC", flight.destination.iata)
         assertEquals("DE 1234", flight.flightNumber)
         assertEquals("Condor", flight.airline)
+        assertEquals("CFG", flight.airlineCode)
         assertEquals(Instant.parse("2026-09-11T18:00:00Z"), flight.departure)
         assertEquals(Instant.parse("2026-09-11T19:05:00Z"), flight.arrival)
     }
@@ -145,7 +147,7 @@ class AeroDataBoxFlightDataSourceTest {
              "arrival":{"airport":{"iata":"FRA"},"scheduledTimeUtc":"2026-09-11 19:05Z"},
              "number":"DE 5678","airline":{"name":"Condor","icao":"CFG"}}
         ]}"""
-        val flights = sourceFor(config).mapFlights(body, config, Airport.FRANKFURT, airports)
+        val flights = sourceFor(config).mapFlights(body, config, Airport.FRANKFURT, airports, setOf("CFG"))
 
         assertEquals(1, flights.size)
         assertEquals("MUC", flights[0].origin.iata)
@@ -153,25 +155,39 @@ class AeroDataBoxFlightDataSourceTest {
     }
 
     @Test
-    fun `mapFlights drops a row whose airline does not match the configured filter`() {
+    fun `mapFlights drops a row whose airline is not in the selection`() {
         val config = configFor()
         val body = """{"departures":[
             {"departure":{"airport":{"iata":"FRA"},"scheduledTimeUtc":"2026-09-11 18:00Z"},
              "arrival":{"airport":{"iata":"MUC"},"scheduledTimeUtc":"2026-09-11 19:05Z"},
              "number":"LH 100","airline":{"name":"Lufthansa","icao":"DLH"}}
         ],"arrivals":[]}"""
-        assertTrue(sourceFor(config).mapFlights(body, config, Airport.FRANKFURT, airports).isEmpty())
+        assertTrue(sourceFor(config).mapFlights(body, config, Airport.FRANKFURT, airports, setOf("CFG")).isEmpty())
     }
 
     @Test
-    fun `mapFlights keeps every airline when the filter is blank in config`() {
-        val config = configFor().copy(airlineIcaoFilter = "")
+    fun `mapFlights keeps a Lufthansa row once Lufthansa is added to the selection`() {
+        val config = configFor()
         val body = """{"departures":[
             {"departure":{"airport":{"iata":"FRA"},"scheduledTimeUtc":"2026-09-11 18:00Z"},
              "arrival":{"airport":{"iata":"MUC"},"scheduledTimeUtc":"2026-09-11 19:05Z"},
              "number":"LH 100","airline":{"name":"Lufthansa","icao":"DLH"}}
         ],"arrivals":[]}"""
-        assertEquals(1, sourceFor(config).mapFlights(body, config, Airport.FRANKFURT, airports).size)
+        val flights = sourceFor(config).mapFlights(body, config, Airport.FRANKFURT, airports, setOf("CFG", "DLH"))
+        assertEquals(1, flights.size)
+        assertEquals("Lufthansa", flights[0].airline)
+        assertEquals("DLH", flights[0].airlineCode)
+    }
+
+    @Test
+    fun `mapFlights drops a row with no resolvable airline rather than defaulting to Condor`() {
+        val config = configFor()
+        val body = """{"departures":[
+            {"departure":{"airport":{"iata":"FRA"},"scheduledTimeUtc":"2026-09-11 18:00Z"},
+             "arrival":{"airport":{"iata":"MUC"},"scheduledTimeUtc":"2026-09-11 19:05Z"},
+             "number":"XX 1"}
+        ],"arrivals":[]}"""
+        assertTrue(sourceFor(config).mapFlights(body, config, Airport.FRANKFURT, airports, setOf("CFG")).isEmpty())
     }
 
     @Test
@@ -182,7 +198,7 @@ class AeroDataBoxFlightDataSourceTest {
              "arrival":{"airport":{"iata":"ZZZ"},"scheduledTimeUtc":"2026-09-11 19:05Z"},
              "number":"DE 1234","airline":{"name":"Condor","icao":"CFG"}}
         ],"arrivals":[]}"""
-        assertTrue(sourceFor(config).mapFlights(body, config, Airport.FRANKFURT, airports).isEmpty())
+        assertTrue(sourceFor(config).mapFlights(body, config, Airport.FRANKFURT, airports, setOf("CFG")).isEmpty())
     }
 
     @Test
@@ -248,7 +264,7 @@ class AeroDataBoxFlightDataSourceTest {
         ) as? FlightSearchResult.Failure ?: error("expected Failure")
 
         assertEquals(
-            AeroDataBoxFakeStrings().get(com.condorino.weekend.R.string.src_aerodatabox_no_flights, "CFG", "FRA"),
+            AeroDataBoxFakeStrings().get(com.condorino.weekend.R.string.src_aerodatabox_no_flights, "Condor", "FRA"),
             result.userMessage,
         )
     }

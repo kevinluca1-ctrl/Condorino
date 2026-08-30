@@ -27,12 +27,17 @@ endpoints would have produced an app that appears to work and quietly finds noth
 * **AeroDataBox** (RapidAPI) answers the exact weekend asked directly, from real scheduled/live
   airport departure and arrival data,
 * alternatively the app reads any HTTPS feed following a documented JSON schema,
-* **OpenSky Network** reports for free and without an account which `CFG` flights from FRA
-  *actually* flew over the past few weeks — the app derives an observed timetable from that; it's
-  the lowest-priority source, since it reconstructs a timetable rather than answering the exact
+* **OpenSky Network** reports for free and without an account which flights from FRA *actually*
+  flew over the past few weeks — the app derives an observed timetable from that; it's the
+  lowest-priority source, since it reconstructs a timetable rather than answering the exact
   weekend, and its own free-tier quota is worth conserving,
 * and with no source configured it shows **sample data behind a permanent red banner**, with flight
   numbers that start with `DEMO`.
+
+AeroDataBox and OpenSky both see every airline at the airport, not just Condor — **Settings →
+Airlines** decides which to keep: Condor always, plus any Lufthansa Group carrier (Lufthansa,
+SWISS, Austrian, Brussels Airlines, Eurowings, Discover, Edelweiss, Air Dolomiti, Lufthansa City
+Airlines) individually turned on. Off by default, so nothing changes for you until you opt one in.
 
 The details — what exists, what could not be verified, and how to feed in real data — are in
 **[docs/CONDOR_DATA_SOURCES.md](docs/CONDOR_DATA_SOURCES.md)**.
@@ -138,15 +143,17 @@ Structure and reasoning: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ### Tests
 
-173 unit tests covering pattern detection, the workday penalty, effective length of stay, counting
+193 unit tests covering pattern detection, the workday penalty, effective length of stay, counting
 nights across midnight, time zones (UK, Madeira, Greece, summer/winter), cost scoring, random
 selection, feed parsing, price-field text handling, airport search ranking, update-release selection,
-standby-price export/import, the OpenSky token-refresh and credit-safe chunking behaviour, the
-AeroDataBox chunked-window request building and generic JSON field mapping, the Google Flights and
-TripAdvisor URL building and generic JSON field mapping (including TripAdvisor's two-step
-location-then-highlights request chain), the scoring engine's piecewise interpolation against
-out-of-order and duplicate breakpoints, date formats (including the guarantee that English never
-formats month-first) and the ranking cases from the brief:
+standby-price export/import (including per-airline tagging and backward compatibility with exports
+written before multi-airline pricing existed), the OpenSky token-refresh and credit-safe chunking
+behaviour, the AeroDataBox chunked-window request building and generic JSON field mapping, the
+Google Flights and TripAdvisor URL building and generic JSON field mapping (including TripAdvisor's
+two-step location-then-highlights request chain), Lufthansa Group airline selection and filtering,
+the scoring engine's piecewise interpolation against out-of-order and duplicate breakpoints, date
+formats (including the guarantee that English never formats month-first) and the ranking cases from
+the brief:
 
 ```bash
 ./gradlew testDebugUnitTest

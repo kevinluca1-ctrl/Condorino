@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import com.condorino.weekend.R
 import com.condorino.weekend.data.source.SourceStatus
 import com.condorino.weekend.data.source.SourceTestResult
+import com.condorino.weekend.domain.model.Airlines
 import com.condorino.weekend.domain.model.Cabin
 import com.condorino.weekend.domain.model.DestinationType
 import com.condorino.weekend.domain.model.ScoreComponent
@@ -241,6 +242,36 @@ fun SettingsScreen(
         }
 
         SettingsSection(
+            stringResource(R.string.settings_airlines),
+            stringResource(R.string.settings_airlines_body),
+        ) {
+            Text(
+                stringResource(R.string.settings_airlines_condor_note),
+                color = CondorinoColors.TextTertiary,
+                fontSize = 11.sp,
+                lineHeight = 15.sp,
+            )
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Airlines.LUFTHANSA_GROUP.forEach { airline ->
+                    val selected = airline.icaoCode in state.selectedLufthansaGroupCodes
+                    FilterChip(
+                        selected = selected,
+                        onClick = {
+                            val next = if (selected) {
+                                state.selectedLufthansaGroupCodes - airline.icaoCode
+                            } else {
+                                state.selectedLufthansaGroupCodes + airline.icaoCode
+                            }
+                            viewModel.updateSelectedLufthansaGroupCodes(next)
+                        },
+                        label = { Text(airline.displayName, fontSize = 12.sp) },
+                        colors = chipColors(),
+                    )
+                }
+            }
+        }
+
+        SettingsSection(
             stringResource(R.string.settings_opensky),
             stringResource(R.string.settings_opensky_body),
         ) {
@@ -251,9 +282,6 @@ fun SettingsScreen(
             )
             TextField(stringResource(R.string.settings_opensky_home), state.openSkyConfig.homeIcao) {
                 viewModel.updateOpenSkyConfig(state.openSkyConfig.copy(homeIcao = it.trim().uppercase()))
-            }
-            TextField(stringResource(R.string.settings_opensky_callsign), state.openSkyConfig.callsignPrefix) {
-                viewModel.updateOpenSkyConfig(state.openSkyConfig.copy(callsignPrefix = it.trim().uppercase()))
             }
             NumberField(
                 stringResource(R.string.settings_opensky_lookback),
@@ -361,9 +389,6 @@ fun SettingsScreen(
                     }
                 },
             )
-            TextField(stringResource(R.string.settings_adb_airline_filter), state.aeroDataBoxConfig.airlineIcaoFilter) {
-                viewModel.updateAeroDataBoxConfig(state.aeroDataBoxConfig.copy(airlineIcaoFilter = it.trim().uppercase()))
-            }
             TextField(stringResource(R.string.settings_adb_departures_path), state.aeroDataBoxConfig.departuresItemsPath) {
                 viewModel.updateAeroDataBoxConfig(state.aeroDataBoxConfig.copy(departuresItemsPath = it.trim()))
             }
@@ -777,7 +802,13 @@ fun SettingsScreen(
             stringResource(R.string.settings_prices_body),
         ) {
             Text(
-                stringResource(R.string.settings_prices_count, state.prices.count { it.value.hasAnyPrice }),
+                // Counts destinations, not raw price rows: one destination can now hold a price
+                // per airline (Condor and a Lufthansa Group carrier both priced separately), and
+                // that should still read as one destination "with prices on file", not two.
+                stringResource(
+                    R.string.settings_prices_count,
+                    state.prices.values.filter { it.hasAnyPrice }.map { it.destinationIata }.distinct().size,
+                ),
                 color = CondorinoColors.TextSecondary,
                 fontSize = 13.sp,
             )

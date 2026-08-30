@@ -26,6 +26,7 @@ import com.condorino.weekend.data.update.GitHubReleaseUpdateSource
 import com.condorino.weekend.data.update.UpdateDownloader
 import com.condorino.weekend.data.update.UpdateNotifier
 import com.condorino.weekend.data.update.UpdateRepository
+import com.condorino.weekend.domain.model.Airlines
 import com.condorino.weekend.domain.model.Airport
 import com.condorino.weekend.domain.repository.FavoriteRepository
 import com.condorino.weekend.domain.repository.StandbyPriceRepository
@@ -97,6 +98,12 @@ class AppContainer(context: Context) {
         return airportReferenceCatalog.airports() + cached + mapOf(Airport.HOME_IATA to Airport.FRANKFURT)
     }
 
+    /** Condor, always, plus whichever Lufthansa Group carriers the user opted into in Settings →
+     *  Airlines — shared by [OpenSkyFlightDataSource] and [AeroDataBoxFlightDataSource], the two
+     *  sources that see every airline at the airport and need this to know which ones to keep. */
+    private suspend fun selectedAirlines(): Set<String> =
+        setOf(Airlines.CONDOR.icaoCode) + preferencesStore.selectedLufthansaGroupCodes.first()
+
     /**
      * Real sources in descending order of trust. The first one that returns flights wins; the
      * demo source is handled separately by the repository so it can never be mistaken for one of
@@ -117,6 +124,7 @@ class AppContainer(context: Context) {
                 configProvider = { preferencesStore.aeroDataBoxConfig.first() },
                 airportCatalog = ::iataAirportCatalog,
                 apiKeyProvider = { preferencesStore.rapidApiKey.first() },
+                selectedAirlinesProvider = ::selectedAirlines,
                 strings = sourceStrings,
             ),
             HttpFeedFlightDataSource(
@@ -132,6 +140,7 @@ class AppContainer(context: Context) {
                 client = httpClient,
                 configProvider = { preferencesStore.openSkyConfig.first() },
                 airportCatalog = airportReferenceCatalog,
+                selectedAirlinesProvider = ::selectedAirlines,
                 strings = sourceStrings,
             ),
         )

@@ -2,6 +2,7 @@ package com.condorino.weekend.data.source
 
 import com.condorino.weekend.R
 import com.condorino.weekend.data.reference.AirportReferenceCatalog
+import com.condorino.weekend.domain.model.Airlines
 import com.condorino.weekend.domain.model.Airport
 import com.condorino.weekend.domain.model.DataProvenance
 import com.condorino.weekend.domain.model.Flight
@@ -36,10 +37,11 @@ import java.time.temporal.ChronoUnit
  *  * a schedule says *"this route is planned"*,
  *  * OpenSky says **"this aircraft actually flew, at this time, on this day"**.
  *
- * That makes it a genuine cross-check. This source asks OpenSky which flights with a Condor
- * callsign (`CFG…`) actually departed Frankfurt over the past few weeks, groups them by weekday and
- * destination, and derives an **observed timetable** from them, which it then projects onto the
- * weekend the user is looking at.
+ * That makes it a genuine cross-check. This source asks OpenSky which flights with a matching
+ * callsign — Condor's (`CFG…`), always, plus whichever Lufthansa Group carriers are opted into in
+ * Settings → Airlines (see [Airlines]) — actually departed Frankfurt over the past few weeks, groups
+ * them by weekday, destination and airline, and derives an **observed timetable** from them, which
+ * it then projects onto the weekend the user is looking at.
  *
  * ### What this is not
  *
@@ -82,6 +84,9 @@ class OpenSkyFlightDataSource(
     private val client: OkHttpClient,
     private val configProvider: suspend () -> OpenSkyConfig,
     private val airportCatalog: AirportReferenceCatalog,
+    /** ICAO codes of the airlines to match callsigns against — Condor plus whichever Lufthansa
+     *  Group carriers are opted in, see [PreferencesStore.selectedLufthansaGroupCodes]. */
+    private val selectedAirlinesProvider: suspend () -> Set<String>,
     override val strings: SourceStrings,
     private val json: Json = Json { ignoreUnknownKeys = true; isLenient = true },
     private val now: () -> Instant = { Instant.now() },
@@ -98,8 +103,12 @@ class OpenSkyFlightDataSource(
     // (weekend navigation, pull-to-refresh, the reactive collectors that call refresh()) reuse it
     // instead of repeating the request burst below — see [search]'s FETCH_COOLDOWN comment. Only the
     // fetch+aggregation outcome is cached, never the final per-query result — see [search].
+    // cachedSelection is compared on every call so a change to the airline selection (opting a
+    // Lufthansa Group carrier in or out) invalidates the cache immediately instead of silently
+    // keeping stale results around for up to FETCH_COOLDOWN.
     private var lastFetchAt: Instant = Instant.EPOCH
     private var cached: FetchState? = null
+    private var cachedSelection: Set<String>? = null
 
     override suspend fun status(): SourceStatus {
         val config = configProvider()
@@ -133,16 +142,20 @@ class OpenSkyFlightDataSource(
                 ?: return@withContext FlightSearchResult.Failure(
                     strings.get(R.string.src_opensky_home_unknown, config.homeIcao),
                 )
+            val selected = selectedAirlinesProvider()
 
             // The observed timetable is a median over weeks of history — it does not meaningfully
             // change from one refresh to the next, so there is no reason to repeat the request burst
             // below every time the user changes weekends or pulls to refresh. What's cached here is
             // the *observation fetch*, not the final result: projectOnto() below still runs fresh
             // for every call, against whatever date range and destination this particular query
-            // asks for, so a cached fetch still answers a different weekend correctly.
-            val state = cached?.takeIf { Duration.between(lastFetchAt, now()) < FETCH_COOLDOWN }
-                ?: fetchAndBuildTimetable(config, home).also {
+            // asks for, so a cached fetch still answers a different weekend correctly. A changed
+            // airline selection invalidates it outright — see the field doc on [cachedSelection].
+            val state = cached
+                ?.takeIf { cachedSelection == selected && Duration.between(lastFetchAt, now()) < FETCH_COOLDOWN }
+                ?: fetchAndBuildTimetable(config, home, selected).also {
                     cached = it
+                    cachedSelection = selected
                     lastFetchAt = now()
                 }
 
@@ -171,7 +184,7 @@ class OpenSkyFlightDataSource(
                             note = strings.get(
                                 R.string.src_opensky_note,
                                 state.sampleCount,
-                                config.callsignPrefix,
+                                Airlines.describe(selected),
                                 config.lookbackWeeks,
                             ),
                         )
@@ -191,7 +204,7 @@ class OpenSkyFlightDataSource(
     }
 
     /** The network burst and aggregation step of [search], separated out so it can be cached. */
-    private suspend fun fetchAndBuildTimetable(config: OpenSkyConfig, home: Airport): FetchState {
+    private suspend fun fetchAndBuildTimetable(config: OpenSkyConfig, home: Airport, selected: Set<String>): FetchState {
         try {
             // A configured client that fails to authenticate must say so. Quietly dropping to
             // anonymous access looks exactly like "my credentials don't work": the request
@@ -211,8 +224,8 @@ class OpenSkyFlightDataSource(
                 null
             }
 
-            val departureFetch = fetchObservations(config, token, arrivals = false)
-            val arrivalFetch = fetchObservations(config, token, arrivals = true)
+            val departureFetch = fetchObservations(config, token, selected, arrivals = false)
+            val arrivalFetch = fetchObservations(config, token, selected, arrivals = true)
             val departures = departureFetch.observations
             val arrivals = arrivalFetch.observations
             if (departures.isEmpty() && arrivals.isEmpty()) {
@@ -236,7 +249,7 @@ class OpenSkyFlightDataSource(
                             strings.get(
                                 R.string.src_opensky_no_flights,
                                 config.lookbackWeeks,
-                                config.callsignPrefix,
+                                Airlines.describe(selected),
                                 config.homeIcao,
                             ),
                         )
@@ -261,6 +274,10 @@ class OpenSkyFlightDataSource(
     /** One observed flight, reduced to what this source needs. */
     internal data class Observation(
         val callsign: String,
+        /** Which of the selected airlines' callsign prefixes this observation matched — see
+         *  [parseObservations]. Blank when parsed with an empty (unfiltered) selection, e.g.
+         *  [selfTest]'s "every airline at this airport" count. */
+        val airlineIcao: String,
         val departureIcao: String,
         val arrivalIcao: String,
         val firstSeen: Instant,
@@ -290,7 +307,7 @@ class OpenSkyFlightDataSource(
         data class OtherError(val code: Int) : ChunkResult
     }
 
-    private fun fetchChunk(url: String, token: String?, callsignPrefix: String): ChunkResult {
+    private fun fetchChunk(url: String, token: String?, callsignPrefixes: Set<String>): ChunkResult {
         val builder = Request.Builder().url(url).get().addHeader("Accept", "application/json")
         if (token != null) builder.addHeader("Authorization", "Bearer $token")
         client.newCall(builder.build()).execute().use { response ->
@@ -307,7 +324,9 @@ class OpenSkyFlightDataSource(
                 401, 403 -> ChunkResult.Denied(response.code)
                 else -> if (response.isSuccessful) {
                     val body = response.body?.string().orEmpty()
-                    ChunkResult.Observations(if (body.isBlank()) emptyList() else parseObservations(body, callsignPrefix))
+                    ChunkResult.Observations(
+                        if (body.isBlank()) emptyList() else parseObservations(body, callsignPrefixes),
+                    )
                 } else {
                     ChunkResult.OtherError(response.code)
                 }
@@ -318,6 +337,7 @@ class OpenSkyFlightDataSource(
     internal suspend fun fetchObservations(
         config: OpenSkyConfig,
         initialToken: String?,
+        callsignPrefixes: Set<String>,
         arrivals: Boolean,
     ): ObservationFetch {
         val endpoint = if (arrivals) "arrival" else "departure"
@@ -337,7 +357,7 @@ class OpenSkyFlightDataSource(
             val url = "${config.baseUrl.trimEnd('/')}/flights/$endpoint" +
                 "?airport=${config.homeIcao}&begin=$begin&end=$end"
 
-            var result = fetchChunk(url, token, config.callsignPrefix)
+            var result = fetchChunk(url, token, callsignPrefixes)
 
             // A 401 on a data request most plausibly means the (30-minute-lived) token expired
             // between being issued and being used, not that the credentials are actually wrong —
@@ -349,7 +369,7 @@ class OpenSkyFlightDataSource(
                 when (val refreshed = obtainToken(config, forceRefresh = true)) {
                     is TokenResult.Success -> {
                         token = refreshed.token
-                        result = fetchChunk(url, token, config.callsignPrefix)
+                        result = fetchChunk(url, token, callsignPrefixes)
                     }
                     is TokenResult.Failure -> Unit // keep the original denial
                 }
@@ -364,7 +384,7 @@ class OpenSkyFlightDataSource(
                 val wideBegin = end - WIDE_FALLBACK_WINDOW_SECONDS
                 val wideUrl = "${config.baseUrl.trimEnd('/')}/flights/$endpoint" +
                     "?airport=${config.homeIcao}&begin=$wideBegin&end=$end"
-                result = fetchChunk(wideUrl, token, config.callsignPrefix)
+                result = fetchChunk(wideUrl, token, callsignPrefixes)
             }
 
             when (val r = result) {
@@ -391,14 +411,18 @@ class OpenSkyFlightDataSource(
     private fun ceilDiv(numerator: Long, denominator: Long): Int =
         ((numerator + denominator - 1) / denominator).toInt()
 
-    internal fun parseObservations(body: String, callsignPrefix: String): List<Observation> {
+    /**
+     * @param callsignPrefixes ICAO airline prefixes to keep — Condor plus whichever Lufthansa
+     *   Group carriers are selected. Empty means "keep everything, regardless of airline", used
+     *   only by [selfTest]'s "every flight at this airport" count.
+     */
+    internal fun parseObservations(body: String, callsignPrefixes: Set<String>): List<Observation> {
         val root = json.parseToJsonElement(body) as? JsonArray ?: return emptyList()
         return root.mapNotNull { element ->
             val o = element as? JsonObject ?: return@mapNotNull null
             val callsign = o["callsign"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
-            if (callsignPrefix.isNotBlank() && !callsign.startsWith(callsignPrefix, ignoreCase = true)) {
-                return@mapNotNull null
-            }
+            val matchedPrefix = callsignPrefixes.find { callsign.startsWith(it, ignoreCase = true) }
+            if (callsignPrefixes.isNotEmpty() && matchedPrefix == null) return@mapNotNull null
             val dep = o["estDepartureAirport"]?.jsonPrimitive?.contentOrNull?.trim()
             val arr = o["estArrivalAirport"]?.jsonPrimitive?.contentOrNull?.trim()
             val first = o["firstSeen"]?.jsonPrimitive?.longOrNull
@@ -409,6 +433,7 @@ class OpenSkyFlightDataSource(
             if (last <= first) return@mapNotNull null
             Observation(
                 callsign = callsign,
+                airlineIcao = matchedPrefix.orEmpty(),
                 departureIcao = dep.uppercase(),
                 arrivalIcao = arr.uppercase(),
                 firstSeen = Instant.ofEpochSecond(first),
@@ -431,6 +456,10 @@ class OpenSkyFlightDataSource(
         val blockMinutes: Long,
         val sampleCount: Int,
         val callsign: String,
+        /** ICAO code of the airline these observations were grouped under — see the grouping key
+         *  in [buildTimetable], which folds this in precisely so a Condor and a Lufthansa flight
+         *  on the same weekday/route are never medianed together into one blended, wrong entry. */
+        val airlineIcao: String,
     ) {
         /**
          * @param note renders the "observed on N days" caption. It is passed in rather than looked
@@ -446,8 +475,8 @@ class OpenSkyFlightDataSource(
                     val departure = ZonedDateTime.of(date, departureLocal, ZoneId.of(origin.timeZoneId))
                     out += Flight(
                         flightNumber = callsign,
-                        airline = "Condor",
-                        airlineCode = "DE",
+                        airline = Airlines.byIcao(airlineIcao)?.displayName ?: airlineIcao,
+                        airlineCode = airlineIcao,
                         origin = origin,
                         destination = destination,
                         departure = departure.toInstant(),
@@ -464,9 +493,9 @@ class OpenSkyFlightDataSource(
     }
 
     /**
-     * Groups observations by (weekday, route) and takes the **median** departure time and block
-     * time of each group. The median rather than the mean because a single heavily delayed flight
-     * would otherwise drag the whole entry off its real slot.
+     * Groups observations by (weekday, route, airline) and takes the **median** departure time and
+     * block time of each group. The median rather than the mean because a single heavily delayed
+     * flight would otherwise drag the whole entry off its real slot.
      */
     internal suspend fun buildTimetable(
         observations: List<Observation>,
@@ -481,11 +510,13 @@ class OpenSkyFlightDataSource(
         val grouped = observations.groupBy { obs ->
             val otherIcao = if (outbound) obs.arrivalIcao else obs.departureIcao
             val reference = if (outbound) obs.firstSeen else obs.lastSeen
-            otherIcao to reference.atZone(homeZone).dayOfWeek
+            // Airline is part of the key so a Condor and a Lufthansa flight sharing a weekday and
+            // route are never medianed together into one blended, wrong entry.
+            Triple(otherIcao, reference.atZone(homeZone).dayOfWeek, obs.airlineIcao)
         }
 
         for ((key, group) in grouped) {
-            val (otherIcao, weekday) = key
+            val (otherIcao, weekday, airlineIcao) = key
             val other = airportCatalog.byIcao(otherIcao) ?: continue
             if (other.iata == home.iata) continue
 
@@ -504,6 +535,7 @@ class OpenSkyFlightDataSource(
                 blockMinutes = median(blocks).coerceAtLeast(20L),
                 sampleCount = group.size,
                 callsign = group.first().callsign,
+                airlineIcao = airlineIcao,
             )
         }
         return services
@@ -590,6 +622,7 @@ class OpenSkyFlightDataSource(
         }
 
         try {
+            val selected = selectedAirlinesProvider()
             val authenticated = config.clientId.isNotBlank()
             val token = if (authenticated) {
                 when (val auth = obtainToken(config)) {
@@ -644,8 +677,8 @@ class OpenSkyFlightDataSource(
                 return@withContext when (response.code) {
                     200 -> {
                         val body = response.body?.string().orEmpty()
-                        val all = parseObservations(body, callsignPrefix = "")
-                        val mine = parseObservations(body, config.callsignPrefix)
+                        val all = parseObservations(body, callsignPrefixes = emptySet())
+                        val mine = parseObservations(body, selected)
                         SourceTestResult.Ok(
                             strings.get(
                                 R.string.src_opensky_test_ok,
@@ -653,7 +686,7 @@ class OpenSkyFlightDataSource(
                                 all.size,
                                 config.homeIcao,
                                 mine.size,
-                                config.callsignPrefix,
+                                Airlines.describe(selected),
                             ),
                         )
                     }
@@ -748,8 +781,6 @@ data class OpenSkyConfig(
     val clientSecret: String = "",
     /** ICAO code of the home airport — OpenSky speaks ICAO, not IATA. Frankfurt is EDDF. */
     val homeIcao: String = "EDDF",
-    /** Condor's ICAO airline designator; its callsigns start with this. */
-    val callsignPrefix: String = "CFG",
     // Lower than the OpenSky endpoints could technically support (up to 12 weeks) on purpose: this
     // is now a de-prioritized fallback rather than the app's default live source (see AeroDataBox
     // and the trust order in AppContainer), so its default should ask for as little quota as still
