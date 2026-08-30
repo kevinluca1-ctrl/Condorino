@@ -24,9 +24,13 @@ endpoints would have produced an app that appears to work and quietly finds noth
 
 * the data layer is fully built and swappable,
 * the Condor API contract is **entered in Settings** as soon as you have it,
+* **AeroDataBox** (RapidAPI) answers the exact weekend asked directly, from real scheduled/live
+  airport departure and arrival data,
 * alternatively the app reads any HTTPS feed following a documented JSON schema,
 * **OpenSky Network** reports for free and without an account which `CFG` flights from FRA
-  *actually* flew over the past few weeks — the app derives an observed timetable from that,
+  *actually* flew over the past few weeks — the app derives an observed timetable from that; it's
+  the lowest-priority source, since it reconstructs a timetable rather than answering the exact
+  weekend, and its own free-tier quota is worth conserving,
 * and with no source configured it shows **sample data behind a permanent red banner**, with flight
   numbers that start with `DEMO`.
 
@@ -134,14 +138,15 @@ Structure and reasoning: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ### Tests
 
-158 unit tests covering pattern detection, the workday penalty, effective length of stay, counting
+173 unit tests covering pattern detection, the workday penalty, effective length of stay, counting
 nights across midnight, time zones (UK, Madeira, Greece, summer/winter), cost scoring, random
 selection, feed parsing, price-field text handling, airport search ranking, update-release selection,
 standby-price export/import, the OpenSky token-refresh and credit-safe chunking behaviour, the
-Google Flights and TripAdvisor URL building and generic JSON field mapping (including TripAdvisor's
-two-step location-then-highlights request chain), the scoring engine's piecewise interpolation
-against out-of-order and duplicate breakpoints, date formats (including the guarantee that English
-never formats month-first) and the ranking cases from the brief:
+AeroDataBox chunked-window request building and generic JSON field mapping, the Google Flights and
+TripAdvisor URL building and generic JSON field mapping (including TripAdvisor's two-step
+location-then-highlights request chain), the scoring engine's piecewise interpolation against
+out-of-order and duplicate breakpoints, date formats (including the guarantee that English never
+formats month-first) and the ranking cases from the brief:
 
 ```bash
 ./gradlew testDebugUnitTest
@@ -158,8 +163,9 @@ sources you configured yourself.
 | Source | Role | Status |
 | --- | --- | --- |
 | Condor Developer API (`developer.condor.com`) | intended primary source | contract entered by the user |
+| [AeroDataBox](https://rapidapi.com/aedbx-aedbx/api/aerodatabox) (RapidAPI) | real scheduled/live flights for the exact weekend | RapidAPI key entered by the user |
 | Custom HTTPS feed (Condorino feed schema) | works immediately | URL entered by the user |
-| [OpenSky Network](https://opensky-network.org/) | cross-check: flights actually flown | free, account optional |
+| [OpenSky Network](https://opensky-network.org/) | cross-check: flights actually flown; lowest priority | free, account optional |
 | [OurAirports](https://github.com/davidmegginson/ourairports-data) | airport codes, cities, countries | public domain, bundled |
 | [OpenFlights](https://github.com/jpatokal/openflights) | time zone per airport | ODbL, bundled |
 | [IANA tzdata](https://github.com/eggert/tz) | time zone per country | public domain, bundled |

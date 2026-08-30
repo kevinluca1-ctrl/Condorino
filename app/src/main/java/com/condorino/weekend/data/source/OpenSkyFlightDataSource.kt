@@ -94,6 +94,13 @@ class OpenSkyFlightDataSource(
     private var cachedToken: String? = null
     private var tokenExpiry: Instant = Instant.EPOCH
 
+    // In-process cache of the last observation fetch, so repeated triggers within one session
+    // (weekend navigation, pull-to-refresh, the reactive collectors that call refresh()) reuse it
+    // instead of repeating the request burst below — see [search]'s FETCH_COOLDOWN comment. Only the
+    // fetch+aggregation outcome is cached, never the final per-query result — see [search].
+    private var lastFetchAt: Instant = Instant.EPOCH
+    private var cached: FetchState? = null
+
     override suspend fun status(): SourceStatus {
         val config = configProvider()
         return when {
@@ -127,34 +134,95 @@ class OpenSkyFlightDataSource(
                     strings.get(R.string.src_opensky_home_unknown, config.homeIcao),
                 )
 
-            try {
-                // A configured client that fails to authenticate must say so. Quietly dropping to
-                // anonymous access looks exactly like "my credentials don't work": the request
-                // succeeds, returns almost nothing because anonymous limits are tight, and the
-                // user is never told why.
-                val token = if (config.clientId.isNotBlank()) {
-                    when (val auth = obtainToken(config)) {
-                        is TokenResult.Success -> auth.token
-                        is TokenResult.Failure -> return@withContext FlightSearchResult.Failure(
-                            strings.get(R.string.src_opensky_auth_failed, auth.reason),
-                            auth.detail,
-                        )
-                    }
-                } else {
-                    null
+            // The observed timetable is a median over weeks of history — it does not meaningfully
+            // change from one refresh to the next, so there is no reason to repeat the request burst
+            // below every time the user changes weekends or pulls to refresh. What's cached here is
+            // the *observation fetch*, not the final result: projectOnto() below still runs fresh
+            // for every call, against whatever date range and destination this particular query
+            // asks for, so a cached fetch still answers a different weekend correctly.
+            val state = cached?.takeIf { Duration.between(lastFetchAt, now()) < FETCH_COOLDOWN }
+                ?: fetchAndBuildTimetable(config, home).also {
+                    cached = it
+                    lastFetchAt = now()
                 }
 
-                val departureFetch = fetchObservations(config, token, arrivals = false)
-                val arrivalFetch = fetchObservations(config, token, arrivals = true)
-                val departures = departureFetch.observations
-                val arrivals = arrivalFetch.observations
-                if (departures.isEmpty() && arrivals.isEmpty()) {
-                    // Every chunk request either failed outright or returned an unexpected status —
-                    // this is not the same fact as "OpenSky checked and there really is nothing",
-                    // and must not be reported as if it were.
-                    val failedCode = departureFetch.lastErrorCode ?: arrivalFetch.lastErrorCode
-                    val retryAfter = departureFetch.retryAfterSeconds ?: arrivalFetch.retryAfterSeconds
-                    return@withContext if (failedCode != null) {
+            when (state) {
+                is FetchState.Failed -> state.result
+                is FetchState.Ok -> {
+                    val flights = (state.outbound + state.inbound)
+                        .flatMap { service ->
+                            service.projectOnto(query.from, query.to) { days ->
+                                strings.plural(R.plurals.src_opensky_observed_days, days, days)
+                            }
+                        }
+                        .filter { f ->
+                            query.destinationIata == null ||
+                                f.destination.iata == query.destinationIata ||
+                                f.origin.iata == query.destinationIata
+                        }
+
+                    if (flights.isEmpty()) {
+                        FlightSearchResult.Failure(strings.get(R.string.src_opensky_no_timetable))
+                    } else {
+                        FlightSearchResult.Success(
+                            flights = flights,
+                            provenance = DataProvenance.SCHEDULE,
+                            retrievedAt = now(),
+                            note = strings.get(
+                                R.string.src_opensky_note,
+                                state.sampleCount,
+                                config.callsignPrefix,
+                                config.lookbackWeeks,
+                            ),
+                        )
+                    }
+                }
+            }
+        }
+
+    /** What one real observation fetch + aggregation produced — cached across calls, see [search]. */
+    private sealed interface FetchState {
+        data class Ok(
+            val outbound: List<ObservedService>,
+            val inbound: List<ObservedService>,
+            val sampleCount: Int,
+        ) : FetchState
+        data class Failed(val result: FlightSearchResult.Failure) : FetchState
+    }
+
+    /** The network burst and aggregation step of [search], separated out so it can be cached. */
+    private suspend fun fetchAndBuildTimetable(config: OpenSkyConfig, home: Airport): FetchState {
+        try {
+            // A configured client that fails to authenticate must say so. Quietly dropping to
+            // anonymous access looks exactly like "my credentials don't work": the request
+            // succeeds, returns almost nothing because anonymous limits are tight, and the
+            // user is never told why.
+            val token = if (config.clientId.isNotBlank()) {
+                when (val auth = obtainToken(config)) {
+                    is TokenResult.Success -> auth.token
+                    is TokenResult.Failure -> return FetchState.Failed(
+                        FlightSearchResult.Failure(
+                            strings.get(R.string.src_opensky_auth_failed, auth.reason),
+                            auth.detail,
+                        ),
+                    )
+                }
+            } else {
+                null
+            }
+
+            val departureFetch = fetchObservations(config, token, arrivals = false)
+            val arrivalFetch = fetchObservations(config, token, arrivals = true)
+            val departures = departureFetch.observations
+            val arrivals = arrivalFetch.observations
+            if (departures.isEmpty() && arrivals.isEmpty()) {
+                // Every chunk request either failed outright or returned an unexpected status —
+                // this is not the same fact as "OpenSky checked and there really is nothing", and
+                // must not be reported as if it were.
+                val failedCode = departureFetch.lastErrorCode ?: arrivalFetch.lastErrorCode
+                val retryAfter = departureFetch.retryAfterSeconds ?: arrivalFetch.retryAfterSeconds
+                return FetchState.Failed(
+                    if (failedCode != null) {
                         val message = when {
                             failedCode == 429 && retryAfter != null ->
                                 strings.get(R.string.src_opensky_rate_limited_retry, retryAfter)
@@ -172,47 +240,21 @@ class OpenSkyFlightDataSource(
                                 config.homeIcao,
                             ),
                         )
-                    }
-                }
-
-                val outbound = buildTimetable(departures, home, outbound = true)
-                val inbound = buildTimetable(arrivals, home, outbound = false)
-
-                val flights = (outbound + inbound)
-                    .flatMap { service ->
-                        service.projectOnto(query.from, query.to) { days ->
-                            strings.plural(R.plurals.src_opensky_observed_days, days, days)
-                        }
-                    }
-                    .filter { f ->
-                        query.destinationIata == null ||
-                            f.destination.iata == query.destinationIata ||
-                            f.origin.iata == query.destinationIata
-                    }
-
-                if (flights.isEmpty()) {
-                    return@withContext FlightSearchResult.Failure(
-                        strings.get(R.string.src_opensky_no_timetable),
-                    )
-                }
-
-                FlightSearchResult.Success(
-                    flights = flights,
-                    provenance = DataProvenance.SCHEDULE,
-                    retrievedAt = now(),
-                    note = strings.get(
-                        R.string.src_opensky_note,
-                        departures.size + arrivals.size,
-                        config.callsignPrefix,
-                        config.lookbackWeeks,
-                    ),
+                    },
                 )
-            } catch (e: IOException) {
-                FlightSearchResult.Failure(strings.get(R.string.src_opensky_offline), e.message)
-            } catch (e: Exception) {
-                FlightSearchResult.Failure(strings.get(R.string.src_opensky_parse_failed), e.message)
             }
+
+            return FetchState.Ok(
+                outbound = buildTimetable(departures, home, outbound = true),
+                inbound = buildTimetable(arrivals, home, outbound = false),
+                sampleCount = departures.size + arrivals.size,
+            )
+        } catch (e: IOException) {
+            return FetchState.Failed(FlightSearchResult.Failure(strings.get(R.string.src_opensky_offline), e.message))
+        } catch (e: Exception) {
+            return FetchState.Failed(FlightSearchResult.Failure(strings.get(R.string.src_opensky_parse_failed), e.message))
         }
+    }
 
     // ------------------------------------------------------------------ fetching
 
@@ -667,11 +709,29 @@ class OpenSkyFlightDataSource(
         private const val WIDE_FALLBACK_WINDOW_SECONDS = 2L * 24L * 3600L
 
         /**
-         * Hard ceiling on requests per refresh. At the default 6-week lookback and a 20-hour
-         * window this needs ~51 chunks per endpoint; the cap leaves headroom for the 12-week
-         * maximum Settings allows while still bounding a single refresh's worst case.
+         * Hard ceiling on requests per refresh, per endpoint (departure and arrival are each
+         * fetched separately, so a full [fetchAndBuildTimetable] costs at most twice this many
+         * requests). Settings caps [OpenSkyConfig.lookbackWeeks] at 4 (see `SettingsScreen`'s
+         * `NumberField` for it), which needs ~34 chunks per endpoint at [CHUNK_WINDOW_SECONDS]; 40
+         * covers that with headroom. At 4 credits per chunk (see the class doc), a full fetch at
+         * the Settings maximum costs at most 2 × 40 × 4 = 320 credits — under the anonymous tier's
+         * 400-credit daily quota in a *single* fetch, with [FETCH_COOLDOWN] on top keeping repeat
+         * fetches rare. This used to be 110 with no lookback cap below 12 weeks, which needed ~101
+         * chunks per endpoint at that maximum and could burn the entire daily quota — and take long
+         * enough as 100+ sequential blocking requests to look like an endless spinner — in one
+         * single search. That combination is the bug this cap and the lowered Settings maximum now
+         * exist to prevent.
          */
-        private const val MAX_CHUNKS = 110
+        private const val MAX_CHUNKS = 40
+
+        /**
+         * The observed timetable barely moves week to week, so there is no reason to repeat the
+         * request burst in [fetchAndBuildTimetable] on every refresh trigger (cold start, weekend
+         * navigation, pull-to-refresh) — a single session can easily call [search] a dozen times.
+         * Six hours keeps the data fresh across a day of use while cutting the *effective* request
+         * volume by roughly that same factor.
+         */
+        private val FETCH_COOLDOWN: Duration = Duration.ofHours(6)
     }
 }
 
@@ -690,5 +750,9 @@ data class OpenSkyConfig(
     val homeIcao: String = "EDDF",
     /** Condor's ICAO airline designator; its callsigns start with this. */
     val callsignPrefix: String = "CFG",
-    val lookbackWeeks: Int = 6,
+    // Lower than the OpenSky endpoints could technically support (up to 12 weeks) on purpose: this
+    // is now a de-prioritized fallback rather than the app's default live source (see AeroDataBox
+    // and the trust order in AppContainer), so its default should ask for as little quota as still
+    // gives a usable weekday/route sample — 2 weeks is enough to catch most recurring routes.
+    val lookbackWeeks: Int = 2,
 )

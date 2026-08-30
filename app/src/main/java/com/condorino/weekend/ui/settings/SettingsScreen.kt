@@ -259,7 +259,10 @@ fun SettingsScreen(
                 stringResource(R.string.settings_opensky_lookback),
                 state.openSkyConfig.lookbackWeeks.toString(),
                 { v ->
-                    v.toIntOrNull()?.coerceIn(1, 12)?.let { weeks ->
+                    // Capped at 4 (was 12) so the worst case at OpenSkyFlightDataSource.MAX_CHUNKS
+                    // stays a fraction of the anonymous tier's daily credit quota — see that
+                    // constant's doc for the exact math.
+                    v.toIntOrNull()?.coerceIn(1, 4)?.let { weeks ->
                         viewModel.updateOpenSkyConfig(state.openSkyConfig.copy(lookbackWeeks = weeks))
                     }
                 },
@@ -331,6 +334,62 @@ fun SettingsScreen(
         ) {
             PasswordField(stringResource(R.string.settings_rapidapi_key), state.rapidApiKey) {
                 viewModel.updateRapidApiKey(it.trim())
+            }
+        }
+
+        SettingsSection(
+            stringResource(R.string.settings_aerodatabox),
+            stringResource(R.string.settings_aerodatabox_body),
+        ) {
+            SwitchRow(
+                label = stringResource(R.string.settings_adb_active),
+                checked = state.aeroDataBoxConfig.enabled,
+                onCheckedChange = { viewModel.updateAeroDataBoxConfig(state.aeroDataBoxConfig.copy(enabled = it)) },
+            )
+            TextField(stringResource(R.string.settings_adb_api_host), state.aeroDataBoxConfig.apiHost) {
+                viewModel.updateAeroDataBoxConfig(state.aeroDataBoxConfig.copy(apiHost = it.trim()))
+            }
+            TextField(stringResource(R.string.settings_adb_home), state.aeroDataBoxConfig.homeIata) {
+                viewModel.updateAeroDataBoxConfig(state.aeroDataBoxConfig.copy(homeIata = it.trim().uppercase()))
+            }
+            NumberField(
+                stringResource(R.string.settings_adb_window_hours),
+                state.aeroDataBoxConfig.windowHours.toString(),
+                { v ->
+                    v.toIntOrNull()?.coerceIn(1, 24)?.let { hours ->
+                        viewModel.updateAeroDataBoxConfig(state.aeroDataBoxConfig.copy(windowHours = hours))
+                    }
+                },
+            )
+            TextField(stringResource(R.string.settings_adb_airline_filter), state.aeroDataBoxConfig.airlineIcaoFilter) {
+                viewModel.updateAeroDataBoxConfig(state.aeroDataBoxConfig.copy(airlineIcaoFilter = it.trim().uppercase()))
+            }
+            TextField(stringResource(R.string.settings_adb_departures_path), state.aeroDataBoxConfig.departuresItemsPath) {
+                viewModel.updateAeroDataBoxConfig(state.aeroDataBoxConfig.copy(departuresItemsPath = it.trim()))
+            }
+            TextField(stringResource(R.string.settings_adb_arrivals_path), state.aeroDataBoxConfig.arrivalsItemsPath) {
+                viewModel.updateAeroDataBoxConfig(state.aeroDataBoxConfig.copy(arrivalsItemsPath = it.trim()))
+            }
+            TextField(stringResource(R.string.settings_adb_field_dep_airport), state.aeroDataBoxConfig.fieldDepartureAirportCode) {
+                viewModel.updateAeroDataBoxConfig(state.aeroDataBoxConfig.copy(fieldDepartureAirportCode = it.trim()))
+            }
+            TextField(stringResource(R.string.settings_adb_field_arr_airport), state.aeroDataBoxConfig.fieldArrivalAirportCode) {
+                viewModel.updateAeroDataBoxConfig(state.aeroDataBoxConfig.copy(fieldArrivalAirportCode = it.trim()))
+            }
+            TextField(stringResource(R.string.settings_adb_field_dep_time), state.aeroDataBoxConfig.fieldDepartureTimeUtc) {
+                viewModel.updateAeroDataBoxConfig(state.aeroDataBoxConfig.copy(fieldDepartureTimeUtc = it.trim()))
+            }
+            TextField(stringResource(R.string.settings_adb_field_arr_time), state.aeroDataBoxConfig.fieldArrivalTimeUtc) {
+                viewModel.updateAeroDataBoxConfig(state.aeroDataBoxConfig.copy(fieldArrivalTimeUtc = it.trim()))
+            }
+            TextField(stringResource(R.string.settings_adb_field_flight_number), state.aeroDataBoxConfig.fieldFlightNumber) {
+                viewModel.updateAeroDataBoxConfig(state.aeroDataBoxConfig.copy(fieldFlightNumber = it.trim()))
+            }
+            TextField(stringResource(R.string.settings_adb_field_airline_name), state.aeroDataBoxConfig.fieldAirlineName) {
+                viewModel.updateAeroDataBoxConfig(state.aeroDataBoxConfig.copy(fieldAirlineName = it.trim()))
+            }
+            TextField(stringResource(R.string.settings_adb_field_airline_icao), state.aeroDataBoxConfig.fieldAirlineIcao) {
+                viewModel.updateAeroDataBoxConfig(state.aeroDataBoxConfig.copy(fieldAirlineIcao = it.trim()))
             }
         }
 

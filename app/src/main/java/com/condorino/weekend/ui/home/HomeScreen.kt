@@ -93,7 +93,6 @@ fun HomeScreen(
                     status = state.status,
                     onRefresh = viewModel::refresh,
                     onOpenSettings = onOpenSettings,
-                    onEnableFreeSource = viewModel::enableFreeLiveSource,
                 )
             }
 
@@ -140,8 +139,9 @@ fun HomeScreen(
 
             if (trips.isEmpty() && !state.isLoading) {
                 // "No flight data at all" is the one empty case a bare refresh can never fix on its
-                // own — with zero sources configured, refreshing just repeats the same no-op. The
-                // free OpenSky source needs no typing, so that is the action offered here instead.
+                // own — with zero sources configured, refreshing just repeats the same no-op, so
+                // Settings (where every source, including the de-prioritized OpenSky fallback, can
+                // be turned on) is offered instead.
                 val noSourceConfigured = state.emptyReason is EmptyReason.NoFlightData
                 item {
                     EmptyState(
@@ -151,14 +151,14 @@ fun HomeScreen(
                         actionLabel = stringResource(
                             when {
                                 state.filters.isActive -> R.string.home_reset_filters
-                                noSourceConfigured -> R.string.status_enable_free_source
+                                noSourceConfigured -> R.string.settings_title
                                 else -> R.string.action_refresh_now
                             },
                         ),
                         onAction = {
                             when {
                                 state.filters.isActive -> viewModel.updateFilters { TripFilters() }
-                                noSourceConfigured -> viewModel.enableFreeLiveSource()
+                                noSourceConfigured -> onOpenSettings()
                                 else -> viewModel.refresh()
                             }
                         },

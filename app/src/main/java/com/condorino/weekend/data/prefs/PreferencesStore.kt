@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.condorino.weekend.data.source.AeroDataBoxConfig
 import com.condorino.weekend.data.source.CondorApiConfig
 import com.condorino.weekend.data.source.FeedConfig
 import com.condorino.weekend.data.source.GoogleFlightsApiConfig
@@ -89,6 +90,25 @@ class PreferencesStore(private val context: Context) {
         val openSkyHomeIcao = stringPreferencesKey("opensky_home_icao")
         val openSkyCallsign = stringPreferencesKey("opensky_callsign_prefix")
         val openSkyLookbackWeeks = intPreferencesKey("opensky_lookback_weeks")
+
+        val adbEnabled = booleanPreferencesKey("aerodatabox_enabled")
+        val adbApiHost = stringPreferencesKey("aerodatabox_api_host")
+        val adbHomeIata = stringPreferencesKey("aerodatabox_home_iata")
+        val adbWindowHours = intPreferencesKey("aerodatabox_window_hours")
+        val adbWithLeg = booleanPreferencesKey("aerodatabox_with_leg")
+        val adbWithCancelled = booleanPreferencesKey("aerodatabox_with_cancelled")
+        val adbWithCodeshared = booleanPreferencesKey("aerodatabox_with_codeshared")
+        val adbWithPrivate = booleanPreferencesKey("aerodatabox_with_private")
+        val adbAirlineIcaoFilter = stringPreferencesKey("aerodatabox_airline_icao_filter")
+        val adbDeparturesItemsPath = stringPreferencesKey("aerodatabox_departures_items_path")
+        val adbArrivalsItemsPath = stringPreferencesKey("aerodatabox_arrivals_items_path")
+        val adbFieldDepartureAirportCode = stringPreferencesKey("aerodatabox_field_departure_airport_code")
+        val adbFieldArrivalAirportCode = stringPreferencesKey("aerodatabox_field_arrival_airport_code")
+        val adbFieldDepartureTimeUtc = stringPreferencesKey("aerodatabox_field_departure_time_utc")
+        val adbFieldArrivalTimeUtc = stringPreferencesKey("aerodatabox_field_arrival_time_utc")
+        val adbFieldFlightNumber = stringPreferencesKey("aerodatabox_field_flight_number")
+        val adbFieldAirlineName = stringPreferencesKey("aerodatabox_field_airline_name")
+        val adbFieldAirlineIcao = stringPreferencesKey("aerodatabox_field_airline_icao")
 
         // Legacy, no longer written: kept only so an already-entered key survives as a fallback
         // for the shared rapidApiKey below, rather than silently discarding it.
@@ -225,12 +245,37 @@ class PreferencesStore(private val context: Context) {
         )
     }
 
+    val aeroDataBoxConfig: Flow<AeroDataBoxConfig> = context.dataStore.data.map { p ->
+        val d = AeroDataBoxConfig()
+        AeroDataBoxConfig(
+            enabled = p[Keys.adbEnabled] ?: false,
+            apiHost = p[Keys.adbApiHost] ?: d.apiHost,
+            homeIata = p[Keys.adbHomeIata]?.takeIf { it.isNotBlank() } ?: d.homeIata,
+            windowHours = p[Keys.adbWindowHours] ?: d.windowHours,
+            withLeg = p[Keys.adbWithLeg] ?: d.withLeg,
+            withCancelled = p[Keys.adbWithCancelled] ?: d.withCancelled,
+            withCodeshared = p[Keys.adbWithCodeshared] ?: d.withCodeshared,
+            withPrivate = p[Keys.adbWithPrivate] ?: d.withPrivate,
+            airlineIcaoFilter = p[Keys.adbAirlineIcaoFilter] ?: d.airlineIcaoFilter,
+            departuresItemsPath = p[Keys.adbDeparturesItemsPath] ?: d.departuresItemsPath,
+            arrivalsItemsPath = p[Keys.adbArrivalsItemsPath] ?: d.arrivalsItemsPath,
+            fieldDepartureAirportCode = p[Keys.adbFieldDepartureAirportCode] ?: d.fieldDepartureAirportCode,
+            fieldArrivalAirportCode = p[Keys.adbFieldArrivalAirportCode] ?: d.fieldArrivalAirportCode,
+            fieldDepartureTimeUtc = p[Keys.adbFieldDepartureTimeUtc] ?: d.fieldDepartureTimeUtc,
+            fieldArrivalTimeUtc = p[Keys.adbFieldArrivalTimeUtc] ?: d.fieldArrivalTimeUtc,
+            fieldFlightNumber = p[Keys.adbFieldFlightNumber] ?: d.fieldFlightNumber,
+            fieldAirlineName = p[Keys.adbFieldAirlineName] ?: d.fieldAirlineName,
+            fieldAirlineIcao = p[Keys.adbFieldAirlineIcao] ?: d.fieldAirlineIcao,
+        )
+    }
+
     /**
-     * One RapidAPI key shared by every RapidAPI-hosted source (Google Flights, TripAdvisor, and
-     * any future one) — matching how RapidAPI itself works: a single account-level key is valid
-     * across every API that account has subscribed to, distinguished only by the
-     * `X-RapidAPI-Host` header each source already sends. Falls back to whatever was entered in
-     * the old, source-specific Google Flights key field, so upgrading doesn't silently drop it.
+     * One RapidAPI key shared by every RapidAPI-hosted source (AeroDataBox, Google Flights,
+     * TripAdvisor, and any future one) — matching how RapidAPI itself works: a single
+     * account-level key is valid across every API that account has subscribed to, distinguished
+     * only by the `X-RapidAPI-Host` header each source already sends. Falls back to whatever was
+     * entered in the old, source-specific Google Flights key field, so upgrading doesn't silently
+     * drop it.
      */
     val rapidApiKey: Flow<String> = context.dataStore.data.map { p ->
         p[Keys.rapidApiKey]?.takeIf { it.isNotBlank() } ?: p[Keys.gfApiKey].orEmpty()
@@ -369,6 +414,29 @@ class PreferencesStore(private val context: Context) {
             p[Keys.openSkyHomeIcao] = config.homeIcao
             p[Keys.openSkyCallsign] = config.callsignPrefix
             p[Keys.openSkyLookbackWeeks] = config.lookbackWeeks
+        }
+    }
+
+    suspend fun updateAeroDataBoxConfig(config: AeroDataBoxConfig) {
+        context.dataStore.edit { p ->
+            p[Keys.adbEnabled] = config.enabled
+            p[Keys.adbApiHost] = config.apiHost
+            p[Keys.adbHomeIata] = config.homeIata
+            p[Keys.adbWindowHours] = config.windowHours
+            p[Keys.adbWithLeg] = config.withLeg
+            p[Keys.adbWithCancelled] = config.withCancelled
+            p[Keys.adbWithCodeshared] = config.withCodeshared
+            p[Keys.adbWithPrivate] = config.withPrivate
+            p[Keys.adbAirlineIcaoFilter] = config.airlineIcaoFilter
+            p[Keys.adbDeparturesItemsPath] = config.departuresItemsPath
+            p[Keys.adbArrivalsItemsPath] = config.arrivalsItemsPath
+            p[Keys.adbFieldDepartureAirportCode] = config.fieldDepartureAirportCode
+            p[Keys.adbFieldArrivalAirportCode] = config.fieldArrivalAirportCode
+            p[Keys.adbFieldDepartureTimeUtc] = config.fieldDepartureTimeUtc
+            p[Keys.adbFieldArrivalTimeUtc] = config.fieldArrivalTimeUtc
+            p[Keys.adbFieldFlightNumber] = config.fieldFlightNumber
+            p[Keys.adbFieldAirlineName] = config.fieldAirlineName
+            p[Keys.adbFieldAirlineIcao] = config.fieldAirlineIcao
         }
     }
 
