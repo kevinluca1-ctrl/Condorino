@@ -22,8 +22,8 @@ android {
         // Correct time-zone maths is central to this app, so this is a deliberate choice.
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
-        versionName = "0.1.0-alpha-07"
+        versionCode = 8
+        versionName = "0.1.0-alpha-08"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
