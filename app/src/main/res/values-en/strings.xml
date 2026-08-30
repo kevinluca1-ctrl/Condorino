@@ -22,6 +22,7 @@
     <string name="status_demo_banner_title">⚠️  SAMPLE DATA – NOT REAL FLIGHTS</string>
     <string name="status_demo_banner_body">No live data source is set up. Every flight time and flight number below is an invented placeholder, there only so you can try the app out.</string>
     <string name="status_demo_setup">Set up a data source →</string>
+    <string name="status_enable_free_source">Enable free live data (OpenSky)</string>
     <string name="status_last_updated">Last updated: %1$s</string>
     <string name="status_offline_last_updated">Offline – last updated: %1$s</string>
     <string name="status_never">never</string>
@@ -245,7 +246,7 @@
     <string name="settings_auth_header">Auth header (optional)</string>
     <string name="settings_auth_value">Auth value (optional)</string>
     <string name="settings_opensky">OpenSky cross-check (observed flights)</string>
-    <string name="settings_opensky_body">Free, public ADS-B data: which Condor flights actually departed FRA over the past weeks. The app derives an observed timetable from them. Says nothing about availability – always labelled TIMETABLE.</string>
+    <string name="settings_opensky_body">Free, public ADS-B data: which Condor flights actually departed FRA over the past weeks. Works anonymously, no account or sign-up needed – just switch it on. The app derives an observed timetable from them. Says nothing about availability – always labelled TIMETABLE.</string>
     <string name="settings_opensky_active">OpenSky active</string>
     <string name="settings_opensky_home">Home airport (ICAO)</string>
     <string name="settings_opensky_callsign">Airline callsign prefix</string>

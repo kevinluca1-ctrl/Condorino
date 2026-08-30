@@ -432,16 +432,16 @@ fun SettingsScreen(
                 viewModel.updatePreferences { it.copy(homeCity = v) }
             }
             NumberField(stringResource(R.string.settings_drive_to_airport), prefs.homeToAirportMinutes.toString(), { v ->
-                v.toIntOrNull()?.let { m -> viewModel.updatePreferences { it.copy(homeToAirportMinutes = m) } }
+                v.toIntOrNull()?.coerceIn(0, 300)?.let { m -> viewModel.updatePreferences { it.copy(homeToAirportMinutes = m) } }
             }, suffix = "min")
             NumberField(stringResource(R.string.settings_airport_buffer), prefs.airportBufferMinutes.toString(), { v ->
-                v.toIntOrNull()?.let { m -> viewModel.updatePreferences { it.copy(airportBufferMinutes = m) } }
+                v.toIntOrNull()?.coerceIn(0, 300)?.let { m -> viewModel.updatePreferences { it.copy(airportBufferMinutes = m) } }
             }, suffix = "min")
             NumberField(stringResource(R.string.settings_return_buffer), prefs.returnAirportBufferMinutes.toString(), { v ->
-                v.toIntOrNull()?.let { m -> viewModel.updatePreferences { it.copy(returnAirportBufferMinutes = m) } }
+                v.toIntOrNull()?.coerceIn(0, 300)?.let { m -> viewModel.updatePreferences { it.copy(returnAirportBufferMinutes = m) } }
             }, suffix = "min")
             NumberField(stringResource(R.string.settings_drive_home), prefs.airportToHomeMinutes.toString(), { v ->
-                v.toIntOrNull()?.let { m -> viewModel.updatePreferences { it.copy(airportToHomeMinutes = m) } }
+                v.toIntOrNull()?.coerceIn(0, 300)?.let { m -> viewModel.updatePreferences { it.copy(airportToHomeMinutes = m) } }
             }, suffix = "min")
 
             Box(
@@ -482,16 +482,19 @@ fun SettingsScreen(
         // ---------------------------------------------------------------- trip constraints
         SettingsSection(stringResource(R.string.settings_trip_rules)) {
             NumberField(stringResource(R.string.settings_max_flight), prefs.maxFlightMinutes.toString(), { v ->
-                v.toIntOrNull()?.let { m -> viewModel.updatePreferences { it.copy(maxFlightMinutes = m) } }
+                // Below ~60 min the scoring math's own fixed comfort anchors (45/60 min) start
+                // overlapping this value's derived breakpoints, so 60 is a hard floor, not just a
+                // sanity one. 780 min (13 h) comfortably covers Condor's longest routes.
+                v.toIntOrNull()?.coerceIn(60, 780)?.let { m -> viewModel.updatePreferences { it.copy(maxFlightMinutes = m) } }
             }, suffix = "min")
             NumberField(stringResource(R.string.settings_min_nights), prefs.minNights.toString(), { v ->
-                v.toIntOrNull()?.let { n -> viewModel.updatePreferences { it.copy(minNights = n) } }
+                v.toIntOrNull()?.coerceIn(0, 30)?.let { n -> viewModel.updatePreferences { it.copy(minNights = n) } }
             })
             NumberField(stringResource(R.string.settings_max_nights), prefs.maxNights.toString(), { v ->
-                v.toIntOrNull()?.let { n -> viewModel.updatePreferences { it.copy(maxNights = n) } }
+                v.toIntOrNull()?.coerceIn(0, 30)?.let { n -> viewModel.updatePreferences { it.copy(maxNights = n) } }
             })
             NumberField(stringResource(R.string.settings_max_budget), (prefs.maxBudgetCents / 100).toString(), { v ->
-                v.toLongOrNull()?.let { e -> viewModel.updatePreferences { it.copy(maxBudgetCents = e * 100) } }
+                v.toLongOrNull()?.coerceAtLeast(0)?.let { e -> viewModel.updatePreferences { it.copy(maxBudgetCents = e * 100) } }
             }, suffix = "€")
 
             Text(stringResource(R.string.settings_preferred_cabin), color = CondorinoColors.TextSecondary, fontSize = 12.sp)

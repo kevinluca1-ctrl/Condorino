@@ -66,6 +66,14 @@ interface TripRepository {
 
     /** Drops every cached flight. The next load re-fetches from the configured sources. */
     suspend fun clearCache()
+
+    /**
+     * Drops every cached flight sourced from the bundled demo data, and clears any refresh-status
+     * banner still pointing at it. Called when the user turns "Allow demo data" off — without this,
+     * previously cached demo flights (persisted before the toggle was flipped) would keep showing up
+     * in [searchWeekend] indefinitely, since demo provenance never silently downgrades to CACHED.
+     */
+    suspend fun purgeDemoData()
 }
 
 interface StandbyPriceRepository {

@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -193,6 +194,18 @@ class PlannerViewModel(
             }
         }
         viewModelScope.launch {
+            var previousAllowDemo: Boolean? = null
+            preferencesStore.allowDemoData.collectLatest { allow ->
+                // Turning demo data off must be immediate, not "next time you happen to refresh":
+                // the repository has already purged it from the cache by the time this fires, so a
+                // cached-first reload here is enough to drop any demo trips still on screen.
+                if (previousAllowDemo != null && previousAllowDemo != allow) {
+                    load(_state.value.friday, refresh = false)
+                }
+                previousAllowDemo = allow
+            }
+        }
+        viewModelScope.launch {
             standbyPriceRepository.prices.collectLatest { prices ->
                 val changed = prices != _state.value.prices
                 _state.update { it.copy(prices = prices) }
@@ -239,6 +252,22 @@ class PlannerViewModel(
     }
 
     fun refresh() = load(_state.value.friday, refresh = true)
+
+    /**
+     * One-tap alternative to "go find the OpenSky toggle in Settings": OpenSky is free, needs no
+     * account, and its defaults (Frankfurt, Condor's callsign prefix) already work as shipped — so
+     * turning it on is the one data-source switch that never needs the user to type anything.
+     * Offered right on the demo-data banner as the fastest way off sample data.
+     */
+    fun enableFreeLiveSource() {
+        viewModelScope.launch {
+            val config = preferencesStore.openSkyConfig.first()
+            if (!config.enabled) {
+                preferencesStore.updateOpenSkyConfig(config.copy(enabled = true))
+            }
+            refresh()
+        }
+    }
 
     fun nextWeekend() = load(WeekendCalendar.nextFriday(_state.value.friday), refresh = true)
 

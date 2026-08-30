@@ -293,7 +293,12 @@ its real slot. The result is an *observed timetable*.
 departure time, and none of it says anything about bookability. Everything from this source
 therefore carries `DataProvenance.SCHEDULE` and is marked **TIMETABLE** in the UI, never LIVE.
 
-Setting it up: enable *Settings → OpenSky cross-check*. Usable immediately without an account.
+Setting it up: enable *Settings → OpenSky cross-check*. Usable immediately without an account — every
+field (base URL, token URL, home airport `EDDF`, callsign prefix `CFG`) already ships with a working
+default, so flipping the toggle alone is enough. This makes it the app's answer to "hard-code a free
+live data source": it is the one entry in `AppContainer.liveSources` that needs no registration and
+no typed configuration to reach `SourceStatus.Ready`. The demo-data banner on Home also offers a
+one-tap "Enable free live data (OpenSky)" action that does exactly this without a trip to Settings.
 
 ## Evaluated but not built in
 

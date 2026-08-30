@@ -191,7 +191,13 @@ class SettingsViewModel(
     }
 
     fun setAllowDemoData(allow: Boolean) {
-        viewModelScope.launch { preferencesStore.setAllowDemoData(allow) }
+        viewModelScope.launch {
+            preferencesStore.setAllowDemoData(allow)
+            // Actually clear it out rather than just stopping new demo fetches — otherwise flights
+            // cached before the toggle was flipped would keep showing up (demo provenance never
+            // silently downgrades to CACHED, by design, so it would never age out on its own).
+            if (!allow) tripRepository.purgeDemoData()
+        }
     }
 
     fun focusPrice(iata: String?) {

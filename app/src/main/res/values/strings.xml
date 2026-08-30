@@ -27,6 +27,7 @@
     <string name="status_demo_banner_title">⚠️  BEISPIELDATEN – KEINE ECHTEN FLÜGE</string>
     <string name="status_demo_banner_body">Es ist keine Live-Datenquelle eingerichtet. Alle Flugzeiten und Flugnummern unten sind frei erfundene Platzhalter und dienen nur dazu, die App zu testen.</string>
     <string name="status_demo_setup">Datenquelle einrichten →</string>
+    <string name="status_enable_free_source">Kostenlose Live-Daten aktivieren (OpenSky)</string>
     <string name="status_last_updated">Zuletzt aktualisiert: %1$s</string>
     <string name="status_offline_last_updated">Offline – zuletzt aktualisiert: %1$s</string>
     <string name="status_never">noch nie</string>
@@ -289,7 +290,7 @@
     <string name="settings_auth_value">Auth-Wert (optional)</string>
 
     <string name="settings_opensky">OpenSky-Abgleich (beobachtete Flüge)</string>
-    <string name="settings_opensky_body">Kostenlose, öffentliche ADS-B-Daten: welche Condor-Flüge ab FRA in den letzten Wochen tatsächlich geflogen sind. Daraus leitet die App einen beobachteten Flugplan ab. Keine Verfügbarkeitsaussage – immer als FLUGPLAN gekennzeichnet.</string>
+    <string name="settings_opensky_body">Kostenlose, öffentliche ADS-B-Daten: welche Condor-Flüge ab FRA in den letzten Wochen tatsächlich geflogen sind. Funktioniert anonym, ganz ohne Konto oder Anmeldung – einfach aktivieren. Daraus leitet die App einen beobachteten Flugplan ab. Keine Verfügbarkeitsaussage – immer als FLUGPLAN gekennzeichnet.</string>
     <string name="settings_opensky_active">OpenSky aktiv</string>
     <string name="settings_opensky_home">Heimatflughafen (ICAO)</string>
     <string name="settings_opensky_callsign">Airline-Rufzeichen-Präfix</string>
