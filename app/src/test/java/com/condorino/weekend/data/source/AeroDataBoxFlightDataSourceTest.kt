@@ -238,6 +238,9 @@ class AeroDataBoxFlightDataSourceTest {
 
     @Test
     fun `no matching flights is reported as a failure naming the airline and airport`() = runBlocking {
+        // A 1-day range at the default 12h window needs 2 chunks (00:00-12:00, 12:00-24:00) — see
+        // `chunkWindows splits a multi-day range into windowHours-sized pieces` above.
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"departures":[],"arrivals":[]}"""))
         server.enqueue(MockResponse().setResponseCode(200).setBody("""{"departures":[],"arrivals":[]}"""))
         val config = configFor()
         val result = sourceFor(config).search(
