@@ -25,6 +25,10 @@ interface FlightDao {
     @Query("DELETE FROM cached_flights WHERE departureEpochMillis < :beforeEpochMillis")
     suspend fun purgeOlderThan(beforeEpochMillis: Long)
 
+    /** Used when the user turns "Allow demo data" off, so switching it off actually clears it. */
+    @Query("DELETE FROM cached_flights WHERE provenance = :provenance")
+    suspend fun purgeByProvenance(provenance: String)
+
     @Query("SELECT COUNT(*) FROM cached_flights")
     suspend fun count(): Int
 

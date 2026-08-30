@@ -13,6 +13,7 @@ import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.condorino.weekend.data.source.CondorApiConfig
 import com.condorino.weekend.data.source.FeedConfig
+import com.condorino.weekend.data.source.GoogleFlightsApiConfig
 import com.condorino.weekend.data.source.OpenSkyConfig
 import com.condorino.weekend.domain.model.Cabin
 import com.condorino.weekend.domain.model.DestinationType
@@ -87,6 +88,25 @@ class PreferencesStore(private val context: Context) {
         val openSkyHomeIcao = stringPreferencesKey("opensky_home_icao")
         val openSkyCallsign = stringPreferencesKey("opensky_callsign_prefix")
         val openSkyLookbackWeeks = intPreferencesKey("opensky_lookback_weeks")
+
+        val gfEnabled = booleanPreferencesKey("google_flights_enabled")
+        val gfApiHost = stringPreferencesKey("google_flights_api_host")
+        val gfApiKey = stringPreferencesKey("google_flights_api_key")
+        val gfPath = stringPreferencesKey("google_flights_path")
+        val gfDepartureIdParam = stringPreferencesKey("google_flights_departure_id_param")
+        val gfArrivalIdParam = stringPreferencesKey("google_flights_arrival_id_param")
+        val gfOutboundDateParam = stringPreferencesKey("google_flights_outbound_date_param")
+        val gfReturnDateParam = stringPreferencesKey("google_flights_return_date_param")
+        val gfAdultsParam = stringPreferencesKey("google_flights_adults_param")
+        val gfCurrencyParam = stringPreferencesKey("google_flights_currency_param")
+        val gfTravelClassParam = stringPreferencesKey("google_flights_travel_class_param")
+        val gfTravelClassEconomyValue = stringPreferencesKey("google_flights_travel_class_economy_value")
+        val gfTravelClassBusinessValue = stringPreferencesKey("google_flights_travel_class_business_value")
+        val gfItemsPath = stringPreferencesKey("google_flights_items_path")
+        val gfFieldPrice = stringPreferencesKey("google_flights_field_price")
+        val gfFieldAirline = stringPreferencesKey("google_flights_field_airline")
+        val gfFieldCarryOnIncluded = stringPreferencesKey("google_flights_field_carry_on_included")
+        val gfFieldCarryOnNote = stringPreferencesKey("google_flights_field_carry_on_note")
 
         val themeMode = stringPreferencesKey("theme_mode")
 
@@ -182,6 +202,30 @@ class PreferencesStore(private val context: Context) {
         )
     }
 
+    val googleFlightsApiConfig: Flow<GoogleFlightsApiConfig> = context.dataStore.data.map { p ->
+        val d = GoogleFlightsApiConfig()
+        GoogleFlightsApiConfig(
+            enabled = p[Keys.gfEnabled] ?: false,
+            apiHost = p[Keys.gfApiHost] ?: d.apiHost,
+            apiKey = p[Keys.gfApiKey].orEmpty(),
+            path = p[Keys.gfPath] ?: d.path,
+            departureIdParam = p[Keys.gfDepartureIdParam] ?: d.departureIdParam,
+            arrivalIdParam = p[Keys.gfArrivalIdParam] ?: d.arrivalIdParam,
+            outboundDateParam = p[Keys.gfOutboundDateParam] ?: d.outboundDateParam,
+            returnDateParam = p[Keys.gfReturnDateParam] ?: d.returnDateParam,
+            adultsParam = p[Keys.gfAdultsParam] ?: d.adultsParam,
+            currencyParam = p[Keys.gfCurrencyParam] ?: d.currencyParam,
+            travelClassParam = p[Keys.gfTravelClassParam] ?: d.travelClassParam,
+            travelClassEconomyValue = p[Keys.gfTravelClassEconomyValue] ?: d.travelClassEconomyValue,
+            travelClassBusinessValue = p[Keys.gfTravelClassBusinessValue] ?: d.travelClassBusinessValue,
+            itemsPath = p[Keys.gfItemsPath] ?: d.itemsPath,
+            fieldPrice = p[Keys.gfFieldPrice] ?: d.fieldPrice,
+            fieldAirline = p[Keys.gfFieldAirline] ?: d.fieldAirline,
+            fieldCarryOnIncluded = p[Keys.gfFieldCarryOnIncluded] ?: d.fieldCarryOnIncluded,
+            fieldCarryOnNote = p[Keys.gfFieldCarryOnNote] ?: d.fieldCarryOnNote,
+        )
+    }
+
     /** Light / dark / follow the system. */
     val themeMode: Flow<ThemeMode> = context.dataStore.data.map { p ->
         p[Keys.themeMode]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() } ?: ThemeMode.SYSTEM
@@ -270,6 +314,29 @@ class PreferencesStore(private val context: Context) {
             p[Keys.openSkyHomeIcao] = config.homeIcao
             p[Keys.openSkyCallsign] = config.callsignPrefix
             p[Keys.openSkyLookbackWeeks] = config.lookbackWeeks
+        }
+    }
+
+    suspend fun updateGoogleFlightsApiConfig(config: GoogleFlightsApiConfig) {
+        context.dataStore.edit { p ->
+            p[Keys.gfEnabled] = config.enabled
+            p[Keys.gfApiHost] = config.apiHost
+            p[Keys.gfApiKey] = config.apiKey
+            p[Keys.gfPath] = config.path
+            p[Keys.gfDepartureIdParam] = config.departureIdParam
+            p[Keys.gfArrivalIdParam] = config.arrivalIdParam
+            p[Keys.gfOutboundDateParam] = config.outboundDateParam
+            p[Keys.gfReturnDateParam] = config.returnDateParam
+            p[Keys.gfAdultsParam] = config.adultsParam
+            p[Keys.gfCurrencyParam] = config.currencyParam
+            p[Keys.gfTravelClassParam] = config.travelClassParam
+            p[Keys.gfTravelClassEconomyValue] = config.travelClassEconomyValue
+            p[Keys.gfTravelClassBusinessValue] = config.travelClassBusinessValue
+            p[Keys.gfItemsPath] = config.itemsPath
+            p[Keys.gfFieldPrice] = config.fieldPrice
+            p[Keys.gfFieldAirline] = config.fieldAirline
+            p[Keys.gfFieldCarryOnIncluded] = config.fieldCarryOnIncluded
+            p[Keys.gfFieldCarryOnNote] = config.fieldCarryOnNote
         }
     }
 

@@ -22,6 +22,7 @@
     <string name="status_demo_banner_title">⚠️  SAMPLE DATA – NOT REAL FLIGHTS</string>
     <string name="status_demo_banner_body">No live data source is set up. Every flight time and flight number below is an invented placeholder, there only so you can try the app out.</string>
     <string name="status_demo_setup">Set up a data source →</string>
+    <string name="status_enable_free_source">Enable free live data (OpenSky)</string>
     <string name="status_last_updated">Last updated: %1$s</string>
     <string name="status_offline_last_updated">Offline – last updated: %1$s</string>
     <string name="status_never">never</string>
@@ -62,6 +63,16 @@
     <string name="detail_leave_home_at">Leave %1$s at</string>
     <string name="detail_home_again">Back home</string>
     <string name="detail_transfer">Transfer airport ↔ centre</string>
+    <string name="detail_commercial_price">Commercial price</string>
+    <string name="detail_commercial_price_hint">What a normally booked ticket for this trip would cost today – for comparison, in case standby doesn\'t work out. Only fetched on request.</string>
+    <string name="detail_check_commercial_price">Check price</string>
+    <string name="detail_refresh_commercial_price">Check again</string>
+    <string name="detail_commercial_roundtrip">Price (round trip)</string>
+    <string name="detail_carry_on_included">Carry-on included</string>
+    <string name="detail_carry_on_not_included">Carry-on not included</string>
+    <string name="detail_carry_on_unknown">Carry-on: not reported by source</string>
+    <string name="detail_commercial_airline">Airline: %1$s</string>
+    <string name="action_retry">Retry</string>
     <string name="detail_why">Why this trip?</string>
     <string name="detail_score_breakdown">Score breakdown</string>
     <string name="detail_nonstop">Nonstop</string>
@@ -235,7 +246,7 @@
     <string name="settings_auth_header">Auth header (optional)</string>
     <string name="settings_auth_value">Auth value (optional)</string>
     <string name="settings_opensky">OpenSky cross-check (observed flights)</string>
-    <string name="settings_opensky_body">Free, public ADS-B data: which Condor flights actually departed FRA over the past weeks. The app derives an observed timetable from them. Says nothing about availability – always labelled TIMETABLE.</string>
+    <string name="settings_opensky_body">Free, public ADS-B data: which Condor flights actually departed FRA over the past weeks. Works anonymously, no account or sign-up needed – just switch it on. The app derives an observed timetable from them. Says nothing about availability – always labelled TIMETABLE.</string>
     <string name="settings_opensky_active">OpenSky active</string>
     <string name="settings_opensky_home">Home airport (ICAO)</string>
     <string name="settings_opensky_callsign">Airline callsign prefix</string>
@@ -256,6 +267,19 @@
     <string name="settings_api_field_departure">Field: departure time (ISO-8601)</string>
     <string name="settings_api_field_arrival">Field: arrival time (ISO-8601)</string>
     <string name="settings_api_field_flight_number">Field: flight number</string>
+
+    <string name="settings_google_flights">Google Flights (RapidAPI)</string>
+    <string name="settings_google_flights_body">A commercial comparison price per trip, fetched on request (never automatically). The field names below are an unverified starting point from public search-result snippets, not a verified contract – correct them from your own RapidAPI test panel.</string>
+    <string name="settings_gf_api_host">API host</string>
+    <string name="settings_gf_api_key">RapidAPI key</string>
+    <string name="settings_gf_path">Endpoint path</string>
+    <string name="settings_gf_items_path">Path to the (cheapest) itinerary in the response</string>
+    <string name="settings_gf_field_price">Field: price</string>
+    <string name="settings_gf_field_airline">Field: airline</string>
+    <string name="settings_gf_field_carry_on_included">Field: carry-on included (blank = not available)</string>
+    <string name="settings_gf_field_carry_on_note">Field: carry-on free text (blank = not available)</string>
+    <string name="settings_gf_unverified_hint">Shipped with the carry-on fields deliberately blank: no baggage field turned up in the researched examples. Until you fill in the real field names, the app shows “not reported by source”.</string>
+
     <string name="settings_work">Working hours &amp; travel</string>
     <string name="settings_work_body">From these the app works out the earliest flight you can realistically make.</string>
     <string name="settings_work_end_hour">End of work (hour)</string>
@@ -359,6 +383,24 @@
     <string name="src_condor_unmapped">The Condor API response contained no readable flights. Check the field mapping in Settings.</string>
     <string name="src_condor_offline">The Condor API is unreachable — are you offline?</string>
     <string name="src_condor_parse_failed">The Condor API response could not be processed.</string>
+
+    <string name="src_unknown">unknown</string>
+
+    <string name="src_google_flights_name">Google Flights (RapidAPI)</string>
+    <string name="src_google_flights_disabled">Google Flights is not set up.</string>
+    <string name="src_google_flights_disabled_fix">Enable it under Settings → Google Flights and enter a RapidAPI key.</string>
+    <string name="src_google_flights_no_key">No RapidAPI key is stored.</string>
+    <string name="src_google_flights_no_key_fix">Enter your RapidAPI key in Settings.</string>
+    <string name="src_google_flights_no_host">The API host or endpoint path is missing.</string>
+    <string name="src_google_flights_no_host_fix">Check both in Settings (the defaults are an unverified starting point).</string>
+    <string name="src_google_flights_denied">Google Flights refused access – check the RapidAPI key.</string>
+    <string name="src_google_flights_rate_limited">RapidAPI limit reached. Try again later.</string>
+    <string name="src_google_flights_http">Google Flights responded with HTTP %1$d.</string>
+    <string name="src_google_flights_empty">Google Flights returned an empty response.</string>
+    <string name="src_google_flights_unmapped">The response contained no usable price. Check the field mapping in Settings.</string>
+    <string name="src_google_flights_offline">Google Flights is unreachable – are you offline?</string>
+    <string name="src_google_flights_parse_failed">The Google Flights response could not be processed.</string>
+    <string name="src_google_flights_test_ok">Price received: %1$s (%2$s).</string>
 
     <string name="src_feed_name">Custom flight feed (HTTPS)</string>
     <string name="src_feed_disabled">The custom flight feed is switched off.</string>

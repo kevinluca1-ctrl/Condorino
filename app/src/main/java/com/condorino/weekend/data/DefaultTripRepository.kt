@@ -151,6 +151,24 @@ class DefaultTripRepository(
         flightDao.clearAll()
     }
 
+    override suspend fun purgeDemoData() {
+        flightDao.purgeByProvenance(DataProvenance.DEMO.name)
+        // If the last refresh happened to be served from demo data, clear that status too —
+        // otherwise the "last updated" banner would keep pointing at a source that no longer has
+        // any rows behind it until the next refresh runs.
+        val state = refreshStateDao.get()
+        if (state?.provenance == DataProvenance.DEMO.name) {
+            refreshStateDao.upsert(
+                state.copy(
+                    lastSuccessEpochMillis = null,
+                    sourceId = null,
+                    sourceLabel = null,
+                    provenance = null,
+                ),
+            )
+        }
+    }
+
     // ------------------------------------------------------------------ internals
 
     private suspend fun score(
@@ -193,7 +211,11 @@ class DefaultTripRepository(
 
     private suspend fun cachedFlights(from: LocalDate, to: LocalDate): List<Flight> {
         val airports = airportCatalog()
+        val allowDemo = preferencesStore.allowDemoData.first()
         return flightDao.inRange(from.toString(), to.toString())
+            // Belt-and-braces alongside purgeDemoData(): even if a demo row somehow survives the
+            // purge (e.g. this read races the toggle), it must never reach scoring once disabled.
+            .filter { allowDemo || it.provenance != DataProvenance.DEMO.name }
             .mapNotNull { it.toDomain(airports, downgradeToCached = !isFresh(it.retrievedAtEpochMillis)) }
     }
 

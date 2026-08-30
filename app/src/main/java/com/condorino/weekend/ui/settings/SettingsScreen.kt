@@ -48,6 +48,10 @@ import com.condorino.weekend.ui.text.label
 import com.condorino.weekend.ui.theme.CondorinoColors
 import java.time.LocalTime
 
+/** Matches [com.condorino.weekend.data.source.GoogleFlightsPriceSource.id] — it isn't in
+ *  [SettingsUiState.sources], so its self-test result is looked up by this literal instead. */
+private const val GOOGLE_FLIGHTS_SOURCE_ID = "google-flights"
+
 /** Everything from spec §7 (work times, buffers, limits), §8 (weights) and §3 (data sources). */
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -317,6 +321,94 @@ fun SettingsScreen(
             }
         }
 
+        SettingsSection(
+            stringResource(R.string.settings_google_flights),
+            stringResource(R.string.settings_google_flights_body),
+        ) {
+            SwitchRow(
+                label = stringResource(R.string.settings_api_active),
+                checked = state.googleFlightsApiConfig.enabled,
+                onCheckedChange = { viewModel.updateGoogleFlightsApiConfig(state.googleFlightsApiConfig.copy(enabled = it)) },
+            )
+            state.googleFlightsStatus?.let { status ->
+                Text(
+                    when (status) {
+                        is SourceStatus.Ready -> stringResource(R.string.settings_source_ready)
+                        is SourceStatus.NotConfigured -> "${status.reason} ${status.howToFix}"
+                        is SourceStatus.Unavailable -> status.reason
+                    },
+                    color = if (status is SourceStatus.Ready) CondorinoColors.Mint else CondorinoColors.TextTertiary,
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp,
+                )
+            }
+            state.sourceTests[GOOGLE_FLIGHTS_SOURCE_ID]?.let { result ->
+                Text(
+                    when (result) {
+                        is SourceTestResult.Ok -> result.message
+                        is SourceTestResult.Problem -> result.message
+                    },
+                    color = when (result) {
+                        is SourceTestResult.Ok -> CondorinoColors.Mint
+                        is SourceTestResult.Problem -> CondorinoColors.Warning
+                    },
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
+                )
+            }
+            OutlinedButton(
+                onClick = { viewModel.testSource(GOOGLE_FLIGHTS_SOURCE_ID) },
+                enabled = state.testingSourceId == null,
+            ) {
+                Text(
+                    stringResource(
+                        if (state.testingSourceId == GOOGLE_FLIGHTS_SOURCE_ID) R.string.settings_source_testing
+                        else R.string.settings_source_test,
+                    ),
+                    color = CondorinoColors.Amber,
+                    fontSize = 12.sp,
+                )
+            }
+            TextField(stringResource(R.string.settings_gf_api_host), state.googleFlightsApiConfig.apiHost) {
+                viewModel.updateGoogleFlightsApiConfig(state.googleFlightsApiConfig.copy(apiHost = it.trim()))
+            }
+            PasswordField(stringResource(R.string.settings_gf_api_key), state.googleFlightsApiConfig.apiKey) {
+                viewModel.updateGoogleFlightsApiConfig(state.googleFlightsApiConfig.copy(apiKey = it.trim()))
+            }
+            TextField(stringResource(R.string.settings_gf_path), state.googleFlightsApiConfig.path) {
+                viewModel.updateGoogleFlightsApiConfig(state.googleFlightsApiConfig.copy(path = it.trim()))
+            }
+            TextField(stringResource(R.string.settings_gf_items_path), state.googleFlightsApiConfig.itemsPath, placeholder = "data.itineraries.topFlights") {
+                viewModel.updateGoogleFlightsApiConfig(state.googleFlightsApiConfig.copy(itemsPath = it.trim()))
+            }
+            Text(
+                stringResource(R.string.settings_api_fields),
+                color = CondorinoColors.TextTertiary,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            TextField(stringResource(R.string.settings_gf_field_price), state.googleFlightsApiConfig.fieldPrice) {
+                viewModel.updateGoogleFlightsApiConfig(state.googleFlightsApiConfig.copy(fieldPrice = it.trim()))
+            }
+            TextField(stringResource(R.string.settings_gf_field_airline), state.googleFlightsApiConfig.fieldAirline) {
+                viewModel.updateGoogleFlightsApiConfig(state.googleFlightsApiConfig.copy(fieldAirline = it.trim()))
+            }
+            TextField(stringResource(R.string.settings_gf_field_carry_on_included), state.googleFlightsApiConfig.fieldCarryOnIncluded) {
+                viewModel.updateGoogleFlightsApiConfig(state.googleFlightsApiConfig.copy(fieldCarryOnIncluded = it.trim()))
+            }
+            TextField(stringResource(R.string.settings_gf_field_carry_on_note), state.googleFlightsApiConfig.fieldCarryOnNote) {
+                viewModel.updateGoogleFlightsApiConfig(state.googleFlightsApiConfig.copy(fieldCarryOnNote = it.trim()))
+            }
+            Text(
+                stringResource(R.string.settings_gf_unverified_hint),
+                color = CondorinoColors.TextTertiary,
+                fontSize = 11.sp,
+                lineHeight = 15.sp,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+
         // ---------------------------------------------------------------- work / travel times
         SettingsSection(
             stringResource(R.string.settings_work),
@@ -340,16 +432,16 @@ fun SettingsScreen(
                 viewModel.updatePreferences { it.copy(homeCity = v) }
             }
             NumberField(stringResource(R.string.settings_drive_to_airport), prefs.homeToAirportMinutes.toString(), { v ->
-                v.toIntOrNull()?.let { m -> viewModel.updatePreferences { it.copy(homeToAirportMinutes = m) } }
+                v.toIntOrNull()?.coerceIn(0, 300)?.let { m -> viewModel.updatePreferences { it.copy(homeToAirportMinutes = m) } }
             }, suffix = "min")
             NumberField(stringResource(R.string.settings_airport_buffer), prefs.airportBufferMinutes.toString(), { v ->
-                v.toIntOrNull()?.let { m -> viewModel.updatePreferences { it.copy(airportBufferMinutes = m) } }
+                v.toIntOrNull()?.coerceIn(0, 300)?.let { m -> viewModel.updatePreferences { it.copy(airportBufferMinutes = m) } }
             }, suffix = "min")
             NumberField(stringResource(R.string.settings_return_buffer), prefs.returnAirportBufferMinutes.toString(), { v ->
-                v.toIntOrNull()?.let { m -> viewModel.updatePreferences { it.copy(returnAirportBufferMinutes = m) } }
+                v.toIntOrNull()?.coerceIn(0, 300)?.let { m -> viewModel.updatePreferences { it.copy(returnAirportBufferMinutes = m) } }
             }, suffix = "min")
             NumberField(stringResource(R.string.settings_drive_home), prefs.airportToHomeMinutes.toString(), { v ->
-                v.toIntOrNull()?.let { m -> viewModel.updatePreferences { it.copy(airportToHomeMinutes = m) } }
+                v.toIntOrNull()?.coerceIn(0, 300)?.let { m -> viewModel.updatePreferences { it.copy(airportToHomeMinutes = m) } }
             }, suffix = "min")
 
             Box(
@@ -390,16 +482,19 @@ fun SettingsScreen(
         // ---------------------------------------------------------------- trip constraints
         SettingsSection(stringResource(R.string.settings_trip_rules)) {
             NumberField(stringResource(R.string.settings_max_flight), prefs.maxFlightMinutes.toString(), { v ->
-                v.toIntOrNull()?.let { m -> viewModel.updatePreferences { it.copy(maxFlightMinutes = m) } }
+                // Below ~60 min the scoring math's own fixed comfort anchors (45/60 min) start
+                // overlapping this value's derived breakpoints, so 60 is a hard floor, not just a
+                // sanity one. 780 min (13 h) comfortably covers Condor's longest routes.
+                v.toIntOrNull()?.coerceIn(60, 780)?.let { m -> viewModel.updatePreferences { it.copy(maxFlightMinutes = m) } }
             }, suffix = "min")
             NumberField(stringResource(R.string.settings_min_nights), prefs.minNights.toString(), { v ->
-                v.toIntOrNull()?.let { n -> viewModel.updatePreferences { it.copy(minNights = n) } }
+                v.toIntOrNull()?.coerceIn(0, 30)?.let { n -> viewModel.updatePreferences { it.copy(minNights = n) } }
             })
             NumberField(stringResource(R.string.settings_max_nights), prefs.maxNights.toString(), { v ->
-                v.toIntOrNull()?.let { n -> viewModel.updatePreferences { it.copy(maxNights = n) } }
+                v.toIntOrNull()?.coerceIn(0, 30)?.let { n -> viewModel.updatePreferences { it.copy(maxNights = n) } }
             })
             NumberField(stringResource(R.string.settings_max_budget), (prefs.maxBudgetCents / 100).toString(), { v ->
-                v.toLongOrNull()?.let { e -> viewModel.updatePreferences { it.copy(maxBudgetCents = e * 100) } }
+                v.toLongOrNull()?.coerceAtLeast(0)?.let { e -> viewModel.updatePreferences { it.copy(maxBudgetCents = e * 100) } }
             }, suffix = "€")
 
             Text(stringResource(R.string.settings_preferred_cabin), color = CondorinoColors.TextSecondary, fontSize = 12.sp)

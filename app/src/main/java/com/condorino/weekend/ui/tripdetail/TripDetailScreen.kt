@@ -40,6 +40,7 @@ import com.condorino.weekend.ui.components.EmptyState
 import com.condorino.weekend.ui.components.Pill
 import com.condorino.weekend.ui.components.ProvenancePill
 import com.condorino.weekend.ui.components.ScoreBadge
+import com.condorino.weekend.ui.planner.CommercialPriceUiState
 import com.condorino.weekend.ui.planner.PlannerUiState
 import com.condorino.weekend.ui.planner.PlannerViewModel
 import com.condorino.weekend.ui.text.label
@@ -162,6 +163,97 @@ fun TripDetailScreen(
                         color = CondorinoColors.Amber,
                         fontSize = 13.sp,
                     )
+                }
+            }
+
+            Spacer(Modifier.height(18.dp))
+            SectionHeader(stringResource(R.string.detail_commercial_price))
+            Card {
+                when (val priceState = state.commercialPrices[trip.id]) {
+                    null -> {
+                        Text(
+                            stringResource(R.string.detail_commercial_price_hint),
+                            color = CondorinoColors.TextTertiary,
+                            fontSize = 12.sp,
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        OutlinedButton(onClick = { viewModel.checkCommercialPrice(trip) }) {
+                            Text(
+                                stringResource(R.string.detail_check_commercial_price),
+                                color = CondorinoColors.Amber,
+                                fontSize = 13.sp,
+                            )
+                        }
+                    }
+                    CommercialPriceUiState.Loading -> {
+                        LinearProgressIndicator(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp)),
+                            color = CondorinoColors.Amber,
+                            trackColor = CondorinoColors.SurfaceHigh,
+                        )
+                    }
+                    is CommercialPriceUiState.Success -> {
+                        val quote = priceState.quote
+                        PriceRow(
+                            stringResource(R.string.detail_commercial_roundtrip),
+                            quote.roundTripPrice.format(),
+                            true,
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            stringResource(
+                                when (quote.carryOnIncluded) {
+                                    true -> R.string.detail_carry_on_included
+                                    false -> R.string.detail_carry_on_not_included
+                                    null -> R.string.detail_carry_on_unknown
+                                },
+                            ),
+                            color = CondorinoColors.TextSecondary,
+                            fontSize = 12.sp,
+                        )
+                        quote.carryOnNote?.let {
+                            Text(it, color = CondorinoColors.TextTertiary, fontSize = 11.sp)
+                        }
+                        quote.airline?.let {
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                stringResource(R.string.detail_commercial_airline, it),
+                                color = CondorinoColors.TextTertiary,
+                                fontSize = 11.sp,
+                            )
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        OutlinedButton(onClick = { viewModel.checkCommercialPrice(trip) }) {
+                            Text(
+                                stringResource(R.string.detail_refresh_commercial_price),
+                                color = CondorinoColors.Amber,
+                                fontSize = 13.sp,
+                            )
+                        }
+                    }
+                    is CommercialPriceUiState.NotConfigured -> {
+                        Text(priceState.reason, color = CondorinoColors.Warning, fontSize = 12.sp)
+                        Text(
+                            priceState.howToFix,
+                            color = CondorinoColors.TextTertiary,
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                    }
+                    is CommercialPriceUiState.Failure -> {
+                        Text(priceState.message, color = CondorinoColors.Warning, fontSize = 12.sp)
+                        Spacer(Modifier.height(10.dp))
+                        OutlinedButton(onClick = { viewModel.checkCommercialPrice(trip) }) {
+                            Text(
+                                stringResource(R.string.action_retry),
+                                color = CondorinoColors.Amber,
+                                fontSize = 13.sp,
+                            )
+                        }
+                    }
                 }
             }
 

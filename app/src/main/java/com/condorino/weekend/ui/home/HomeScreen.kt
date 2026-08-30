@@ -42,6 +42,7 @@ import com.condorino.weekend.core.Formatting
 import com.condorino.weekend.ui.components.DataStatusBar
 import com.condorino.weekend.ui.components.EmptyState
 import com.condorino.weekend.ui.components.TripCard
+import com.condorino.weekend.ui.planner.EmptyReason
 import com.condorino.weekend.ui.planner.PlannerUiState
 import com.condorino.weekend.ui.planner.PlannerViewModel
 import com.condorino.weekend.ui.planner.TripFilters
@@ -92,6 +93,7 @@ fun HomeScreen(
                     status = state.status,
                     onRefresh = viewModel::refresh,
                     onOpenSettings = onOpenSettings,
+                    onEnableFreeSource = viewModel::enableFreeLiveSource,
                 )
             }
 
@@ -137,18 +139,28 @@ fun HomeScreen(
             }
 
             if (trips.isEmpty() && !state.isLoading) {
+                // "No flight data at all" is the one empty case a bare refresh can never fix on its
+                // own — with zero sources configured, refreshing just repeats the same no-op. The
+                // free OpenSky source needs no typing, so that is the action offered here instead.
+                val noSourceConfigured = state.emptyReason is EmptyReason.NoFlightData
                 item {
                     EmptyState(
                         emoji = "🛫",
                         title = stringResource(R.string.home_empty_title),
                         message = state.emptyReason.text(),
                         actionLabel = stringResource(
-                            if (state.filters.isActive) R.string.home_reset_filters
-                            else R.string.action_refresh_now,
+                            when {
+                                state.filters.isActive -> R.string.home_reset_filters
+                                noSourceConfigured -> R.string.status_enable_free_source
+                                else -> R.string.action_refresh_now
+                            },
                         ),
                         onAction = {
-                            if (state.filters.isActive) viewModel.updateFilters { TripFilters() }
-                            else viewModel.refresh()
+                            when {
+                                state.filters.isActive -> viewModel.updateFilters { TripFilters() }
+                                noSourceConfigured -> viewModel.enableFreeLiveSource()
+                                else -> viewModel.refresh()
+                            }
                         },
                     )
                 }

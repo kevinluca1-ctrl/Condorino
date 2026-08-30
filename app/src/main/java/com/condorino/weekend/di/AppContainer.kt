@@ -11,8 +11,10 @@ import com.condorino.weekend.data.mapper.toDomain
 import com.condorino.weekend.data.prefs.PreferencesStore
 import com.condorino.weekend.data.reference.AirportReferenceCatalog
 import com.condorino.weekend.data.source.AssetDemoFlightDataSource
+import com.condorino.weekend.data.source.CommercialPriceSource
 import com.condorino.weekend.data.source.CondorDeveloperApiDataSource
 import com.condorino.weekend.data.source.FlightDataSource
+import com.condorino.weekend.data.source.GoogleFlightsPriceSource
 import com.condorino.weekend.data.source.HttpFeedFlightDataSource
 import com.condorino.weekend.data.source.OpenSkyFlightDataSource
 import com.condorino.weekend.data.source.SourceStrings
@@ -137,6 +139,18 @@ class AppContainer(context: Context) {
 
     /** Exposed for the settings screen so it can show each source's configuration status. */
     val allSources: List<FlightDataSource> get() = liveSources + demoSource
+
+    /**
+     * On-demand commercial (cash-fare) price lookup — queried per trip, on a button tap, never
+     * automatically for every trip on screen (see [CommercialPriceSource] doc).
+     */
+    val commercialPriceSource: CommercialPriceSource by lazy {
+        GoogleFlightsPriceSource(
+            client = httpClient,
+            configProvider = { preferencesStore.googleFlightsApiConfig.first() },
+            strings = sourceStrings,
+        )
+    }
 
     val updateNotifier: UpdateNotifier by lazy { UpdateNotifier(appContext) }
 
