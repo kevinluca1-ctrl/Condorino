@@ -235,7 +235,10 @@ class TripAdvisorRecommendationSource(
         return when {
             "restaurant" in text || "food" in text -> HighlightCategory.RESTAURANT
             "hotel" in text || "lodging" in text || "accommodation" in text -> HighlightCategory.HOTEL
-            "attraction" in text || "thing" in text || "activit" in text -> HighlightCategory.ATTRACTION
+            // "thing" alone is deliberately not one of these: it's a substring of "something",
+            // "nothing", "everything" — exactly the generic category text this is meant to fall
+            // through to OTHER for, not misclassify as an attraction.
+            "attraction" in text || "things to do" in text || "activit" in text -> HighlightCategory.ATTRACTION
             else -> HighlightCategory.OTHER
         }
     }
