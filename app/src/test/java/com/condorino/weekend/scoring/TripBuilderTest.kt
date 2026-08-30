@@ -5,6 +5,7 @@ import com.condorino.weekend.domain.model.Destination
 import com.condorino.weekend.domain.model.PriceEntryMode
 import com.condorino.weekend.domain.model.StandbyPrice
 import com.condorino.weekend.domain.model.UserPreferences
+import com.condorino.weekend.domain.model.key
 import com.condorino.weekend.domain.model.WeekendPattern
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -87,9 +88,11 @@ class TripBuilderTest {
             Fixtures.flight(Fixtures.FRA, Fixtures.LGW, Fixtures.FRIDAY, "18:15", 80),
             Fixtures.flight(Fixtures.LGW, Fixtures.FRA, Fixtures.SUNDAY, "19:35", 80),
         )
-        val prices = mapOf(
-            "LGW" to StandbyPrice("LGW", PriceEntryMode.ROUND_TRIP, economyOutboundCents = 90_000),
-        )
+        // airlineIcao = "TT" to match Fixtures.flight's own fixed airlineCode — the map is keyed
+        // by (destination, airline), and TripBuilder only picks up a price whose airline matches
+        // the specific flight actually being scored.
+        val price = StandbyPrice("LGW", PriceEntryMode.ROUND_TRIP, economyOutboundCents = 90_000, airlineIcao = "TT")
+        val prices = mapOf(price.key to price)
         val result = builder.build(flights, Fixtures.FRIDAY, destinations, prices)
         assertTrue(result.isEmpty)
         assertEquals(RejectionReason.OVER_BUDGET, result.dominantRejection)
@@ -162,9 +165,11 @@ class TripBuilderTest {
             Fixtures.flight(Fixtures.FRA, Fixtures.LGW, Fixtures.FRIDAY, "18:15", 80),
             Fixtures.flight(Fixtures.LGW, Fixtures.FRA, Fixtures.SUNDAY, "19:35", 80),
         )
-        val prices = mapOf(
-            "LGW" to StandbyPrice("LGW", PriceEntryMode.ROUND_TRIP, economyOutboundCents = 90_000),
-        )
+        // airlineIcao = "TT" to match Fixtures.flight's own fixed airlineCode — the map is keyed
+        // by (destination, airline), and TripBuilder only picks up a price whose airline matches
+        // the specific flight actually being scored.
+        val price = StandbyPrice("LGW", PriceEntryMode.ROUND_TRIP, economyOutboundCents = 90_000, airlineIcao = "TT")
+        val prices = mapOf(price.key to price)
         val result = builder.build(flights, Fixtures.FRIDAY, destinations, prices)
         assertTrue(result.rejections.getOrDefault(RejectionReason.NO_OUTBOUND, 0) >= 2)
         assertEquals(1, result.rejections[RejectionReason.OVER_BUDGET])

@@ -6,6 +6,7 @@ import com.condorino.weekend.data.local.StandbyPriceDao
 import com.condorino.weekend.data.mapper.toDomain
 import com.condorino.weekend.data.mapper.toEntity
 import com.condorino.weekend.domain.model.StandbyPrice
+import com.condorino.weekend.domain.model.key
 import com.condorino.weekend.domain.repository.FavoriteRepository
 import com.condorino.weekend.domain.repository.StandbyPriceRepository
 import kotlinx.coroutines.flow.Flow
@@ -22,16 +23,16 @@ class DefaultStandbyPriceRepository(
 ) : StandbyPriceRepository {
 
     override val prices: Flow<Map<String, StandbyPrice>> =
-        dao.observeAll().map { rows -> rows.associate { it.destinationIata to it.toDomain() } }
+        dao.observeAll().map { rows -> rows.map { it.toDomain() }.associateBy { it.key } }
 
     override suspend fun current(): Map<String, StandbyPrice> =
-        dao.all().associate { it.destinationIata to it.toDomain() }
+        dao.all().map { it.toDomain() }.associateBy { it.key }
 
     override suspend fun save(price: StandbyPrice) {
         dao.upsert(price.copy(updatedAtEpochMillis = Instant.now().toEpochMilli()).toEntity())
     }
 
-    override suspend fun delete(iata: String) = dao.delete(iata)
+    override suspend fun delete(iata: String, airlineIcao: String) = dao.delete(iata, airlineIcao)
 }
 
 class DefaultFavoriteRepository(

@@ -88,6 +88,11 @@ only place that interprets them. A request's local time window is capped
 reported to reject a much wider one; a query spanning a whole weekend is therefore split into a few
 chunked requests rather than one long one of uncertain validity.
 
+The airport's FIDS response covers every airline flying through it, not just Condor — *Settings →
+Airlines* is what narrows that down to Condor plus whichever Lufthansa Group carriers are opted in
+(see `Airlines` in `domain/model/Airline.kt`); a row whose operating carrier isn't selected is
+dropped the same way one with an unresolvable airport or time already is.
+
 ### 3. `HttpFeedFlightDataSource` — the route that works today
 
 Loads a JSON document following the **Condorino feed schema** documented below from any HTTPS URL.
@@ -107,6 +112,11 @@ a request — an earlier version of this source did exactly that (a single searc
 could burn the whole day's quota and take long enough to look like it had hung). See the second half
 of this document and that source's own class doc for the quota-safety limits now in place (a request
 cooldown, a lower default look-back, and a hard cap on chunked requests).
+
+Like AeroDataBox above, OpenSky's ADS-B feed covers every callsign at the airport — *Settings →
+Airlines* narrows it to Condor plus whichever Lufthansa Group carriers are opted in. Observations are
+grouped by weekday, route **and airline** before the median is taken, so a Condor and a Lufthansa
+flight sharing a weekday and route are never blended into one wrong, averaged entry.
 
 ### 5. `AssetDemoFlightDataSource` — sample data, unmistakably flagged
 
@@ -177,6 +187,27 @@ run over RapidAPI, and RapidAPI itself works on one account-level key valid acro
 account has subscribed to — the app follows the same shape rather than asking three times:
 *Settings → RapidAPI* holds one key used by all three sources (and any future RapidAPI-hosted one),
 while each source keeps its own host, paths and field names, since those genuinely differ per API.
+
+### Airline selection, shared
+
+`AeroDataBoxFlightDataSource` and `OpenSkyFlightDataSource` both query the *airport*, not any one
+airline — AeroDataBox's FIDS endpoint and OpenSky's ADS-B feed both return every airline flying
+through FRA, Condor included but not exclusively. *Settings → Airlines* is the one place this app
+decides which of those to actually keep: Condor always, plus whichever Lufthansa Group carrier
+(`Airline` entries in `domain/model/Airline.kt` — Lufthansa, SWISS, Austrian, Brussels, Eurowings,
+Discover, Edelweiss, Air Dolomiti, Lufthansa City Airlines) the user has opted in, each individually.
+New installs start with Lufthansa Group carriers all off, so an existing install's results don't
+change on upgrade until the user turns one on. The airline codes and names themselves are public
+designator data — the same kind of fact as the bundled airport reference dataset — not an invented
+API contract, so they are bundled directly rather than left for the user to fill in; see the doc
+comment on `Airlines` for when this was last cross-checked.
+
+Both sources apply the selection client-side, after receiving the airport's full response — neither
+endpoint accepts an airline filter as a request parameter, so this doesn't change how much either
+one fetches, only which of the rows it keeps. `CondorDeveloperApiDataSource`, `HttpFeedFlightDataSource`
+and the bundled demo data are unaffected by this selection: the first can only ever return Condor's
+own official schedule, the second is already whatever its operator curated, and the third is
+placeholder data, not real flights for any airline.
 
 ## The Condorino feed schema
 

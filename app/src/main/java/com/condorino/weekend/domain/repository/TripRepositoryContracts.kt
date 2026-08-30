@@ -76,11 +76,13 @@ interface TripRepository {
     suspend fun purgeDemoData()
 }
 
+/** Both maps are keyed by [com.condorino.weekend.domain.model.standbyPriceKey] (destination +
+ *  airline), not destination alone — a route can carry a different price per airline. */
 interface StandbyPriceRepository {
     val prices: Flow<Map<String, StandbyPrice>>
     suspend fun current(): Map<String, StandbyPrice>
     suspend fun save(price: StandbyPrice)
-    suspend fun delete(iata: String)
+    suspend fun delete(iata: String, airlineIcao: String)
 }
 
 interface FavoriteRepository {

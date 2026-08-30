@@ -80,6 +80,7 @@ fun CachedFlightEntity.toDomain(
 
 fun StandbyPrice.toEntity() = StandbyPriceEntity(
     destinationIata = destinationIata,
+    airlineIcao = airlineIcao,
     mode = mode.name,
     economyOutboundCents = economyOutboundCents,
     economyInboundCents = economyInboundCents,
@@ -91,6 +92,7 @@ fun StandbyPrice.toEntity() = StandbyPriceEntity(
 
 fun StandbyPriceEntity.toDomain() = StandbyPrice(
     destinationIata = destinationIata,
+    airlineIcao = airlineIcao,
     mode = runCatching { PriceEntryMode.valueOf(mode) }.getOrDefault(PriceEntryMode.PER_SEGMENT),
     economyOutboundCents = economyOutboundCents,
     economyInboundCents = economyInboundCents,

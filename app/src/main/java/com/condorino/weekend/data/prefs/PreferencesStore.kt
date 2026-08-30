@@ -17,6 +17,7 @@ import com.condorino.weekend.data.source.FeedConfig
 import com.condorino.weekend.data.source.GoogleFlightsApiConfig
 import com.condorino.weekend.data.source.OpenSkyConfig
 import com.condorino.weekend.data.source.TripAdvisorApiConfig
+import com.condorino.weekend.domain.model.Airlines
 import com.condorino.weekend.domain.model.Cabin
 import com.condorino.weekend.domain.model.DestinationType
 import com.condorino.weekend.domain.model.ScoreWeights
@@ -84,11 +85,17 @@ class PreferencesStore(private val context: Context) {
 
         val allowDemoData = booleanPreferencesKey("allow_demo_data")
 
+        /** ICAO codes of the Lufthansa Group carriers additionally opted in — see
+         *  [selectedLufthansaGroupCodes]. Condor itself is always searched and is not stored here. */
+        val selectedLufthansaGroupCodes = stringSetPreferencesKey("selected_lufthansa_group_codes")
+
         val openSkyEnabled = booleanPreferencesKey("opensky_enabled")
         val openSkyClientId = stringPreferencesKey("opensky_client_id")
         val openSkyClientSecret = stringPreferencesKey("opensky_client_secret")
         val openSkyHomeIcao = stringPreferencesKey("opensky_home_icao")
-        val openSkyCallsign = stringPreferencesKey("opensky_callsign_prefix")
+        // opensky_callsign_prefix removed: OpenSky's per-source callsign filter was replaced by
+        // the shared selectedLufthansaGroupCodes selection (plus Condor, always on) — see
+        // OpenSkyFlightDataSource.
         val openSkyLookbackWeeks = intPreferencesKey("opensky_lookback_weeks")
 
         val adbEnabled = booleanPreferencesKey("aerodatabox_enabled")
@@ -99,7 +106,8 @@ class PreferencesStore(private val context: Context) {
         val adbWithCancelled = booleanPreferencesKey("aerodatabox_with_cancelled")
         val adbWithCodeshared = booleanPreferencesKey("aerodatabox_with_codeshared")
         val adbWithPrivate = booleanPreferencesKey("aerodatabox_with_private")
-        val adbAirlineIcaoFilter = stringPreferencesKey("aerodatabox_airline_icao_filter")
+        // aerodatabox_airline_icao_filter removed: same reasoning as opensky_callsign_prefix
+        // above — replaced by the shared selectedLufthansaGroupCodes selection.
         val adbDeparturesItemsPath = stringPreferencesKey("aerodatabox_departures_items_path")
         val adbArrivalsItemsPath = stringPreferencesKey("aerodatabox_arrivals_items_path")
         val adbFieldDepartureAirportCode = stringPreferencesKey("aerodatabox_field_departure_airport_code")
@@ -240,7 +248,6 @@ class PreferencesStore(private val context: Context) {
             clientId = p[Keys.openSkyClientId].orEmpty(),
             clientSecret = p[Keys.openSkyClientSecret].orEmpty(),
             homeIcao = p[Keys.openSkyHomeIcao]?.takeIf { it.isNotBlank() } ?: d.homeIcao,
-            callsignPrefix = p[Keys.openSkyCallsign]?.takeIf { it.isNotBlank() } ?: d.callsignPrefix,
             lookbackWeeks = p[Keys.openSkyLookbackWeeks] ?: d.lookbackWeeks,
         )
     }
@@ -256,7 +263,6 @@ class PreferencesStore(private val context: Context) {
             withCancelled = p[Keys.adbWithCancelled] ?: d.withCancelled,
             withCodeshared = p[Keys.adbWithCodeshared] ?: d.withCodeshared,
             withPrivate = p[Keys.adbWithPrivate] ?: d.withPrivate,
-            airlineIcaoFilter = p[Keys.adbAirlineIcaoFilter] ?: d.airlineIcaoFilter,
             departuresItemsPath = p[Keys.adbDeparturesItemsPath] ?: d.departuresItemsPath,
             arrivalsItemsPath = p[Keys.adbArrivalsItemsPath] ?: d.arrivalsItemsPath,
             fieldDepartureAirportCode = p[Keys.adbFieldDepartureAirportCode] ?: d.fieldDepartureAirportCode,
@@ -341,6 +347,19 @@ class PreferencesStore(private val context: Context) {
     /** Whether the bundled demo data may be used when no real source is configured. */
     val allowDemoData: Flow<Boolean> = context.dataStore.data.map { it[Keys.allowDemoData] ?: true }
 
+    /**
+     * ICAO codes of the Lufthansa Group carriers the user has additionally opted into searching,
+     * beyond Condor (which is always searched and never appears in this set — see
+     * [com.condorino.weekend.domain.model.Airlines]). Defaults to empty: an existing install's
+     * results do not change until the user opts a carrier in from Settings → Airlines. Filtered
+     * against [Airlines.LUFTHANSA_GROUP] on read so a stored code for a carrier this app no longer
+     * recognises (e.g. a future rename) is silently dropped rather than left unmatchable forever.
+     */
+    val selectedLufthansaGroupCodes: Flow<Set<String>> = context.dataStore.data.map { p ->
+        val known = Airlines.LUFTHANSA_GROUP.map { it.icaoCode }.toSet()
+        p[Keys.selectedLufthansaGroupCodes]?.filter { it in known }?.toSet() ?: emptySet()
+    }
+
     val updatePrefs: Flow<UpdatePrefs> = context.dataStore.data.map { p ->
         UpdatePrefs(
             autoCheckEnabled = p[Keys.updateAutoCheckEnabled] ?: true,
@@ -419,7 +438,6 @@ class PreferencesStore(private val context: Context) {
             p[Keys.openSkyClientId] = config.clientId
             p[Keys.openSkyClientSecret] = config.clientSecret
             p[Keys.openSkyHomeIcao] = config.homeIcao
-            p[Keys.openSkyCallsign] = config.callsignPrefix
             p[Keys.openSkyLookbackWeeks] = config.lookbackWeeks
         }
     }
@@ -434,7 +452,6 @@ class PreferencesStore(private val context: Context) {
             p[Keys.adbWithCancelled] = config.withCancelled
             p[Keys.adbWithCodeshared] = config.withCodeshared
             p[Keys.adbWithPrivate] = config.withPrivate
-            p[Keys.adbAirlineIcaoFilter] = config.airlineIcaoFilter
             p[Keys.adbDeparturesItemsPath] = config.departuresItemsPath
             p[Keys.adbArrivalsItemsPath] = config.arrivalsItemsPath
             p[Keys.adbFieldDepartureAirportCode] = config.fieldDepartureAirportCode
@@ -500,6 +517,10 @@ class PreferencesStore(private val context: Context) {
 
     suspend fun setAllowDemoData(allow: Boolean) {
         context.dataStore.edit { it[Keys.allowDemoData] = allow }
+    }
+
+    suspend fun updateSelectedLufthansaGroupCodes(codes: Set<String>) {
+        context.dataStore.edit { it[Keys.selectedLufthansaGroupCodes] = codes }
     }
 
     suspend fun setUpdateAutoCheckEnabled(enabled: Boolean) {

@@ -9,6 +9,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -47,6 +49,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import com.condorino.weekend.R
 import com.condorino.weekend.core.MoneyInput
+import com.condorino.weekend.domain.model.Airline
+import com.condorino.weekend.domain.model.Airlines
 import com.condorino.weekend.domain.model.Destination
 import com.condorino.weekend.domain.model.PriceEntryMode
 import com.condorino.weekend.domain.model.StandbyPrice
@@ -93,12 +97,23 @@ fun StandbyPricesScreen(
         viewModel.importPrices(readTextFromUri(context, uri))
     }
 
+    // Grouped by destination: a destination can now hold more than one price, one per airline
+    // (Condor and a Lufthansa Group carrier both flying it, priced separately) — see PriceCard.
+    val pricesByDestination: Map<String, Map<String, StandbyPrice>> = remember(state.prices) {
+        state.prices.values.groupBy { it.destinationIata }.mapValues { (_, prices) -> prices.associateBy { it.airlineIcao } }
+    }
+    // Condor is always priceable; a Lufthansa Group carrier only once it's opted into search
+    // (Settings → Airlines) — no point offering a price field for an airline nothing ever searches.
+    val availableAirlines: List<Airline> = remember(state.selectedLufthansaGroupCodes) {
+        listOf(Airlines.CONDOR) + Airlines.LUFTHANSA_GROUP.filter { it.icaoCode in state.selectedLufthansaGroupCodes }
+    }
+
     // Reachable destinations and anything that already has a price come first; the search reaches
     // across the whole public reference, so a destination the app has not seen yet can still get a
     // price entered ahead of time.
-    val entries: List<Pair<String, Destination?>> = remember(state.destinations, state.prices, state.allAirports, query) {
+    val entries: List<Pair<String, Destination?>> = remember(state.destinations, pricesByDestination, state.allAirports, query) {
         val known = state.destinations.associateBy { it.iata }
-        val priced = state.prices.filterValues { it.hasAnyPrice }.keys
+        val priced = pricesByDestination.filterValues { byAirline -> byAirline.values.any { it.hasAnyPrice } }.keys
 
         if (query.isBlank()) {
             (known.keys + priced).sortedWith(
@@ -223,7 +238,8 @@ fun StandbyPricesScreen(
                 PriceCard(
                     iata = iata,
                     destination = destination,
-                    price = state.prices[iata] ?: StandbyPrice.empty(iata),
+                    pricesByAirline = pricesByDestination[iata].orEmpty(),
+                    availableAirlines = availableAirlines,
                     expanded = expanded == iata,
                     onToggle = { expanded = if (expanded == iata) null else iata },
                     onSave = viewModel::savePrice,
@@ -233,16 +249,28 @@ fun StandbyPricesScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun PriceCard(
     iata: String,
     destination: Destination?,
-    price: StandbyPrice,
+    /** Keyed by [Airline.icaoCode] — up to one entry per airline actually flying this route. */
+    pricesByAirline: Map<String, StandbyPrice>,
+    /** Condor first, then whichever Lufthansa Group carriers are opted into search. */
+    availableAirlines: List<Airline>,
     expanded: Boolean,
     onToggle: () -> Unit,
     onSave: (StandbyPrice) -> Unit,
 ) {
+    // Which airline's fields this card is currently showing/editing — Condor by default, since
+    // it's always available and is this app's own baseline. Reset per destination so switching
+    // cards doesn't leave a stale airline selected on the next one.
+    var selectedAirline by rememberSaveable(iata) { mutableStateOf(Airlines.CONDOR.icaoCode) }
+    val price = pricesByAirline[selectedAirline] ?: StandbyPrice.empty(iata, selectedAirline)
+    // The collapsed summary always shows Condor's own price — the one entry every destination can
+    // have — rather than whichever airline happened to be selected last time this card was open.
+    val summary = pricesByAirline[Airlines.CONDOR.icaoCode] ?: StandbyPrice.empty(iata)
+
     Column(
         Modifier
             .fillMaxWidth()
@@ -267,16 +295,16 @@ private fun PriceCard(
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    price.economyRoundTrip?.let { stringResource(R.string.card_economy, it.format()) }
+                    summary.economyRoundTrip?.let { stringResource(R.string.card_economy, it.format()) }
                         ?: stringResource(R.string.card_economy, stringResource(R.string.value_dash)),
-                    color = if (price.economyRoundTrip != null) CondorinoColors.Mint else CondorinoColors.TextTertiary,
+                    color = if (summary.economyRoundTrip != null) CondorinoColors.Mint else CondorinoColors.TextTertiary,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    price.businessRoundTrip?.let { stringResource(R.string.card_business, it.format()) }
+                    summary.businessRoundTrip?.let { stringResource(R.string.card_business, it.format()) }
                         ?: stringResource(R.string.card_business, stringResource(R.string.value_dash)),
-                    color = if (price.businessRoundTrip != null) CondorinoColors.Sky else CondorinoColors.TextTertiary,
+                    color = if (summary.businessRoundTrip != null) CondorinoColors.Sky else CondorinoColors.TextTertiary,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                 )
@@ -286,6 +314,27 @@ private fun PriceCard(
         if (!expanded) return@Column
 
         Spacer(Modifier.height(12.dp))
+
+        // Only shown once at least one Lufthansa Group carrier is opted into search — with Condor
+        // the only option there is nothing to choose between, so the chip row would just be noise.
+        if (availableAirlines.size > 1) {
+            Text(stringResource(R.string.prices_airline), color = CondorinoColors.TextSecondary, fontSize = 12.sp)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 6.dp)) {
+                availableAirlines.forEach { airline ->
+                    FilterChip(
+                        selected = selectedAirline == airline.icaoCode,
+                        onClick = { selectedAirline = airline.icaoCode },
+                        label = { Text(airline.displayName, fontSize = 11.sp) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = CondorinoColors.SurfaceElevated,
+                            labelColor = CondorinoColors.TextSecondary,
+                            selectedContainerColor = CondorinoColors.Amber,
+                            selectedLabelColor = CondorinoColors.Background,
+                        ),
+                    )
+                }
+            }
+        }
 
         Text(stringResource(R.string.prices_entry_mode), color = CondorinoColors.TextSecondary, fontSize = 12.sp)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 6.dp)) {

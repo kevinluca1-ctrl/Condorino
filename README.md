@@ -27,12 +27,17 @@ endpoints would have produced an app that appears to work and quietly finds noth
 * **AeroDataBox** (RapidAPI) answers the exact weekend asked directly, from real scheduled/live
   airport departure and arrival data,
 * alternatively the app reads any HTTPS feed following a documented JSON schema,
-* **OpenSky Network** reports for free and without an account which `CFG` flights from FRA
-  *actually* flew over the past few weeks — the app derives an observed timetable from that; it's
-  the lowest-priority source, since it reconstructs a timetable rather than answering the exact
+* **OpenSky Network** reports for free and without an account which flights from FRA *actually*
+  flew over the past few weeks — the app derives an observed timetable from that; it's the
+  lowest-priority source, since it reconstructs a timetable rather than answering the exact
   weekend, and its own free-tier quota is worth conserving,
 * and with no source configured it shows **sample data behind a permanent red banner**, with flight
   numbers that start with `DEMO`.
+
+AeroDataBox and OpenSky both see every airline at the airport, not just Condor — **Settings →
+Airlines** decides which to keep: Condor always, plus any Lufthansa Group carrier (Lufthansa,
+SWISS, Austrian, Brussels Airlines, Eurowings, Discover, Edelweiss, Air Dolomiti, Lufthansa City
+Airlines) individually turned on. Off by default, so nothing changes for you until you opt one in.
 
 The details — what exists, what could not be verified, and how to feed in real data — are in
 **[docs/CONDOR_DATA_SOURCES.md](docs/CONDOR_DATA_SOURCES.md)**.

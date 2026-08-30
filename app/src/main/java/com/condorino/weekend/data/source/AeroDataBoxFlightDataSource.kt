@@ -1,6 +1,7 @@
 package com.condorino.weekend.data.source
 
 import com.condorino.weekend.R
+import com.condorino.weekend.domain.model.Airlines
 import com.condorino.weekend.domain.model.Airport
 import com.condorino.weekend.domain.model.DataProvenance
 import com.condorino.weekend.domain.model.Flight
@@ -50,6 +51,12 @@ import java.time.format.DateTimeFormatter
  * [AeroDataBoxConfig.fieldDepartureAirportCode]/[AeroDataBoxConfig.fieldArrivalAirportCode] in
  * Settings — but note that field still needs to resolve an IATA code for a flight to be usable here.
  *
+ * The airport's FIDS response covers every airline flying through it, not just the ones this app
+ * knows about — [selectedAirlinesProvider] (Condor, always, plus whichever Lufthansa Group carriers
+ * are opted into in Settings → Airlines, see [Airlines]) is what narrows that down; a row whose
+ * operating carrier isn't in that set is dropped in [toFlight], the same way a row missing a usable
+ * airport or time already is.
+ *
  * A single request's local time window is capped by [AeroDataBoxConfig.windowHours] — RapidAPI's
  * lower subscription tiers are commonly reported to reject a request spanning much more than half a
  * day — so a query covering a whole weekend is split into several chunked requests, the same
@@ -64,6 +71,9 @@ class AeroDataBoxFlightDataSource(
     private val airportCatalog: suspend () -> Map<String, Airport>,
     /** The one RapidAPI key shared by every RapidAPI-hosted source — see [PreferencesStore.rapidApiKey]. */
     private val apiKeyProvider: suspend () -> String,
+    /** ICAO codes of the airlines to keep — Condor plus whichever Lufthansa Group carriers are
+     *  opted in, see [PreferencesStore.selectedLufthansaGroupCodes] and [Airlines]. */
+    private val selectedAirlinesProvider: suspend () -> Set<String>,
     override val strings: SourceStrings,
     private val json: Json = Json { ignoreUnknownKeys = true; isLenient = true },
     private val now: () -> Instant = { Instant.now() },
@@ -111,6 +121,7 @@ class AeroDataBoxFlightDataSource(
                 )
 
             val apiKey = apiKeyProvider()
+            val selected = selectedAirlinesProvider()
             val windows = chunkWindows(query, config)
             val flights = mutableListOf<Flight>()
 
@@ -140,7 +151,7 @@ class AeroDataBoxFlightDataSource(
                         }
                         val body = response.body?.string().orEmpty()
                         if (body.isNotBlank()) {
-                            flights += mapFlights(body, config, home, airports)
+                            flights += mapFlights(body, config, home, airports, selected)
                         }
                     }
                 } catch (e: IOException) {
@@ -156,16 +167,17 @@ class AeroDataBoxFlightDataSource(
                     f.origin.iata == query.destinationIata
             }
 
+            val selectedNames = Airlines.describe(selected)
             if (filtered.isEmpty()) {
                 FlightSearchResult.Failure(
-                    strings.get(R.string.src_aerodatabox_no_flights, config.airlineIcaoFilter, config.homeIata),
+                    strings.get(R.string.src_aerodatabox_no_flights, selectedNames, config.homeIata),
                 )
             } else {
                 FlightSearchResult.Success(
                     flights = filtered,
                     provenance = DataProvenance.LIVE,
                     retrievedAt = now(),
-                    note = strings.get(R.string.src_aerodatabox_note, config.airlineIcaoFilter),
+                    note = strings.get(R.string.src_aerodatabox_note, selectedNames),
                 )
             }
         }
@@ -209,22 +221,23 @@ class AeroDataBoxFlightDataSource(
      * corrected if the guessed defaults are wrong. An entry in [AeroDataBoxConfig.departuresItemsPath]
      * has [home] as its origin and whatever [AeroDataBoxConfig.fieldArrivalAirportCode] resolves to
      * (against [airports]) as its destination; an entry in [AeroDataBoxConfig.arrivalsItemsPath] is
-     * the mirror image. Rows outside [config]'s airline filter, or missing a usable airport or time,
-     * are dropped rather than defaulted or guessed.
+     * the mirror image. Rows whose operating carrier isn't in [selectedAirlines] (see the class doc),
+     * or missing a usable airport or time, are dropped rather than defaulted or guessed.
      */
     internal fun mapFlights(
         body: String,
         config: AeroDataBoxConfig,
         home: Airport,
         airports: Map<String, Airport>,
+        selectedAirlines: Set<String>,
     ): List<Flight> {
         val root = json.parseToJsonElement(body) as? JsonObject ?: return emptyList()
         val departures = resolvePath(root, config.departuresItemsPath) as? JsonArray ?: JsonArray(emptyList())
         val arrivals = resolvePath(root, config.arrivalsItemsPath) as? JsonArray ?: JsonArray(emptyList())
 
         val out = mutableListOf<Flight>()
-        departures.forEach { toFlight(it, config, home, airports, outbound = true)?.let(out::add) }
-        arrivals.forEach { toFlight(it, config, home, airports, outbound = false)?.let(out::add) }
+        departures.forEach { toFlight(it, config, home, airports, selectedAirlines, outbound = true)?.let(out::add) }
+        arrivals.forEach { toFlight(it, config, home, airports, selectedAirlines, outbound = false)?.let(out::add) }
         return out
     }
 
@@ -233,14 +246,13 @@ class AeroDataBoxFlightDataSource(
         config: AeroDataBoxConfig,
         home: Airport,
         airports: Map<String, Airport>,
+        selectedAirlines: Set<String>,
         outbound: Boolean,
     ): Flight? {
         val obj = element as? JsonObject ?: return null
 
-        if (config.airlineIcaoFilter.isNotBlank()) {
-            val airlineIcao = obj.str(config.fieldAirlineIcao)
-            if (!airlineIcao.equals(config.airlineIcaoFilter, ignoreCase = true)) return null
-        }
+        val airlineIcao = obj.str(config.fieldAirlineIcao) ?: return null
+        if (selectedAirlines.none { it.equals(airlineIcao, ignoreCase = true) }) return null
 
         val otherCode = obj.str(if (outbound) config.fieldArrivalAirportCode else config.fieldDepartureAirportCode)
             ?: return null
@@ -256,10 +268,8 @@ class AeroDataBoxFlightDataSource(
 
         return Flight(
             flightNumber = obj.str(config.fieldFlightNumber),
-            // A brand name, like CondorDeveloperApiDataSource's own "Condor" literal — not
-            // localized text, so it is not routed through SourceStrings.
-            airline = obj.str(config.fieldAirlineName) ?: "Condor",
-            airlineCode = obj.str(config.fieldAirlineIcao) ?: config.airlineIcaoFilter,
+            airline = obj.str(config.fieldAirlineName) ?: Airlines.byIcao(airlineIcao)?.displayName ?: airlineIcao,
+            airlineCode = airlineIcao,
             origin = origin,
             destination = destination,
             departure = departureTime,
@@ -337,9 +347,6 @@ data class AeroDataBoxConfig(
     val withCancelled: Boolean = false,
     val withCodeshared: Boolean = false,
     val withPrivate: Boolean = false,
-    /** Matched case-insensitively against [fieldAirlineIcao]; blank disables the filter entirely
-     *  (every airline at the airport, not just Condor). Condor's ICAO designator is CFG. */
-    val airlineIcaoFilter: String = "CFG",
     /** Dotted path to the departures array in the response, e.g. `departures`. */
     val departuresItemsPath: String = "departures",
     /** Dotted path to the arrivals array in the response, e.g. `arrivals`. */

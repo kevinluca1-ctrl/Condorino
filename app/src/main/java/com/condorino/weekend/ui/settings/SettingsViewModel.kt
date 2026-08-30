@@ -63,6 +63,9 @@ data class SettingsUiState(
     val destinations: List<Destination> = emptyList(),
     val openSkyConfig: OpenSkyConfig = OpenSkyConfig(),
     val aeroDataBoxConfig: AeroDataBoxConfig = AeroDataBoxConfig(),
+    /** ICAO codes of the Lufthansa Group carriers opted into OpenSky/AeroDataBox searches, beyond
+     *  Condor (always searched, not part of this set) — see [Airlines]. */
+    val selectedLufthansaGroupCodes: Set<String> = emptySet(),
     /** One RapidAPI key shared by every RapidAPI-hosted source (AeroDataBox, Google Flights,
      *  TripAdvisor, …). */
     val rapidApiKey: String = "",
@@ -148,6 +151,14 @@ class SettingsViewModel(
             }
         }
         viewModelScope.launch {
+            preferencesStore.selectedLufthansaGroupCodes.collectLatest { codes ->
+                _state.update { it.copy(selectedLufthansaGroupCodes = codes) }
+                // Affects OpenSky's and AeroDataBox's own status/results, same reasoning as the
+                // openSkyConfig/aeroDataBoxConfig collectors just above.
+                refreshSourceStates()
+            }
+        }
+        viewModelScope.launch {
             preferencesStore.rapidApiKey.collectLatest { key ->
                 _state.update { it.copy(rapidApiKey = key) }
                 _state.update {
@@ -223,6 +234,10 @@ class SettingsViewModel(
 
     fun updateAeroDataBoxConfig(config: AeroDataBoxConfig) {
         viewModelScope.launch { preferencesStore.updateAeroDataBoxConfig(config) }
+    }
+
+    fun updateSelectedLufthansaGroupCodes(codes: Set<String>) {
+        viewModelScope.launch { preferencesStore.updateSelectedLufthansaGroupCodes(codes) }
     }
 
     fun updateRapidApiKey(key: String) {
@@ -321,8 +336,8 @@ class SettingsViewModel(
         viewModelScope.launch { standbyPriceRepository.save(price) }
     }
 
-    fun deletePrice(iata: String) {
-        viewModelScope.launch { standbyPriceRepository.delete(iata) }
+    fun deletePrice(iata: String, airlineIcao: String) {
+        viewModelScope.launch { standbyPriceRepository.delete(iata, airlineIcao) }
     }
 
     /** The text to write wherever the user chose to save it. */

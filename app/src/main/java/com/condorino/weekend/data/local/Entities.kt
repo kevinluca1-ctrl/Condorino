@@ -37,9 +37,15 @@ data class AirportEntity(
     val timeZoneId: String,
 )
 
-@Entity(tableName = "standby_prices")
+/**
+ * Keyed by (destination, airline) rather than destination alone: a route can have a different
+ * standby fare per airline (Condor and a Lufthansa Group carrier both flying it, priced
+ * separately), so more than one row can now exist for the same destination.
+ */
+@Entity(tableName = "standby_prices", primaryKeys = ["destinationIata", "airlineIcao"])
 data class StandbyPriceEntity(
-    @PrimaryKey val destinationIata: String,
+    val destinationIata: String,
+    val airlineIcao: String,
     val mode: String,
     val economyOutboundCents: Long?,
     val economyInboundCents: Long?,

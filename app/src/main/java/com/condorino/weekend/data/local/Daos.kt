@@ -61,11 +61,12 @@ interface StandbyPriceDao {
     @Query("SELECT * FROM standby_prices")
     suspend fun all(): List<StandbyPriceEntity>
 
+    /** Every price entered for this destination — up to one per airline, see the entity doc. */
     @Query("SELECT * FROM standby_prices WHERE destinationIata = :iata")
-    suspend fun byIata(iata: String): StandbyPriceEntity?
+    suspend fun byIata(iata: String): List<StandbyPriceEntity>
 
-    @Query("DELETE FROM standby_prices WHERE destinationIata = :iata")
-    suspend fun delete(iata: String)
+    @Query("DELETE FROM standby_prices WHERE destinationIata = :iata AND airlineIcao = :airlineIcao")
+    suspend fun delete(iata: String, airlineIcao: String)
 }
 
 @Dao

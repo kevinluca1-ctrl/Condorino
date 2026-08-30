@@ -506,7 +506,10 @@ private fun LegBlock(title: String, trip: WeekendTrip, outbound: Boolean) {
             }
             Spacer(Modifier.height(4.dp))
             Text(
-                Formatting.longDate(flight.departureLocal.toLocalDate()),
+                // Shown alongside the date rather than folded into the flight-number pill above:
+                // now that more than Condor can appear in results (Settings → Airlines), this is
+                // the one place on the card that says outright which airline a leg is actually on.
+                "${Formatting.longDate(flight.departureLocal.toLocalDate())} · ${flight.airline}",
                 color = CondorinoColors.TextTertiary,
                 fontSize = 11.sp,
             )
