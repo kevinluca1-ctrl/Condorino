@@ -70,8 +70,17 @@ class GitHubReleaseUpdateSource(
                 val publishedAt = UpdateSelection.parseInstant(latest.timestamp)
                     ?: return@withContext UpdateCheckResult.Failure(strings.get(R.string.update_unparseable_date))
 
+                // Tag identity decides this, not the clock. The release workflow bakes
+                // RELEASE_PUBLISHED_AT at *build* time, but GitHub stamps the release's own
+                // published_at only once the build finishes and the release is created — minutes
+                // later. Comparing those timestamps therefore made every build see its own release
+                // as newer than itself and offer it as an update. A tag that matches this build is
+                // this build, whatever either timestamp says.
+                if (UpdateSelection.isSameRelease(latest.tagName, BuildConfig.RELEASE_TAG)) {
+                    return@withContext UpdateCheckResult.UpToDate(latest.tagName)
+                }
                 if (!UpdateSelection.isNewer(publishedAt, installedAt)) {
-                    return@withContext UpdateCheckResult.UpToDate
+                    return@withContext UpdateCheckResult.UpToDate(latest.tagName)
                 }
 
                 val asset = UpdateSelection.pickApkAsset(latest)

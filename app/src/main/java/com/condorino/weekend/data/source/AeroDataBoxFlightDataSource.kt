@@ -6,6 +6,7 @@ import com.condorino.weekend.domain.model.Airport
 import com.condorino.weekend.domain.model.DataProvenance
 import com.condorino.weekend.domain.model.Flight
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -125,7 +126,14 @@ class AeroDataBoxFlightDataSource(
             val windows = chunkWindows(query, config)
             val flights = mutableListOf<Flight>()
 
-            for ((windowFrom, windowTo) in windows) {
+            windows.forEachIndexed { index, (windowFrom, windowTo) ->
+                // A modest pace between chunks, not on the first request. A search can fire up to
+                // MAX_CHUNKS of these back to back with no pacing at all otherwise, which is a
+                // reliable way to trip a RapidAPI Basic plan's own *per-second* gateway throttle —
+                // a short-term limit entirely separate from, and far stricter than, the monthly
+                // quota shown in the RapidAPI dashboard (see the 429 handling below).
+                if (index > 0) delay(CHUNK_PACING_MILLIS)
+
                 val url = windowUrl(config, windowFrom, windowTo)
                 val request = Request.Builder().url(url).get()
                     .addHeader("Accept", "application/json")
@@ -141,7 +149,17 @@ class AeroDataBoxFlightDataSource(
                                 "HTTP ${response.code}",
                             )
                             response.code == 429 -> return@withContext FlightSearchResult.Failure(
-                                strings.get(R.string.src_aerodatabox_rate_limited),
+                                // This is very often the RapidAPI *gateway's* own per-second/minute
+                                // throttle on the free plan tripping — not the monthly quota shown
+                                // in the RapidAPI dashboard, which can (and does) sit in single
+                                // digits when this fires, since a search can send up to MAX_CHUNKS
+                                // requests back to back with no pacing between them. Standard
+                                // Retry-After is read when the gateway sends it, so the message
+                                // says something concrete rather than implying the account is out
+                                // of quota.
+                                response.header("Retry-After")?.toLongOrNull()?.let {
+                                    strings.get(R.string.src_aerodatabox_rate_limited_retry, it)
+                                } ?: strings.get(R.string.src_aerodatabox_rate_limited),
                                 "HTTP 429",
                             )
                             !response.isSuccessful -> return@withContext FlightSearchResult.Failure(
@@ -331,6 +349,9 @@ class AeroDataBoxFlightDataSource(
          * the same reasoning [OpenSkyFlightDataSource.MAX_CHUNKS] documents in more detail.
          */
         const val MAX_CHUNKS = 16
+
+        /** Between chunk requests within one search — see the pacing comment above. */
+        const val CHUNK_PACING_MILLIS = 150L
     }
 }
 

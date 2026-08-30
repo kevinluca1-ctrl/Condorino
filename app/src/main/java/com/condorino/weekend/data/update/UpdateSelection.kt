@@ -28,6 +28,24 @@ object UpdateSelection {
      *   the release workflow. Comparing timestamps rather than tag names holds even if a future
      *   release is not named in the `alpha-NN` scheme.
      */
+    /**
+     * Whether a release *is* the installed build, by tag.
+     *
+     * This is checked before any timestamp comparison because the two timestamps involved are not
+     * measured at the same moment: a build bakes in its own clock reading, while GitHub stamps the
+     * release when it is created, after that build has finished and uploaded. The release is
+     * therefore always a few minutes "newer" than the build inside it, which made the app offer
+     * every release to the very users already running it. Tags carry no such skew.
+     *
+     * Blank on either side means the build carries no tag (a CI or local build), where identity
+     * cannot be established and the timestamp comparison is left to decide.
+     */
+    fun isSameRelease(candidateTag: String?, installedTag: String?): Boolean {
+        val a = candidateTag?.trim().orEmpty()
+        val b = installedTag?.trim().orEmpty()
+        return a.isNotEmpty() && a.equals(b, ignoreCase = true)
+    }
+
     fun isNewer(candidatePublishedAt: Instant, installedPublishedAt: Instant): Boolean =
         candidatePublishedAt.isAfter(installedPublishedAt)
 

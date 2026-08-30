@@ -484,7 +484,8 @@
     <string name="src_aerodatabox_no_home_fix">Beides in den Einstellungen prüfen.</string>
     <string name="src_aerodatabox_home_unknown">Heimatflughafen %1$s ist nicht in den Flughafen-Referenzdaten.</string>
     <string name="src_aerodatabox_denied">AeroDataBox hat den Zugriff abgelehnt – RapidAPI-Key und das eigene Abo für diese API prüfen.</string>
-    <string name="src_aerodatabox_rate_limited">RapidAPI-Limit erreicht. Später erneut versuchen.</string>
+    <string name="src_aerodatabox_rate_limited">RapidAPI bat um eine Pause (HTTP 429) — ein kurzfristiges Ratenlimit, nicht zwingend das Monatskontingent; bei wiederholtem Auftreten das RapidAPI-Dashboard prüfen. Gleich erneut versuchen.</string>
+    <string name="src_aerodatabox_rate_limited_retry">RapidAPI bat um eine Pause (HTTP 429) — ein kurzfristiges Ratenlimit, nicht zwingend das Monatskontingent. In %1$d Sekunden erneut versuchen.</string>
     <string name="src_aerodatabox_http">AeroDataBox antwortet mit HTTP %1$d.</string>
     <string name="src_aerodatabox_offline">AeroDataBox nicht erreichbar – bist du offline?</string>
     <string name="src_aerodatabox_parse_failed">AeroDataBox-Antwort konnte nicht verarbeitet werden.</string>
@@ -571,9 +572,11 @@
     <string name="update_check_now">Jetzt prüfen</string>
     <string name="update_checking">Suche läuft…</string>
     <string name="update_up_to_date">Du hast die aktuellste Version.</string>
+    <string name="update_up_to_date_named">%1$s ist die neueste Version und ist bereits installiert.</string>
     <string name="update_available_title">%1$s verfügbar</string>
     <string name="update_download">Herunterladen</string>
     <string name="update_view_on_github">Auf GitHub ansehen</string>
+    <string name="update_changelog">Änderungsprotokoll</string>
     <string name="update_downloading">%1$s wird heruntergeladen…</string>
     <string name="update_ready_title">%1$s heruntergeladen</string>
     <string name="update_install">Installieren</string>
@@ -600,6 +603,8 @@
 
     <!-- Passwortmaskierung -->
     <string name="action_show_secret">Anzeigen</string>
+    <string name="action_expand_section">%1$s aufklappen</string>
+    <string name="action_collapse_section">%1$s zuklappen</string>
     <string name="action_hide_secret">Verbergen</string>
 
     <!-- OpenSky: Hinweis auf OAuth2-API-Client -->

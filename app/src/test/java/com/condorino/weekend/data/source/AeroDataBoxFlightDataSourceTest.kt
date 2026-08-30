@@ -1,5 +1,6 @@
 package com.condorino.weekend.data.source
 
+import com.condorino.weekend.R
 import com.condorino.weekend.domain.model.Airport
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
@@ -229,6 +230,49 @@ class AeroDataBoxFlightDataSourceTest {
 
         assertEquals(AeroDataBoxFakeStrings().get(com.condorino.weekend.R.string.src_aerodatabox_denied), result.userMessage)
         assertEquals("HTTP 401", result.technicalDetail)
+    }
+
+    @Test
+    fun `a 429 with no Retry-After header uses the plain rate-limit message`() = runBlocking {
+        // The bug this covers: this used to read "RapidAPI limit reached", implying the monthly
+        // quota was exhausted — reported even at 5% usage, because a Basic plan's own gateway
+        // throttles per second, entirely separate from that quota.
+        server.enqueue(MockResponse().setResponseCode(429))
+        val config = configFor()
+        val result = sourceFor(config).search(
+            FlightSearchQuery(from = LocalDate.now(), to = LocalDate.now().plusDays(1)),
+        ) as? FlightSearchResult.Failure ?: error("expected Failure")
+
+        assertEquals(AeroDataBoxFakeStrings().get(R.string.src_aerodatabox_rate_limited), result.userMessage)
+        assertEquals("HTTP 429", result.technicalDetail)
+    }
+
+    @Test
+    fun `a 429 with a Retry-After header uses the message that names the wait`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(429).setHeader("Retry-After", "7"))
+        val config = configFor()
+        val result = sourceFor(config).search(
+            FlightSearchQuery(from = LocalDate.now(), to = LocalDate.now().plusDays(1)),
+        ) as? FlightSearchResult.Failure ?: error("expected Failure")
+
+        assertEquals(AeroDataBoxFakeStrings().get(R.string.src_aerodatabox_rate_limited_retry, 7L), result.userMessage)
+    }
+
+    @Test
+    fun `chunked requests are paced rather than fired back to back`() = runBlocking {
+        // The other half of the same bug: nothing throttled the app's own request rate, which is
+        // exactly what trips a Basic plan's per-second gateway limit on a multi-chunk search.
+        val config = configFor(windowHours = 6)
+        repeat(3) { server.enqueue(MockResponse().setResponseCode(200).setBody("""{"departures":[],"arrivals":[]}""")) }
+
+        val elapsedMs = kotlin.system.measureTimeMillis {
+            sourceFor(config).search(
+                FlightSearchQuery(from = LocalDate.now(), to = LocalDate.now()),
+            )
+        }
+        // 4 six-hour windows in one day means 3 gaps of pacing between them; loose enough not to
+        // be flaky, tight enough to fail if the pacing were ever removed entirely.
+        assertTrue("expected some pacing between 4 chunked requests, took ${elapsedMs}ms", elapsedMs >= 200)
     }
 
     @Test

@@ -17,7 +17,8 @@ data class UpdateUiState(
     sealed interface Phase {
         data object Idle : Phase
         data object Checking : Phase
-        data object UpToDate : Phase
+        /** @param tagName the newest release, which is also the installed one. */
+        data class UpToDate(val tagName: String? = null) : Phase
         data class NotConfigured(val reason: String) : Phase
         data class Failure(val reason: String, val detail: String? = null) : Phase
         data class Available(val update: AppUpdate) : Phase

@@ -93,6 +93,14 @@ Airlines* is what narrows that down to Condor plus whichever Lufthansa Group car
 (see `Airlines` in `domain/model/Airline.kt`); a row whose operating carrier isn't selected is
 dropped the same way one with an unresolvable airport or time already is.
 
+**A search paces its chunked requests** (150 ms apart, `CHUNK_PACING_MILLIS`) rather than firing
+them back to back. A weekend query commonly needs several chunks at the default window, and nothing
+paced those before `alpha-10` — which reliably tripped a RapidAPI Basic plan's own **per-second**
+gateway throttle even at a small fraction of the *monthly* quota shown in the RapidAPI dashboard;
+those are two entirely different limits, confirmed against a real account that hit the first with
+the second nowhere close. A 429 is reported honestly as a short-term rate limit rather than implying
+the quota is exhausted, and includes the server's own `Retry-After` wait when it sends one.
+
 ### 3. `HttpFeedFlightDataSource` — the route that works today
 
 Loads a JSON document following the **Condorino feed schema** documented below from any HTTPS URL.
