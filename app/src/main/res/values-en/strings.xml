@@ -73,6 +73,12 @@
     <string name="detail_carry_on_unknown">Carry-on: not reported by source</string>
     <string name="detail_commercial_airline">Airline: %1$s</string>
     <string name="action_retry">Retry</string>
+    <string name="detail_nearby_highlights">Nearby</string>
+    <string name="detail_nearby_highlights_hint">Well-rated attractions, restaurants and places to stay at the destination – for information, only fetched on request.</string>
+    <string name="detail_check_nearby_highlights">Check highlights</string>
+    <string name="detail_refresh_nearby_highlights">Check again</string>
+    <string name="detail_highlight_rating">★ %1$.1f</string>
+    <string name="detail_highlight_reviews">%1$d reviews</string>
     <string name="detail_why">Why this trip?</string>
     <string name="detail_score_breakdown">Score breakdown</string>
     <string name="detail_nonstop">Nonstop</string>
@@ -268,10 +274,13 @@
     <string name="settings_api_field_arrival">Field: arrival time (ISO-8601)</string>
     <string name="settings_api_field_flight_number">Field: flight number</string>
 
+    <string name="settings_rapidapi">RapidAPI</string>
+    <string name="settings_rapidapi_body">One key for every source that runs over RapidAPI (Google Flights, TripAdvisor, …) – matching how RapidAPI itself works: one account-level key covers every API that account has subscribed to.</string>
+    <string name="settings_rapidapi_key">RapidAPI key</string>
+
     <string name="settings_google_flights">Google Flights (RapidAPI)</string>
-    <string name="settings_google_flights_body">A commercial comparison price per trip, fetched on request (never automatically). The field names below are an unverified starting point from public search-result snippets, not a verified contract – correct them from your own RapidAPI test panel.</string>
+    <string name="settings_google_flights_body">A commercial comparison price per trip, fetched on request (never automatically). Uses the RapidAPI key above. The field names below are an unverified starting point from public search-result snippets, not a verified contract – correct them from your own RapidAPI test panel.</string>
     <string name="settings_gf_api_host">API host</string>
-    <string name="settings_gf_api_key">RapidAPI key</string>
     <string name="settings_gf_path">Endpoint path</string>
     <string name="settings_gf_items_path">Path to the (cheapest) itinerary in the response</string>
     <string name="settings_gf_field_price">Field: price</string>
@@ -279,6 +288,27 @@
     <string name="settings_gf_field_carry_on_included">Field: carry-on included (blank = not available)</string>
     <string name="settings_gf_field_carry_on_note">Field: carry-on free text (blank = not available)</string>
     <string name="settings_gf_unverified_hint">Shipped with the carry-on fields deliberately blank: no baggage field turned up in the researched examples. Until you fill in the real field names, the app shows “not reported by source”.</string>
+
+    <string name="settings_tripadvisor">TripAdvisor (RapidAPI)</string>
+    <string name="settings_tripadvisor_body">Attractions, restaurants and places to stay near the destination, fetched on request (never automatically). Uses the RapidAPI key above. Runs in two steps – search for the place, then fetch highlights for it. The field names below are an unverified starting point from public search-result snippets, not a verified contract – correct them from your own RapidAPI test panel.</string>
+    <string name="settings_ta_api_host">API host</string>
+    <string name="settings_ta_location_step">Step 1: search for the place</string>
+    <string name="settings_ta_location_search_path">Endpoint path</string>
+    <string name="settings_ta_location_query_param">Parameter: place name</string>
+    <string name="settings_ta_location_items_path">Path to the place list in the response</string>
+    <string name="settings_ta_location_id_field">Field: place id</string>
+    <string name="settings_ta_highlights_step">Step 2: highlights for that place</string>
+    <string name="settings_ta_highlights_path">Endpoint path</string>
+    <string name="settings_ta_highlights_location_id_param">Parameter: place id</string>
+    <string name="settings_ta_items_path">Path to the highlight list in the response</string>
+    <string name="settings_ta_field_name">Field: name</string>
+    <string name="settings_ta_field_rating">Field: rating</string>
+    <string name="settings_ta_field_review_count">Field: review count</string>
+    <string name="settings_ta_field_url">Field: link</string>
+    <string name="settings_ta_field_address">Field: address</string>
+    <string name="settings_ta_field_category">Field: category (blank = not available)</string>
+    <string name="settings_ta_max_results">Max. number of highlights</string>
+    <string name="settings_ta_unverified_hint">Shipped with the category field deliberately blank: no category field turned up in the researched examples. Until you fill in the real field name, the app shows every highlight as “Other”.</string>
 
     <string name="settings_work">Working hours &amp; travel</string>
     <string name="settings_work_body">From these the app works out the earliest flight you can realistically make.</string>
@@ -388,9 +418,9 @@
 
     <string name="src_google_flights_name">Google Flights (RapidAPI)</string>
     <string name="src_google_flights_disabled">Google Flights is not set up.</string>
-    <string name="src_google_flights_disabled_fix">Enable it under Settings → Google Flights and enter a RapidAPI key.</string>
+    <string name="src_google_flights_disabled_fix">Enable it under Settings → Google Flights; enter the RapidAPI key in the RapidAPI section above.</string>
     <string name="src_google_flights_no_key">No RapidAPI key is stored.</string>
-    <string name="src_google_flights_no_key_fix">Enter your RapidAPI key in Settings.</string>
+    <string name="src_google_flights_no_key_fix">Enter your RapidAPI key in the RapidAPI section of Settings (used by every RapidAPI source).</string>
     <string name="src_google_flights_no_host">The API host or endpoint path is missing.</string>
     <string name="src_google_flights_no_host_fix">Check both in Settings (the defaults are an unverified starting point).</string>
     <string name="src_google_flights_denied">Google Flights refused access – check the RapidAPI key.</string>
@@ -401,6 +431,23 @@
     <string name="src_google_flights_offline">Google Flights is unreachable – are you offline?</string>
     <string name="src_google_flights_parse_failed">The Google Flights response could not be processed.</string>
     <string name="src_google_flights_test_ok">Price received: %1$s (%2$s).</string>
+
+    <string name="src_tripadvisor_name">TripAdvisor (RapidAPI)</string>
+    <string name="src_tripadvisor_disabled">TripAdvisor highlights are not set up.</string>
+    <string name="src_tripadvisor_disabled_fix">Enable it under Settings → TripAdvisor; enter the RapidAPI key in the RapidAPI section above.</string>
+    <string name="src_tripadvisor_no_key">No RapidAPI key is stored.</string>
+    <string name="src_tripadvisor_no_key_fix">Enter your RapidAPI key in the RapidAPI section of Settings (used by every RapidAPI source).</string>
+    <string name="src_tripadvisor_no_host">The API host or an endpoint path is missing.</string>
+    <string name="src_tripadvisor_no_host_fix">Check all three in Settings (the defaults are an unverified starting point).</string>
+    <string name="src_tripadvisor_no_location">Could not resolve a TripAdvisor place id for this destination.</string>
+    <string name="src_tripadvisor_denied">TripAdvisor refused access – check the RapidAPI key.</string>
+    <string name="src_tripadvisor_rate_limited">RapidAPI limit reached. Try again later.</string>
+    <string name="src_tripadvisor_http">TripAdvisor responded with HTTP %1$d.</string>
+    <string name="src_tripadvisor_empty">TripAdvisor returned an empty response.</string>
+    <string name="src_tripadvisor_unmapped">The response contained no usable highlights. Check the field mapping in Settings.</string>
+    <string name="src_tripadvisor_offline">TripAdvisor is unreachable – are you offline?</string>
+    <string name="src_tripadvisor_parse_failed">The TripAdvisor response could not be processed.</string>
+    <string name="src_tripadvisor_test_ok">%1$d highlights received.</string>
 
     <string name="src_feed_name">Custom flight feed (HTTPS)</string>
     <string name="src_feed_disabled">The custom flight feed is switched off.</string>

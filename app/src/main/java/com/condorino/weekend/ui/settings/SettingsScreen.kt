@@ -52,6 +52,10 @@ import java.time.LocalTime
  *  [SettingsUiState.sources], so its self-test result is looked up by this literal instead. */
 private const val GOOGLE_FLIGHTS_SOURCE_ID = "google-flights"
 
+/** Matches [com.condorino.weekend.data.source.TripAdvisorRecommendationSource.id] — same reasoning
+ *  as [GOOGLE_FLIGHTS_SOURCE_ID]. */
+private const val TRIPADVISOR_SOURCE_ID = "tripadvisor"
+
 /** Everything from spec §7 (work times, buffers, limits), §8 (weights) and §3 (data sources). */
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -322,6 +326,15 @@ fun SettingsScreen(
         }
 
         SettingsSection(
+            stringResource(R.string.settings_rapidapi),
+            stringResource(R.string.settings_rapidapi_body),
+        ) {
+            PasswordField(stringResource(R.string.settings_rapidapi_key), state.rapidApiKey) {
+                viewModel.updateRapidApiKey(it.trim())
+            }
+        }
+
+        SettingsSection(
             stringResource(R.string.settings_google_flights),
             stringResource(R.string.settings_google_flights_body),
         ) {
@@ -373,9 +386,6 @@ fun SettingsScreen(
             TextField(stringResource(R.string.settings_gf_api_host), state.googleFlightsApiConfig.apiHost) {
                 viewModel.updateGoogleFlightsApiConfig(state.googleFlightsApiConfig.copy(apiHost = it.trim()))
             }
-            PasswordField(stringResource(R.string.settings_gf_api_key), state.googleFlightsApiConfig.apiKey) {
-                viewModel.updateGoogleFlightsApiConfig(state.googleFlightsApiConfig.copy(apiKey = it.trim()))
-            }
             TextField(stringResource(R.string.settings_gf_path), state.googleFlightsApiConfig.path) {
                 viewModel.updateGoogleFlightsApiConfig(state.googleFlightsApiConfig.copy(path = it.trim()))
             }
@@ -402,6 +412,131 @@ fun SettingsScreen(
             }
             Text(
                 stringResource(R.string.settings_gf_unverified_hint),
+                color = CondorinoColors.TextTertiary,
+                fontSize = 11.sp,
+                lineHeight = 15.sp,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+
+        SettingsSection(
+            stringResource(R.string.settings_tripadvisor),
+            stringResource(R.string.settings_tripadvisor_body),
+        ) {
+            SwitchRow(
+                label = stringResource(R.string.settings_api_active),
+                checked = state.tripAdvisorApiConfig.enabled,
+                onCheckedChange = { viewModel.updateTripAdvisorApiConfig(state.tripAdvisorApiConfig.copy(enabled = it)) },
+            )
+            state.tripAdvisorStatus?.let { status ->
+                Text(
+                    when (status) {
+                        is SourceStatus.Ready -> stringResource(R.string.settings_source_ready)
+                        is SourceStatus.NotConfigured -> "${status.reason} ${status.howToFix}"
+                        is SourceStatus.Unavailable -> status.reason
+                    },
+                    color = if (status is SourceStatus.Ready) CondorinoColors.Mint else CondorinoColors.TextTertiary,
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp,
+                )
+            }
+            state.sourceTests[TRIPADVISOR_SOURCE_ID]?.let { result ->
+                Text(
+                    when (result) {
+                        is SourceTestResult.Ok -> result.message
+                        is SourceTestResult.Problem -> result.message
+                    },
+                    color = when (result) {
+                        is SourceTestResult.Ok -> CondorinoColors.Mint
+                        is SourceTestResult.Problem -> CondorinoColors.Warning
+                    },
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
+                )
+            }
+            OutlinedButton(
+                onClick = { viewModel.testSource(TRIPADVISOR_SOURCE_ID) },
+                enabled = state.testingSourceId == null,
+            ) {
+                Text(
+                    stringResource(
+                        if (state.testingSourceId == TRIPADVISOR_SOURCE_ID) R.string.settings_source_testing
+                        else R.string.settings_source_test,
+                    ),
+                    color = CondorinoColors.Amber,
+                    fontSize = 12.sp,
+                )
+            }
+            TextField(stringResource(R.string.settings_ta_api_host), state.tripAdvisorApiConfig.apiHost) {
+                viewModel.updateTripAdvisorApiConfig(state.tripAdvisorApiConfig.copy(apiHost = it.trim()))
+            }
+            Text(
+                stringResource(R.string.settings_ta_location_step),
+                color = CondorinoColors.TextTertiary,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            TextField(stringResource(R.string.settings_ta_location_search_path), state.tripAdvisorApiConfig.locationSearchPath) {
+                viewModel.updateTripAdvisorApiConfig(state.tripAdvisorApiConfig.copy(locationSearchPath = it.trim()))
+            }
+            TextField(stringResource(R.string.settings_ta_location_query_param), state.tripAdvisorApiConfig.locationQueryParam) {
+                viewModel.updateTripAdvisorApiConfig(state.tripAdvisorApiConfig.copy(locationQueryParam = it.trim()))
+            }
+            TextField(stringResource(R.string.settings_ta_location_items_path), state.tripAdvisorApiConfig.locationItemsPath) {
+                viewModel.updateTripAdvisorApiConfig(state.tripAdvisorApiConfig.copy(locationItemsPath = it.trim()))
+            }
+            TextField(stringResource(R.string.settings_ta_location_id_field), state.tripAdvisorApiConfig.locationIdField) {
+                viewModel.updateTripAdvisorApiConfig(state.tripAdvisorApiConfig.copy(locationIdField = it.trim()))
+            }
+            Text(
+                stringResource(R.string.settings_ta_highlights_step),
+                color = CondorinoColors.TextTertiary,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            TextField(stringResource(R.string.settings_ta_highlights_path), state.tripAdvisorApiConfig.highlightsPath) {
+                viewModel.updateTripAdvisorApiConfig(state.tripAdvisorApiConfig.copy(highlightsPath = it.trim()))
+            }
+            TextField(stringResource(R.string.settings_ta_highlights_location_id_param), state.tripAdvisorApiConfig.highlightsLocationIdParam) {
+                viewModel.updateTripAdvisorApiConfig(state.tripAdvisorApiConfig.copy(highlightsLocationIdParam = it.trim()))
+            }
+            TextField(stringResource(R.string.settings_ta_items_path), state.tripAdvisorApiConfig.itemsPath) {
+                viewModel.updateTripAdvisorApiConfig(state.tripAdvisorApiConfig.copy(itemsPath = it.trim()))
+            }
+            Text(
+                stringResource(R.string.settings_api_fields),
+                color = CondorinoColors.TextTertiary,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            TextField(stringResource(R.string.settings_ta_field_name), state.tripAdvisorApiConfig.fieldName) {
+                viewModel.updateTripAdvisorApiConfig(state.tripAdvisorApiConfig.copy(fieldName = it.trim()))
+            }
+            TextField(stringResource(R.string.settings_ta_field_rating), state.tripAdvisorApiConfig.fieldRating) {
+                viewModel.updateTripAdvisorApiConfig(state.tripAdvisorApiConfig.copy(fieldRating = it.trim()))
+            }
+            TextField(stringResource(R.string.settings_ta_field_review_count), state.tripAdvisorApiConfig.fieldReviewCount) {
+                viewModel.updateTripAdvisorApiConfig(state.tripAdvisorApiConfig.copy(fieldReviewCount = it.trim()))
+            }
+            TextField(stringResource(R.string.settings_ta_field_url), state.tripAdvisorApiConfig.fieldUrl) {
+                viewModel.updateTripAdvisorApiConfig(state.tripAdvisorApiConfig.copy(fieldUrl = it.trim()))
+            }
+            TextField(stringResource(R.string.settings_ta_field_address), state.tripAdvisorApiConfig.fieldAddress) {
+                viewModel.updateTripAdvisorApiConfig(state.tripAdvisorApiConfig.copy(fieldAddress = it.trim()))
+            }
+            TextField(stringResource(R.string.settings_ta_field_category), state.tripAdvisorApiConfig.fieldCategory) {
+                viewModel.updateTripAdvisorApiConfig(state.tripAdvisorApiConfig.copy(fieldCategory = it.trim()))
+            }
+            NumberField(
+                stringResource(R.string.settings_ta_max_results),
+                state.tripAdvisorApiConfig.maxResults.toString(),
+                { v -> v.toIntOrNull()?.coerceIn(1, 20)?.let { n ->
+                    viewModel.updateTripAdvisorApiConfig(state.tripAdvisorApiConfig.copy(maxResults = n))
+                } },
+            )
+            Text(
+                stringResource(R.string.settings_ta_unverified_hint),
                 color = CondorinoColors.TextTertiary,
                 fontSize = 11.sp,
                 lineHeight = 15.sp,

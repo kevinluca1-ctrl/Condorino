@@ -15,6 +15,7 @@ import com.condorino.weekend.data.source.CondorApiConfig
 import com.condorino.weekend.data.source.FeedConfig
 import com.condorino.weekend.data.source.GoogleFlightsApiConfig
 import com.condorino.weekend.data.source.OpenSkyConfig
+import com.condorino.weekend.data.source.TripAdvisorApiConfig
 import com.condorino.weekend.domain.model.Cabin
 import com.condorino.weekend.domain.model.DestinationType
 import com.condorino.weekend.domain.model.ScoreWeights
@@ -89,9 +90,14 @@ class PreferencesStore(private val context: Context) {
         val openSkyCallsign = stringPreferencesKey("opensky_callsign_prefix")
         val openSkyLookbackWeeks = intPreferencesKey("opensky_lookback_weeks")
 
+        // Legacy, no longer written: kept only so an already-entered key survives as a fallback
+        // for the shared rapidApiKey below, rather than silently discarding it.
+        val gfApiKey = stringPreferencesKey("google_flights_api_key")
+
+        val rapidApiKey = stringPreferencesKey("rapid_api_key")
+
         val gfEnabled = booleanPreferencesKey("google_flights_enabled")
         val gfApiHost = stringPreferencesKey("google_flights_api_host")
-        val gfApiKey = stringPreferencesKey("google_flights_api_key")
         val gfPath = stringPreferencesKey("google_flights_path")
         val gfDepartureIdParam = stringPreferencesKey("google_flights_departure_id_param")
         val gfArrivalIdParam = stringPreferencesKey("google_flights_arrival_id_param")
@@ -107,6 +113,23 @@ class PreferencesStore(private val context: Context) {
         val gfFieldAirline = stringPreferencesKey("google_flights_field_airline")
         val gfFieldCarryOnIncluded = stringPreferencesKey("google_flights_field_carry_on_included")
         val gfFieldCarryOnNote = stringPreferencesKey("google_flights_field_carry_on_note")
+
+        val taEnabled = booleanPreferencesKey("tripadvisor_enabled")
+        val taApiHost = stringPreferencesKey("tripadvisor_api_host")
+        val taLocationSearchPath = stringPreferencesKey("tripadvisor_location_search_path")
+        val taLocationQueryParam = stringPreferencesKey("tripadvisor_location_query_param")
+        val taLocationItemsPath = stringPreferencesKey("tripadvisor_location_items_path")
+        val taLocationIdField = stringPreferencesKey("tripadvisor_location_id_field")
+        val taHighlightsPath = stringPreferencesKey("tripadvisor_highlights_path")
+        val taHighlightsLocationIdParam = stringPreferencesKey("tripadvisor_highlights_location_id_param")
+        val taItemsPath = stringPreferencesKey("tripadvisor_items_path")
+        val taFieldName = stringPreferencesKey("tripadvisor_field_name")
+        val taFieldRating = stringPreferencesKey("tripadvisor_field_rating")
+        val taFieldReviewCount = stringPreferencesKey("tripadvisor_field_review_count")
+        val taFieldUrl = stringPreferencesKey("tripadvisor_field_url")
+        val taFieldAddress = stringPreferencesKey("tripadvisor_field_address")
+        val taFieldCategory = stringPreferencesKey("tripadvisor_field_category")
+        val taMaxResults = intPreferencesKey("tripadvisor_max_results")
 
         val themeMode = stringPreferencesKey("theme_mode")
 
@@ -202,12 +225,22 @@ class PreferencesStore(private val context: Context) {
         )
     }
 
+    /**
+     * One RapidAPI key shared by every RapidAPI-hosted source (Google Flights, TripAdvisor, and
+     * any future one) — matching how RapidAPI itself works: a single account-level key is valid
+     * across every API that account has subscribed to, distinguished only by the
+     * `X-RapidAPI-Host` header each source already sends. Falls back to whatever was entered in
+     * the old, source-specific Google Flights key field, so upgrading doesn't silently drop it.
+     */
+    val rapidApiKey: Flow<String> = context.dataStore.data.map { p ->
+        p[Keys.rapidApiKey]?.takeIf { it.isNotBlank() } ?: p[Keys.gfApiKey].orEmpty()
+    }
+
     val googleFlightsApiConfig: Flow<GoogleFlightsApiConfig> = context.dataStore.data.map { p ->
         val d = GoogleFlightsApiConfig()
         GoogleFlightsApiConfig(
             enabled = p[Keys.gfEnabled] ?: false,
             apiHost = p[Keys.gfApiHost] ?: d.apiHost,
-            apiKey = p[Keys.gfApiKey].orEmpty(),
             path = p[Keys.gfPath] ?: d.path,
             departureIdParam = p[Keys.gfDepartureIdParam] ?: d.departureIdParam,
             arrivalIdParam = p[Keys.gfArrivalIdParam] ?: d.arrivalIdParam,
@@ -223,6 +256,28 @@ class PreferencesStore(private val context: Context) {
             fieldAirline = p[Keys.gfFieldAirline] ?: d.fieldAirline,
             fieldCarryOnIncluded = p[Keys.gfFieldCarryOnIncluded] ?: d.fieldCarryOnIncluded,
             fieldCarryOnNote = p[Keys.gfFieldCarryOnNote] ?: d.fieldCarryOnNote,
+        )
+    }
+
+    val tripAdvisorApiConfig: Flow<TripAdvisorApiConfig> = context.dataStore.data.map { p ->
+        val d = TripAdvisorApiConfig()
+        TripAdvisorApiConfig(
+            enabled = p[Keys.taEnabled] ?: false,
+            apiHost = p[Keys.taApiHost] ?: d.apiHost,
+            locationSearchPath = p[Keys.taLocationSearchPath] ?: d.locationSearchPath,
+            locationQueryParam = p[Keys.taLocationQueryParam] ?: d.locationQueryParam,
+            locationItemsPath = p[Keys.taLocationItemsPath] ?: d.locationItemsPath,
+            locationIdField = p[Keys.taLocationIdField] ?: d.locationIdField,
+            highlightsPath = p[Keys.taHighlightsPath] ?: d.highlightsPath,
+            highlightsLocationIdParam = p[Keys.taHighlightsLocationIdParam] ?: d.highlightsLocationIdParam,
+            itemsPath = p[Keys.taItemsPath] ?: d.itemsPath,
+            fieldName = p[Keys.taFieldName] ?: d.fieldName,
+            fieldRating = p[Keys.taFieldRating] ?: d.fieldRating,
+            fieldReviewCount = p[Keys.taFieldReviewCount] ?: d.fieldReviewCount,
+            fieldUrl = p[Keys.taFieldUrl] ?: d.fieldUrl,
+            fieldAddress = p[Keys.taFieldAddress] ?: d.fieldAddress,
+            fieldCategory = p[Keys.taFieldCategory] ?: d.fieldCategory,
+            maxResults = p[Keys.taMaxResults] ?: d.maxResults,
         )
     }
 
@@ -317,11 +372,14 @@ class PreferencesStore(private val context: Context) {
         }
     }
 
+    suspend fun updateRapidApiKey(key: String) {
+        context.dataStore.edit { it[Keys.rapidApiKey] = key }
+    }
+
     suspend fun updateGoogleFlightsApiConfig(config: GoogleFlightsApiConfig) {
         context.dataStore.edit { p ->
             p[Keys.gfEnabled] = config.enabled
             p[Keys.gfApiHost] = config.apiHost
-            p[Keys.gfApiKey] = config.apiKey
             p[Keys.gfPath] = config.path
             p[Keys.gfDepartureIdParam] = config.departureIdParam
             p[Keys.gfArrivalIdParam] = config.arrivalIdParam
@@ -337,6 +395,27 @@ class PreferencesStore(private val context: Context) {
             p[Keys.gfFieldAirline] = config.fieldAirline
             p[Keys.gfFieldCarryOnIncluded] = config.fieldCarryOnIncluded
             p[Keys.gfFieldCarryOnNote] = config.fieldCarryOnNote
+        }
+    }
+
+    suspend fun updateTripAdvisorApiConfig(config: TripAdvisorApiConfig) {
+        context.dataStore.edit { p ->
+            p[Keys.taEnabled] = config.enabled
+            p[Keys.taApiHost] = config.apiHost
+            p[Keys.taLocationSearchPath] = config.locationSearchPath
+            p[Keys.taLocationQueryParam] = config.locationQueryParam
+            p[Keys.taLocationItemsPath] = config.locationItemsPath
+            p[Keys.taLocationIdField] = config.locationIdField
+            p[Keys.taHighlightsPath] = config.highlightsPath
+            p[Keys.taHighlightsLocationIdParam] = config.highlightsLocationIdParam
+            p[Keys.taItemsPath] = config.itemsPath
+            p[Keys.taFieldName] = config.fieldName
+            p[Keys.taFieldRating] = config.fieldRating
+            p[Keys.taFieldReviewCount] = config.fieldReviewCount
+            p[Keys.taFieldUrl] = config.fieldUrl
+            p[Keys.taFieldAddress] = config.fieldAddress
+            p[Keys.taFieldCategory] = config.fieldCategory
+            p[Keys.taMaxResults] = config.maxResults
         }
     }
 

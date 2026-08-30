@@ -116,6 +116,41 @@ this is a metered third-party subscription and firing it for every candidate tri
 a RapidAPI quota for data most of it would never be looked at. It is not wired into cost scoring:
 it is informational, shown next to the standby price rather than folded into `TripScore`.
 
+### 6. `TripAdvisorRecommendationSource` — nearby highlights, on demand
+
+Same family as `GoogleFlightsPriceSource` above, both in what it answers and in how it's built. It
+doesn't search a timetable or price a trip — it answers "now that I've picked this city, what's
+worth seeing?", for the one destination the trip detail screen is already showing, via a compact
+"Nearby" card. See `TravelRecommendationSource` for the interface.
+
+It talks to a TripAdvisor-data listing on RapidAPI (the long-running "Travel Advisor" API by apidojo
+is where the endpoint paths and field names below come from) in **two chained requests**: first
+resolve the destination's city name to TripAdvisor's own internal location id, then ask for nearby
+attractions using that id. That listing's playground page could not be reached from the environment
+this was built in (blocked by network egress), so — same situation and same fix as
+`GoogleFlightsPriceSource` — **every endpoint path, parameter name and response field name in
+`TripAdvisorApiConfig` is a best-effort reconstruction from public search-engine snippets, not a
+verified contract**. Nothing is hard-coded as fact: *Settings → TripAdvisor* exposes every one of
+those names for you to correct once you have real RapidAPI access, and
+`TripAdvisorRecommendationSource.mapLocationId()` / `.mapHighlights()` are the only two places that
+interpret them.
+
+The category field in particular had no confirmed example anywhere in the researched snippets, so
+its default ships blank on purpose — until you fill it in, every highlight is shown as "Other"
+rather than guessing what kind of place it is.
+
+Queried strictly on demand — one destination, one tap — for the same quota reason as Google Flights.
+Also not wired into cost or destination scoring: purely informational, shown next to the standby and
+commercial prices rather than folded into `TripScore` or `Destination`'s hand-curated profile
+factors.
+
+### RapidAPI key, shared
+
+Both of the above run over RapidAPI, and RapidAPI itself works on one account-level key valid across
+every API that account has subscribed to — the app follows the same shape rather than asking twice:
+*Settings → RapidAPI* holds one key used by both sources (and any future RapidAPI-hosted one), while
+each source keeps its own host, paths and field names, since those genuinely differ per API.
+
 ## The Condorino feed schema
 
 ```jsonc
