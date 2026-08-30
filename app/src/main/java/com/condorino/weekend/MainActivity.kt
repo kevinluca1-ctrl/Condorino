@@ -59,6 +59,7 @@ class MainActivity : ComponentActivity() {
                         standbyPriceRepository = container.standbyPriceRepository,
                         favoriteRepository = container.favoriteRepository,
                         commercialPriceSource = container.commercialPriceSource,
+                        travelRecommendationSource = container.travelRecommendationSource,
                     ),
                 )
                 val calendar: CalendarViewModel = viewModel(
@@ -71,6 +72,7 @@ class MainActivity : ComponentActivity() {
                         tripRepository = container.tripRepository,
                         sources = container.allSources,
                         commercialPriceSource = container.commercialPriceSource,
+                        travelRecommendationSource = container.travelRecommendationSource,
                         airportReferenceCatalog = container.airportReferenceCatalog,
                         updateRepository = container.updateRepository,
                     ),

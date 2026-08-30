@@ -6,8 +6,12 @@ import androidx.lifecycle.viewModelScope
 import com.condorino.weekend.data.prefs.PreferencesStore
 import com.condorino.weekend.data.source.CommercialPriceResult
 import com.condorino.weekend.data.source.CommercialPriceSource
+import com.condorino.weekend.data.source.TravelRecommendationResult
+import com.condorino.weekend.data.source.TravelRecommendationSource
+import com.condorino.weekend.domain.model.Airport
 import com.condorino.weekend.domain.model.Cabin
 import com.condorino.weekend.domain.model.CommercialPriceQuote
+import com.condorino.weekend.domain.model.DestinationHighlights
 import com.condorino.weekend.domain.model.DestinationType
 import com.condorino.weekend.domain.model.StandbyPrice
 import com.condorino.weekend.domain.model.UserPreferences
@@ -58,6 +62,19 @@ sealed interface CommercialPriceUiState {
     data class Failure(val message: String) : CommercialPriceUiState
 }
 
+/**
+ * On-demand "nearby highlights" lookup state for one destination (keyed by IATA code in
+ * [PlannerUiState.travelHighlights] — by destination, not by trip, since the answer doesn't depend
+ * on which weekend pattern or exact flights got you there). Absent from the map entirely means
+ * "never asked for", the normal state for almost every destination.
+ */
+sealed interface TravelHighlightsUiState {
+    data object Loading : TravelHighlightsUiState
+    data class Success(val highlights: DestinationHighlights) : TravelHighlightsUiState
+    data class NotConfigured(val reason: String, val howToFix: String) : TravelHighlightsUiState
+    data class Failure(val message: String) : TravelHighlightsUiState
+}
+
 /** Why a trip list came back empty. Rendered by the UI, see `ui/text/DomainText.kt`. */
 sealed interface EmptyReason {
     data object NoFlightData : EmptyReason
@@ -89,6 +106,8 @@ data class PlannerUiState(
     val selectedTripId: String? = null,
     /** On-demand commercial-price lookups keyed by trip id — see [CommercialPriceUiState]. */
     val commercialPrices: Map<String, CommercialPriceUiState> = emptyMap(),
+    /** On-demand nearby-highlights lookups keyed by destination IATA — see [TravelHighlightsUiState]. */
+    val travelHighlights: Map<String, TravelHighlightsUiState> = emptyMap(),
 ) {
     /** Trips after the on-screen filters — this is what every list renders. */
     val trips: List<WeekendTrip>
@@ -157,6 +176,7 @@ class PlannerViewModel(
     private val standbyPriceRepository: StandbyPriceRepository,
     private val favoriteRepository: FavoriteRepository,
     private val commercialPriceSource: CommercialPriceSource,
+    private val travelRecommendationSource: TravelRecommendationSource,
     private val randomSelector: RandomDestinationSelector = RandomDestinationSelector(),
 ) : ViewModel() {
 
@@ -321,6 +341,31 @@ class PlannerViewModel(
         }
     }
 
+    // ---------------------------------------------------------------- travel highlights
+
+    /**
+     * Fetches a handful of well-rated things to do near this destination, on demand — never called
+     * automatically (see [TravelRecommendationSource] doc). Keyed by destination, not by trip, so
+     * checking a second weekend pattern for the same city reuses the first lookup instead of firing
+     * a second one. Re-tapping while a lookup is already in flight for this destination is a no-op.
+     */
+    fun checkTravelHighlights(destination: Airport) {
+        val iata = destination.iata
+        if (_state.value.travelHighlights[iata] is TravelHighlightsUiState.Loading) return
+        _state.update { it.copy(travelHighlights = it.travelHighlights + (iata to TravelHighlightsUiState.Loading)) }
+        viewModelScope.launch {
+            val result = travelRecommendationSource.highlights(destination)
+            val next = when (result) {
+                is TravelRecommendationResult.Success -> TravelHighlightsUiState.Success(result.highlights)
+                is TravelRecommendationResult.NotConfigured -> TravelHighlightsUiState.NotConfigured(result.reason, result.howToFix)
+                is TravelRecommendationResult.Failure -> TravelHighlightsUiState.Failure(
+                    result.userMessage + (result.technicalDetail?.let { " ($it)" } ?: ""),
+                )
+            }
+            _state.update { it.copy(travelHighlights = it.travelHighlights + (iata to next)) }
+        }
+    }
+
     // ---------------------------------------------------------------- surprise me
 
     fun setSurpriseMode(mode: RandomMode) {
@@ -359,6 +404,7 @@ class PlannerViewModel(
             standbyPriceRepository: StandbyPriceRepository,
             favoriteRepository: FavoriteRepository,
             commercialPriceSource: CommercialPriceSource,
+            travelRecommendationSource: TravelRecommendationSource,
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T =
@@ -368,6 +414,7 @@ class PlannerViewModel(
                     standbyPriceRepository,
                     favoriteRepository,
                     commercialPriceSource,
+                    travelRecommendationSource,
                 ) as T
         }
     }

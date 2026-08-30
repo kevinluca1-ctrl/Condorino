@@ -40,9 +40,12 @@ import com.condorino.weekend.ui.components.EmptyState
 import com.condorino.weekend.ui.components.Pill
 import com.condorino.weekend.ui.components.ProvenancePill
 import com.condorino.weekend.ui.components.ScoreBadge
+import com.condorino.weekend.domain.model.HighlightCategory
+import com.condorino.weekend.domain.model.TravelHighlight
 import com.condorino.weekend.ui.planner.CommercialPriceUiState
 import com.condorino.weekend.ui.planner.PlannerUiState
 import com.condorino.weekend.ui.planner.PlannerViewModel
+import com.condorino.weekend.ui.planner.TravelHighlightsUiState
 import com.condorino.weekend.ui.text.label
 import com.condorino.weekend.ui.text.nightsLabel
 import com.condorino.weekend.ui.text.text
@@ -247,6 +250,72 @@ fun TripDetailScreen(
                         Text(priceState.message, color = CondorinoColors.Warning, fontSize = 12.sp)
                         Spacer(Modifier.height(10.dp))
                         OutlinedButton(onClick = { viewModel.checkCommercialPrice(trip) }) {
+                            Text(
+                                stringResource(R.string.action_retry),
+                                color = CondorinoColors.Amber,
+                                fontSize = 13.sp,
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(18.dp))
+            SectionHeader(stringResource(R.string.detail_nearby_highlights))
+            Card {
+                when (val highlightsState = state.travelHighlights[trip.iata]) {
+                    null -> {
+                        Text(
+                            stringResource(R.string.detail_nearby_highlights_hint),
+                            color = CondorinoColors.TextTertiary,
+                            fontSize = 12.sp,
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        OutlinedButton(onClick = { viewModel.checkTravelHighlights(trip.destination.airport) }) {
+                            Text(
+                                stringResource(R.string.detail_check_nearby_highlights),
+                                color = CondorinoColors.Amber,
+                                fontSize = 13.sp,
+                            )
+                        }
+                    }
+                    TravelHighlightsUiState.Loading -> {
+                        LinearProgressIndicator(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp)),
+                            color = CondorinoColors.Amber,
+                            trackColor = CondorinoColors.SurfaceHigh,
+                        )
+                    }
+                    is TravelHighlightsUiState.Success -> {
+                        highlightsState.highlights.highlights.forEachIndexed { index, highlight ->
+                            if (index > 0) Spacer(Modifier.height(10.dp))
+                            HighlightRow(highlight)
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        OutlinedButton(onClick = { viewModel.checkTravelHighlights(trip.destination.airport) }) {
+                            Text(
+                                stringResource(R.string.detail_refresh_nearby_highlights),
+                                color = CondorinoColors.Amber,
+                                fontSize = 13.sp,
+                            )
+                        }
+                    }
+                    is TravelHighlightsUiState.NotConfigured -> {
+                        Text(highlightsState.reason, color = CondorinoColors.Warning, fontSize = 12.sp)
+                        Text(
+                            highlightsState.howToFix,
+                            color = CondorinoColors.TextTertiary,
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                    }
+                    is TravelHighlightsUiState.Failure -> {
+                        Text(highlightsState.message, color = CondorinoColors.Warning, fontSize = 12.sp)
+                        Spacer(Modifier.height(10.dp))
+                        OutlinedButton(onClick = { viewModel.checkTravelHighlights(trip.destination.airport) }) {
                             Text(
                                 stringResource(R.string.action_retry),
                                 color = CondorinoColors.Amber,
@@ -498,6 +567,56 @@ private fun DetailRow(
         Text(label, color = CondorinoColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.weight(1f))
         Text(value, color = valueColor, fontSize = 13.sp, fontWeight = FontWeight.Bold)
     }
+}
+
+@Composable
+private fun HighlightRow(highlight: TravelHighlight) {
+    Column(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(categoryEmoji(highlight.category), fontSize = 14.sp)
+            Spacer(Modifier.width(6.dp))
+            Text(
+                highlight.name,
+                color = CondorinoColors.TextPrimary,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f),
+            )
+            if (highlight.rating != null) {
+                Text(
+                    stringResource(R.string.detail_highlight_rating, highlight.rating),
+                    color = CondorinoColors.Amber,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        }
+        // stringResource is @Composable, so it has to be resolved here, before buildString's
+        // (non-composable) lambda — not inline inside it.
+        val reviewsText = highlight.reviewCount?.let { stringResource(R.string.detail_highlight_reviews, it) }
+        val secondary = buildString {
+            reviewsText?.let { append(it) }
+            if (!highlight.address.isNullOrBlank()) {
+                if (isNotEmpty()) append(" · ")
+                append(highlight.address)
+            }
+        }
+        if (secondary.isNotEmpty()) {
+            Text(
+                secondary,
+                color = CondorinoColors.TextTertiary,
+                fontSize = 11.sp,
+                modifier = Modifier.padding(start = 20.dp, top = 2.dp),
+            )
+        }
+    }
+}
+
+private fun categoryEmoji(category: HighlightCategory): String = when (category) {
+    HighlightCategory.ATTRACTION -> "🎟"
+    HighlightCategory.RESTAURANT -> "🍽"
+    HighlightCategory.HOTEL -> "🏨"
+    HighlightCategory.OTHER -> "📍"
 }
 
 @Composable

@@ -47,6 +47,8 @@ import java.time.LocalDate
 class GoogleFlightsPriceSource(
     private val client: OkHttpClient,
     private val configProvider: suspend () -> GoogleFlightsApiConfig,
+    /** The one RapidAPI key shared by every RapidAPI-hosted source — see [PreferencesStore.rapidApiKey]. */
+    private val apiKeyProvider: suspend () -> String,
     override val strings: SourceStrings,
     private val json: Json = Json { ignoreUnknownKeys = true; isLenient = true },
     private val now: () -> Instant = { Instant.now() },
@@ -65,7 +67,7 @@ class GoogleFlightsPriceSource(
                 reason = strings.get(R.string.src_google_flights_disabled),
                 howToFix = strings.get(R.string.src_google_flights_disabled_fix),
             )
-            config.apiKey.isBlank() -> SourceStatus.NotConfigured(
+            apiKeyProvider().isBlank() -> SourceStatus.NotConfigured(
                 reason = strings.get(R.string.src_google_flights_no_key),
                 howToFix = strings.get(R.string.src_google_flights_no_key_fix),
             )
@@ -94,7 +96,7 @@ class GoogleFlightsPriceSource(
         val url = buildUrl(config, origin.iata, destination.iata, outboundDate, returnDate, cabin)
         val request = Request.Builder().url(url).get()
             .addHeader("Accept", "application/json")
-            .addHeader("X-RapidAPI-Key", config.apiKey.trim())
+            .addHeader("X-RapidAPI-Key", apiKeyProvider().trim())
             .addHeader("X-RapidAPI-Host", config.apiHost.trim())
             .build()
 
@@ -268,7 +270,6 @@ class GoogleFlightsPriceSource(
 data class GoogleFlightsApiConfig(
     val enabled: Boolean = false,
     val apiHost: String = "google-flights2.p.rapidapi.com",
-    val apiKey: String = "",
     val path: String = "api/v1/searchFlights",
     val departureIdParam: String = "departure_id",
     val arrivalIdParam: String = "arrival_id",

@@ -40,7 +40,6 @@ class GoogleFlightsPriceSourceTest {
     private fun configFor(itemsPath: String = "data.itineraries.topFlights") = GoogleFlightsApiConfig(
         enabled = true,
         apiHost = server.hostName + ":" + server.port,
-        apiKey = "rapid-key",
         path = "api/v1/searchFlights",
         itemsPath = itemsPath,
         fieldCarryOnIncluded = "carryOnIncluded",
@@ -50,6 +49,7 @@ class GoogleFlightsPriceSourceTest {
     private fun sourceFor(config: GoogleFlightsApiConfig) = GoogleFlightsPriceSource(
         client = OkHttpClient(),
         configProvider = { config },
+        apiKeyProvider = { "rapid-key" },
         strings = GoogleFlightsFakeStrings(),
         now = { fixedNow },
         scheme = "http",

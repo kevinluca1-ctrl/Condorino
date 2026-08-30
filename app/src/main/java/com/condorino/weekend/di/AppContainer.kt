@@ -18,6 +18,8 @@ import com.condorino.weekend.data.source.GoogleFlightsPriceSource
 import com.condorino.weekend.data.source.HttpFeedFlightDataSource
 import com.condorino.weekend.data.source.OpenSkyFlightDataSource
 import com.condorino.weekend.data.source.SourceStrings
+import com.condorino.weekend.data.source.TravelRecommendationSource
+import com.condorino.weekend.data.source.TripAdvisorRecommendationSource
 import com.condorino.weekend.data.update.DefaultUpdateRepository
 import com.condorino.weekend.data.update.GitHubReleaseUpdateSource
 import com.condorino.weekend.data.update.UpdateDownloader
@@ -148,6 +150,20 @@ class AppContainer(context: Context) {
         GoogleFlightsPriceSource(
             client = httpClient,
             configProvider = { preferencesStore.googleFlightsApiConfig.first() },
+            apiKeyProvider = { preferencesStore.rapidApiKey.first() },
+            strings = sourceStrings,
+        )
+    }
+
+    /**
+     * On-demand "what's worth doing here?" lookup — queried per destination, on a button tap,
+     * never automatically for every trip on screen (see [TravelRecommendationSource] doc).
+     */
+    val travelRecommendationSource: TravelRecommendationSource by lazy {
+        TripAdvisorRecommendationSource(
+            client = httpClient,
+            configProvider = { preferencesStore.tripAdvisorApiConfig.first() },
+            apiKeyProvider = { preferencesStore.rapidApiKey.first() },
             strings = sourceStrings,
         )
     }

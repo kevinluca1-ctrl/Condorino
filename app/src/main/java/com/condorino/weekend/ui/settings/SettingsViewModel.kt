@@ -14,6 +14,8 @@ import com.condorino.weekend.data.source.OpenSkyConfig
 import com.condorino.weekend.data.source.FlightDataSource
 import com.condorino.weekend.data.source.SourceStatus
 import com.condorino.weekend.data.source.SourceTestResult
+import com.condorino.weekend.data.source.TravelRecommendationSource
+import com.condorino.weekend.data.source.TripAdvisorApiConfig
 import com.condorino.weekend.data.update.UpdateRepository
 import com.condorino.weekend.data.update.UpdateUiState
 import com.condorino.weekend.domain.model.Airport
@@ -59,10 +61,16 @@ data class SettingsUiState(
     val prices: Map<String, StandbyPrice> = emptyMap(),
     val destinations: List<Destination> = emptyList(),
     val openSkyConfig: OpenSkyConfig = OpenSkyConfig(),
+    /** One RapidAPI key shared by every RapidAPI-hosted source (Google Flights, TripAdvisor, …). */
+    val rapidApiKey: String = "",
     val googleFlightsApiConfig: GoogleFlightsApiConfig = GoogleFlightsApiConfig(),
     /** Status of [SettingsViewModel]'s commercial-price source — separate from [sources] because
      *  it isn't a [FlightDataSource] (it prices one trip on demand, not a timetable). */
     val googleFlightsStatus: SourceStatus? = null,
+    val tripAdvisorApiConfig: TripAdvisorApiConfig = TripAdvisorApiConfig(),
+    /** Status of [SettingsViewModel]'s travel-recommendation source — same reasoning as
+     *  [googleFlightsStatus]: it isn't a [FlightDataSource] either. */
+    val tripAdvisorStatus: SourceStatus? = null,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     /** How many airports the bundled public reference covers. */
     val referenceAirportCount: Int = 0,
@@ -83,6 +91,7 @@ class SettingsViewModel(
     private val tripRepository: TripRepository,
     private val sources: List<FlightDataSource>,
     private val commercialPriceSource: CommercialPriceSource,
+    private val travelRecommendationSource: TravelRecommendationSource,
     private val airportReferenceCatalog: AirportReferenceCatalog,
     private val updateRepository: UpdateRepository,
 ) : ViewModel() {
@@ -130,9 +139,26 @@ class SettingsViewModel(
             }
         }
         viewModelScope.launch {
+            preferencesStore.rapidApiKey.collectLatest { key ->
+                _state.update { it.copy(rapidApiKey = key) }
+                _state.update {
+                    it.copy(
+                        googleFlightsStatus = commercialPriceSource.status(),
+                        tripAdvisorStatus = travelRecommendationSource.status(),
+                    )
+                }
+            }
+        }
+        viewModelScope.launch {
             preferencesStore.googleFlightsApiConfig.collectLatest { config ->
                 _state.update { it.copy(googleFlightsApiConfig = config) }
                 _state.update { it.copy(googleFlightsStatus = commercialPriceSource.status()) }
+            }
+        }
+        viewModelScope.launch {
+            preferencesStore.tripAdvisorApiConfig.collectLatest { config ->
+                _state.update { it.copy(tripAdvisorApiConfig = config) }
+                _state.update { it.copy(tripAdvisorStatus = travelRecommendationSource.status()) }
             }
         }
         viewModelScope.launch {
@@ -182,8 +208,16 @@ class SettingsViewModel(
         viewModelScope.launch { preferencesStore.updateOpenSkyConfig(config) }
     }
 
+    fun updateRapidApiKey(key: String) {
+        viewModelScope.launch { preferencesStore.updateRapidApiKey(key) }
+    }
+
     fun updateGoogleFlightsApiConfig(config: GoogleFlightsApiConfig) {
         viewModelScope.launch { preferencesStore.updateGoogleFlightsApiConfig(config) }
+    }
+
+    fun updateTripAdvisorApiConfig(config: TripAdvisorApiConfig) {
+        viewModelScope.launch { preferencesStore.updateTripAdvisorApiConfig(config) }
     }
 
     fun setThemeMode(mode: ThemeMode) {
@@ -206,17 +240,21 @@ class SettingsViewModel(
 
     /**
      * Runs one source's self-test and keeps the result for display. Also handles
-     * [commercialPriceSource], which isn't in [sources] (it's a [CommercialPriceSource], not a
-     * [FlightDataSource]) but is tested the same way and shares the same result map by id.
+     * [commercialPriceSource] and [travelRecommendationSource], neither of which is in [sources]
+     * (they aren't [FlightDataSource]s — one prices a trip on demand, the other looks up nearby
+     * highlights on demand) but both are tested the same way and share the same result map by id.
      */
     fun testSource(id: String) {
         val flightSource = sources.firstOrNull { it.id == id }
-        if (flightSource == null && id != commercialPriceSource.id) return
+        val runner: suspend () -> SourceTestResult = when {
+            flightSource != null -> flightSource::selfTest
+            id == commercialPriceSource.id -> commercialPriceSource::selfTest
+            id == travelRecommendationSource.id -> travelRecommendationSource::selfTest
+            else -> return
+        }
         viewModelScope.launch {
             _state.update { it.copy(testingSourceId = id) }
-            val result = runCatching {
-                if (flightSource != null) flightSource.selfTest() else commercialPriceSource.selfTest()
-            }.getOrElse {
+            val result = runCatching { runner() }.getOrElse {
                 SourceTestResult.Problem(it.message ?: it::class.simpleName.orEmpty())
             }
             _state.update {
@@ -225,8 +263,13 @@ class SettingsViewModel(
                     testingSourceId = null,
                 )
             }
-            if (flightSource != null) refreshSourceStates()
-            else _state.update { it.copy(googleFlightsStatus = commercialPriceSource.status()) }
+            when {
+                flightSource != null -> refreshSourceStates()
+                id == commercialPriceSource.id ->
+                    _state.update { it.copy(googleFlightsStatus = commercialPriceSource.status()) }
+                id == travelRecommendationSource.id ->
+                    _state.update { it.copy(tripAdvisorStatus = travelRecommendationSource.status()) }
+            }
         }
     }
 
@@ -297,6 +340,7 @@ class SettingsViewModel(
             tripRepository: TripRepository,
             sources: List<FlightDataSource>,
             commercialPriceSource: CommercialPriceSource,
+            travelRecommendationSource: TravelRecommendationSource,
             airportReferenceCatalog: AirportReferenceCatalog,
             updateRepository: UpdateRepository,
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
@@ -307,6 +351,7 @@ class SettingsViewModel(
                 tripRepository,
                 sources,
                 commercialPriceSource,
+                travelRecommendationSource,
                 airportReferenceCatalog,
                 updateRepository,
             ) as T
