@@ -23,19 +23,22 @@ import java.time.Instant
 /**
  * ## Status of this data source — read before using
  *
- * This talks to a TripAdvisor-data listing on RapidAPI (the long-running "Travel Advisor" API by
- * apidojo is where the endpoint paths, parameter names and response field names below come from),
- * in two steps the same family of APIs has consistently used across the versions this could be
- * researched from: first resolve a free-text place name to TripAdvisor's own internal location id
- * (`locationSearchPath`), then ask for nearby attractions using that id (`highlightsPath`). Its full
- * request/response contract sits behind a RapidAPI subscription and could not be reached from where
- * this was written (blocked by network egress), so **every field name and value below is a
- * best-effort reconstruction from public search-engine snippets, not a verified contract** — the
- * same situation [GoogleFlightsPriceSource] was in, and handled the same way: nothing is hard-coded
- * as fact. [TripAdvisorApiConfig]'s defaults are a working starting point; if your actual response
- * doesn't match, correct the field names in Settings → TripAdvisor from what you see in RapidAPI's
- * own "Test Endpoint" panel — nothing else in the app needs to change (see [mapLocationId] and
- * [mapHighlights], the two places this is interpreted).
+ * This talks to a TripAdvisor-data listing on RapidAPI — specifically the `tripadvisor-scraper`
+ * listing by pradeepbardiya13 (host `tripadvisor-scraper.p.rapidapi.com`), which is where
+ * [TripAdvisorApiConfig.apiHost] below points. The endpoint paths, parameter names and response
+ * field names below actually come from an earlier reconstruction based on the longer-running
+ * "Travel Advisor" API by apidojo, since that specific listing's own documentation could not be
+ * reached either (blocked by network egress, same as everywhere else in this app) — the two listings
+ * are different RapidAPI products but both wrap the same underlying TripAdvisor data in the same
+ * two-step shape this source uses: first resolve a free-text place name to TripAdvisor's own
+ * internal location id (`locationSearchPath`), then ask for nearby attractions using that id
+ * (`highlightsPath`). So **every field name and value below is a best-effort reconstruction, not a
+ * verified contract for this specific listing** — the same situation [GoogleFlightsPriceSource] was
+ * in, and handled the same way: nothing is hard-coded as fact. [TripAdvisorApiConfig]'s defaults are
+ * a working starting point; if your actual response doesn't match, correct the field names in
+ * Settings → TripAdvisor from what you see in RapidAPI's own "Test Endpoint" panel — nothing else in
+ * the app needs to change (see [mapLocationId] and [mapHighlights], the two places this is
+ * interpreted).
  *
  * The category field in particular had no confirmed example in the researched snippets at all, so
  * its default is blank on purpose: every highlight reports [HighlightCategory.OTHER] until you fill
@@ -272,7 +275,7 @@ class TripAdvisorRecommendationSource(
  */
 data class TripAdvisorApiConfig(
     val enabled: Boolean = false,
-    val apiHost: String = "travel-advisor.p.rapidapi.com",
+    val apiHost: String = "tripadvisor-scraper.p.rapidapi.com",
     val locationSearchPath: String = "locations/v2/search",
     val locationQueryParam: String = "query",
     /** Dotted path to the array of location results in the first response, e.g. `data`. */

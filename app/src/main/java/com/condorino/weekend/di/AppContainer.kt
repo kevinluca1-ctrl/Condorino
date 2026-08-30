@@ -10,6 +10,7 @@ import com.condorino.weekend.data.local.CondorinoDatabase
 import com.condorino.weekend.data.mapper.toDomain
 import com.condorino.weekend.data.prefs.PreferencesStore
 import com.condorino.weekend.data.reference.AirportReferenceCatalog
+import com.condorino.weekend.data.source.AeroDataBoxFlightDataSource
 import com.condorino.weekend.data.source.AssetDemoFlightDataSource
 import com.condorino.weekend.data.source.CommercialPriceSource
 import com.condorino.weekend.data.source.CondorDeveloperApiDataSource
@@ -88,6 +89,14 @@ class AppContainer(context: Context) {
         AssetDemoFlightDataSource(appContext, airportReferenceCatalog, sourceStrings)
     }
 
+    /** IATA-keyed airports: cached rows first, then the bundled public reference — shared by every
+     *  source whose contract is IATA-keyed rather than needing [airportReferenceCatalog]'s own
+     *  ICAO lookup (which [CondorDeveloperApiDataSource] and [AeroDataBoxFlightDataSource] both use). */
+    private suspend fun iataAirportCatalog(): Map<String, Airport> {
+        val cached = database.airportDao().all().associate { it.iata to it.toDomain() }
+        return airportReferenceCatalog.airports() + cached + mapOf(Airport.HOME_IATA to Airport.FRANKFURT)
+    }
+
     /**
      * Real sources in descending order of trust. The first one that returns flights wins; the
      * demo source is handled separately by the repository so it can never be mistaken for one of
@@ -98,12 +107,16 @@ class AppContainer(context: Context) {
             CondorDeveloperApiDataSource(
                 client = httpClient,
                 configProvider = { preferencesStore.condorApiConfig.first() },
-                airportCatalog = {
-                    // Cached airports first, then the bundled public reference.
-                    val cached = database.airportDao().all().associate { it.iata to it.toDomain() }
-                    airportReferenceCatalog.airports() + cached +
-                        mapOf(Airport.HOME_IATA to Airport.FRANKFURT)
-                },
+                airportCatalog = ::iataAirportCatalog,
+                strings = sourceStrings,
+            ),
+            // A direct schedule query for the exact weekend asked, not a reconstruction — see the
+            // class doc — so it ranks ahead of the generic feed and well ahead of OpenSky below.
+            AeroDataBoxFlightDataSource(
+                client = httpClient,
+                configProvider = { preferencesStore.aeroDataBoxConfig.first() },
+                airportCatalog = ::iataAirportCatalog,
+                apiKeyProvider = { preferencesStore.rapidApiKey.first() },
                 strings = sourceStrings,
             ),
             HttpFeedFlightDataSource(
@@ -113,7 +126,8 @@ class AppContainer(context: Context) {
                 strings = sourceStrings,
             ),
             // Ranked last of the real sources: OpenSky describes flights that *were* flown, which
-            // is an excellent cross-check but never a statement about availability.
+            // is an excellent cross-check but never a statement about availability — and its own
+            // anonymous usage quota is easy to exhaust, see that source's class doc.
             OpenSkyFlightDataSource(
                 client = httpClient,
                 configProvider = { preferencesStore.openSkyConfig.first() },

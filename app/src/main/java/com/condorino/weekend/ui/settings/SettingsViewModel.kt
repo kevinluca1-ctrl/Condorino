@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.condorino.weekend.data.export.PriceExport
 import com.condorino.weekend.data.prefs.PreferencesStore
+import com.condorino.weekend.data.source.AeroDataBoxConfig
 import com.condorino.weekend.data.source.CommercialPriceSource
 import com.condorino.weekend.data.source.CondorApiConfig
 import com.condorino.weekend.data.reference.AirportReferenceCatalog
@@ -61,7 +62,9 @@ data class SettingsUiState(
     val prices: Map<String, StandbyPrice> = emptyMap(),
     val destinations: List<Destination> = emptyList(),
     val openSkyConfig: OpenSkyConfig = OpenSkyConfig(),
-    /** One RapidAPI key shared by every RapidAPI-hosted source (Google Flights, TripAdvisor, …). */
+    val aeroDataBoxConfig: AeroDataBoxConfig = AeroDataBoxConfig(),
+    /** One RapidAPI key shared by every RapidAPI-hosted source (AeroDataBox, Google Flights,
+     *  TripAdvisor, …). */
     val rapidApiKey: String = "",
     val googleFlightsApiConfig: GoogleFlightsApiConfig = GoogleFlightsApiConfig(),
     /** Status of [SettingsViewModel]'s commercial-price source — separate from [sources] because
@@ -139,6 +142,12 @@ class SettingsViewModel(
             }
         }
         viewModelScope.launch {
+            preferencesStore.aeroDataBoxConfig.collectLatest { config ->
+                _state.update { it.copy(aeroDataBoxConfig = config) }
+                refreshSourceStates()
+            }
+        }
+        viewModelScope.launch {
             preferencesStore.rapidApiKey.collectLatest { key ->
                 _state.update { it.copy(rapidApiKey = key) }
                 _state.update {
@@ -147,6 +156,10 @@ class SettingsViewModel(
                         tripAdvisorStatus = travelRecommendationSource.status(),
                     )
                 }
+                // Unlike Google Flights/TripAdvisor, AeroDataBox is a real FlightDataSource and so
+                // is already covered by `sources`/refreshSourceStates() — but its status() also
+                // depends on this same shared key, so a key change needs to refresh it too.
+                refreshSourceStates()
             }
         }
         viewModelScope.launch {
@@ -206,6 +219,10 @@ class SettingsViewModel(
 
     fun updateOpenSkyConfig(config: OpenSkyConfig) {
         viewModelScope.launch { preferencesStore.updateOpenSkyConfig(config) }
+    }
+
+    fun updateAeroDataBoxConfig(config: AeroDataBoxConfig) {
+        viewModelScope.launch { preferencesStore.updateAeroDataBoxConfig(config) }
     }
 
     fun updateRapidApiKey(key: String) {

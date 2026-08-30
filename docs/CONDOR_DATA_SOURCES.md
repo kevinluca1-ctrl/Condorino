@@ -53,7 +53,7 @@ or a schedule provider is the viable route. The architecture keeps both doors op
 
 ## How the app solves this
 
-Four swappable implementations of the `FlightDataSource` interface, in this order:
+Five swappable implementations of the `FlightDataSource` interface, in this order:
 
 ### 1. `CondorDeveloperApiDataSource` — the official route, configured by the user
 
@@ -68,7 +68,27 @@ Once you have portal access, you only need to fill in *Settings → Condor Devel
 response format differs substantially, `CondorDeveloperApiDataSource.mapFlights()` is the only
 place that has to be adapted.
 
-### 2. `HttpFeedFlightDataSource` — the route that works today
+### 2. `AeroDataBoxFlightDataSource` — real scheduled/live flights, on RapidAPI
+
+Talks to AeroDataBox's "Airport Flights (FIDS)" endpoint on RapidAPI (host
+`aerodatabox.p.rapidapi.com`): one request returns the actual scheduled departures and arrivals for
+Frankfurt over a local time window, in both directions at once. Unlike `OpenSkyFlightDataSource`
+below this is a **direct query for the exact weekend asked**, not a statistical reconstruction from
+historical observations — which is why it ranks ahead of the generic feed and well ahead of OpenSky.
+
+AeroDataBox's own documentation site could not be reached from the environment this was built in
+(blocked by network egress, the same limitation as every other RapidAPI source in this app) — but
+unlike `TripAdvisorRecommendationSource` below, this endpoint and its response shape are widely
+documented and cross-referenced across multiple independent public sources, so `AeroDataBoxConfig`'s
+defaults are a considerably more confident reconstruction than most other RapidAPI defaults here —
+**still not a verified contract**, though: *Settings → AeroDataBox* exposes every field name for you
+to correct once you have real RapidAPI access, and `AeroDataBoxFlightDataSource.mapFlights()` is the
+only place that interprets them. A request's local time window is capped
+(`AeroDataBoxConfig.windowHours`, default 12h) since lower RapidAPI subscription tiers are commonly
+reported to reject a much wider one; a query spanning a whole weekend is therefore split into a few
+chunked requests rather than one long one of uncertain validity.
+
+### 3. `HttpFeedFlightDataSource` — the route that works today
 
 Loads a JSON document following the **Condorino feed schema** documented below from any HTTPS URL.
 This lets you put real data into the app immediately, wherever it comes from: a GDS/OAG/Cirium
@@ -78,11 +98,17 @@ this format.
 The feed states for itself whether it is live (`"is_live": true`) or a published timetable. The app
 **never** upgrades a provenance on its own.
 
-### 3. `OpenSkyFlightDataSource` — cross-check against flights actually flown
+### 4. `OpenSkyFlightDataSource` — cross-check against flights actually flown, de-prioritized
 
-Free and usable without an account; see the second half of this document.
+Free and usable without an account, but ranked **last** of the real sources and disabled by default:
+it reconstructs a timetable from historical ADS-B observations rather than answering the exact
+weekend asked, and OpenSky's own anonymous-tier daily credit quota is easy to exhaust with too wide
+a request — an earlier version of this source did exactly that (a single search's request burst
+could burn the whole day's quota and take long enough to look like it had hung). See the second half
+of this document and that source's own class doc for the quota-safety limits now in place (a request
+cooldown, a lower default look-back, and a hard cap on chunked requests).
 
-### 4. `AssetDemoFlightDataSource` — sample data, unmistakably flagged
+### 5. `AssetDemoFlightDataSource` — sample data, unmistakably flagged
 
 So the app is usable on a fresh device with no configuration, a specimen timetable ships in
 `app/src/main/assets/demo_schedule.json`.
@@ -92,7 +118,7 @@ So the app is usable on a fresh device with no configuration, a specimen timetab
 > every flight produced carries `DataProvenance.DEMO`, and the app shows a permanent red banner
 > above it. The source can be switched off entirely in Settings.
 
-### 5. `GoogleFlightsPriceSource` — commercial comparison price, on demand
+### 6. `GoogleFlightsPriceSource` — commercial comparison price, on demand
 
 Separate from the four `FlightDataSource` implementations above: it doesn't search a timetable, it
 prices one already-decided trip's exact dates against what a normal paying passenger would be
@@ -116,24 +142,24 @@ this is a metered third-party subscription and firing it for every candidate tri
 a RapidAPI quota for data most of it would never be looked at. It is not wired into cost scoring:
 it is informational, shown next to the standby price rather than folded into `TripScore`.
 
-### 6. `TripAdvisorRecommendationSource` — nearby highlights, on demand
+### 7. `TripAdvisorRecommendationSource` — nearby highlights, on demand
 
 Same family as `GoogleFlightsPriceSource` above, both in what it answers and in how it's built. It
 doesn't search a timetable or price a trip — it answers "now that I've picked this city, what's
 worth seeing?", for the one destination the trip detail screen is already showing, via a compact
 "Nearby" card. See `TravelRecommendationSource` for the interface.
 
-It talks to a TripAdvisor-data listing on RapidAPI (the long-running "Travel Advisor" API by apidojo
-is where the endpoint paths and field names below come from) in **two chained requests**: first
-resolve the destination's city name to TripAdvisor's own internal location id, then ask for nearby
-attractions using that id. That listing's playground page could not be reached from the environment
-this was built in (blocked by network egress), so — same situation and same fix as
-`GoogleFlightsPriceSource` — **every endpoint path, parameter name and response field name in
-`TripAdvisorApiConfig` is a best-effort reconstruction from public search-engine snippets, not a
-verified contract**. Nothing is hard-coded as fact: *Settings → TripAdvisor* exposes every one of
-those names for you to correct once you have real RapidAPI access, and
-`TripAdvisorRecommendationSource.mapLocationId()` / `.mapHighlights()` are the only two places that
-interpret them.
+It talks to the `tripadvisor-scraper` listing on RapidAPI (by pradeepbardiya13; host
+`tripadvisor-scraper.p.rapidapi.com`) in **two chained requests**: first resolve the destination's
+city name to TripAdvisor's own internal location id, then ask for nearby attractions using that id.
+Neither that listing's playground page nor its docs could be reached from the environment this was
+built in (blocked by network egress), so the endpoint paths and field names in `TripAdvisorApiConfig`
+below are instead a reconstruction from an earlier, longer-running "Travel Advisor" API by apidojo,
+which wraps the same underlying TripAdvisor data in the same two-step shape — **a best-effort
+reconstruction, not a verified contract for this specific listing**. Nothing is hard-coded as fact:
+*Settings → TripAdvisor* exposes every one of those names for you to correct once you have real
+RapidAPI access, and `TripAdvisorRecommendationSource.mapLocationId()` / `.mapHighlights()` are the
+only two places that interpret them.
 
 The category field in particular had no confirmed example anywhere in the researched snippets, so
 its default ships blank on purpose — until you fill it in, every highlight is shown as "Other"
@@ -146,10 +172,11 @@ factors.
 
 ### RapidAPI key, shared
 
-Both of the above run over RapidAPI, and RapidAPI itself works on one account-level key valid across
-every API that account has subscribed to — the app follows the same shape rather than asking twice:
-*Settings → RapidAPI* holds one key used by both sources (and any future RapidAPI-hosted one), while
-each source keeps its own host, paths and field names, since those genuinely differ per API.
+`AeroDataBoxFlightDataSource`, `GoogleFlightsPriceSource` and `TripAdvisorRecommendationSource` all
+run over RapidAPI, and RapidAPI itself works on one account-level key valid across every API that
+account has subscribed to — the app follows the same shape rather than asking three times:
+*Settings → RapidAPI* holds one key used by all three sources (and any future RapidAPI-hosted one),
+while each source keeps its own host, paths and field names, since those genuinely differ per API.
 
 ## The Condorino feed schema
 
@@ -328,12 +355,23 @@ its real slot. The result is an *observed timetable*.
 departure time, and none of it says anything about bookability. Everything from this source
 therefore carries `DataProvenance.SCHEDULE` and is marked **TIMETABLE** in the UI, never LIVE.
 
+**De-prioritized (2026-08-30).** An early version of this source defaulted to a 6-week look-back,
+which at a 20-hour chunk window needed roughly 51 requests *per direction* — enough, in a single
+search, to both burn the anonymous tier's entire daily credit quota and take long enough as 100+
+sequential blocking requests to look like the app had hung. Fixed with several changes together:
+requests are now cached across calls for `FETCH_COOLDOWN` (6h) rather than repeated on every
+refresh trigger; the default look-back dropped from 6 weeks to 2, and the Settings maximum from 12
+weeks to 4; and `MAX_CHUNKS` bounds a single fetch to well under the daily quota even at that new
+maximum. OpenSky also moved to **last** in `AppContainer.liveSources` (behind AeroDataBox in
+particular — see above — which answers the exact weekend asked directly rather than needing this
+kind of historical reconstruction at all), and the one-tap "Enable free live data (OpenSky)" action
+that used to sit on the demo-data banner was removed, since it was steering users straight into the
+source most likely to run into its own rate limit; the banner now points at Settings instead, where
+every source — OpenSky included — can still be enabled with one tap.
+
 Setting it up: enable *Settings → OpenSky cross-check*. Usable immediately without an account — every
 field (base URL, token URL, home airport `EDDF`, callsign prefix `CFG`) already ships with a working
-default, so flipping the toggle alone is enough. This makes it the app's answer to "hard-code a free
-live data source": it is the one entry in `AppContainer.liveSources` that needs no registration and
-no typed configuration to reach `SourceStatus.Ready`. The demo-data banner on Home also offers a
-one-tap "Enable free live data (OpenSky)" action that does exactly this without a trip to Settings.
+default, so flipping the toggle alone is enough.
 
 ## Evaluated but not built in
 
@@ -347,4 +385,4 @@ one-tap "Enable free live data (OpenSky)" action that does exactly this without 
 
 All the built-in sources and the Condor API run through the same `FlightDataSource` interface and
 can be enabled and disabled individually under *Settings → Data sources*. The order is: Condor
-Developer API → custom feed → OpenSky → (if allowed) sample data.
+Developer API → AeroDataBox → custom feed → OpenSky → (if allowed) sample data.

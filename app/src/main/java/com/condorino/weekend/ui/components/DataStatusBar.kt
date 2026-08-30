@@ -39,8 +39,6 @@ fun DataStatusBar(
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier,
     onOpenSettings: (() -> Unit)? = null,
-    /** Flips OpenSky on with its shipped defaults — the one data source that needs no typing. */
-    onEnableFreeSource: (() -> Unit)? = null,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
 
@@ -67,28 +65,7 @@ fun DataStatusBar(
                     modifier = Modifier.padding(top = 3.dp),
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (onEnableFreeSource != null) {
-                        TextButton(
-                            onClick = onEnableFreeSource,
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
-                        ) {
-                            Text(
-                                stringResource(R.string.status_enable_free_source),
-                                color = CondorinoColors.Amber,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp,
-                            )
-                        }
-                    }
                     if (onOpenSettings != null) {
-                        if (onEnableFreeSource != null) {
-                            Text(
-                                "·",
-                                color = CondorinoColors.DemoBannerText.copy(alpha = 0.6f),
-                                fontSize = 12.sp,
-                                modifier = Modifier.padding(horizontal = 6.dp),
-                            )
-                        }
                         TextButton(onClick = onOpenSettings, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
                             Text(
                                 stringResource(R.string.status_demo_setup),

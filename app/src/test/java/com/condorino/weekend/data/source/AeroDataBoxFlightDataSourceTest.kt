@@ -1,0 +1,261 @@
+package com.condorino.weekend.data.source
+
+import com.condorino.weekend.domain.model.Airport
+import kotlinx.coroutines.runBlocking
+import okhttp3.OkHttpClient
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
+
+/**
+ * Covers request chunking, URL building and the generic [AeroDataBoxFlightDataSource.mapFlights]
+ * extraction — the field names come from [AeroDataBoxConfig], a considerably more confident but
+ * still unverified reconstruction (see the class doc), so what matters here is that the *mechanism*
+ * (dotted-path resolution, the departures/arrivals-are-mirror-images mapping, the airline filter,
+ * the timestamp quirk normalisation) works whatever the real field names turn out to be.
+ */
+class AeroDataBoxFlightDataSourceTest {
+
+    private lateinit var server: MockWebServer
+    private val fixedNow = Instant.parse("2026-08-29T12:00:00Z")
+
+    @Before
+    fun setUp() {
+        server = MockWebServer()
+        server.start()
+    }
+
+    @After
+    fun tearDown() {
+        server.shutdown()
+    }
+
+    private val munich = Airport(
+        iata = "MUC",
+        name = "Munich Airport",
+        city = "Munich",
+        country = "Germany",
+        countryCode = "DE",
+        timeZoneId = "Europe/Berlin",
+    )
+
+    private val airports = mapOf(
+        Airport.HOME_IATA to Airport.FRANKFURT,
+        munich.iata to munich,
+    )
+
+    private fun configFor(windowHours: Int = 12) = AeroDataBoxConfig(
+        enabled = true,
+        apiHost = server.hostName + ":" + server.port,
+        windowHours = windowHours,
+    )
+
+    private fun sourceFor(config: AeroDataBoxConfig) = AeroDataBoxFlightDataSource(
+        client = OkHttpClient(),
+        configProvider = { config },
+        airportCatalog = { airports },
+        apiKeyProvider = { "rapid-key" },
+        strings = AeroDataBoxFakeStrings(),
+        now = { fixedNow },
+        scheme = "http",
+    )
+
+    private val oneDeparture = """{"departures":[
+        {"departure":{"airport":{"iata":"FRA"},"scheduledTimeUtc":"2026-09-11 18:00Z"},
+         "arrival":{"airport":{"iata":"MUC"},"scheduledTimeUtc":"2026-09-11 19:05Z"},
+         "number":"DE 1234","airline":{"name":"Condor","icao":"CFG"}}
+    ],"arrivals":[]}"""
+
+    @Test
+    fun `search sends the RapidAPI headers and one request per chunked window`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"departures":[],"arrivals":[]}"""))
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"departures":[],"arrivals":[]}"""))
+
+        val config = configFor(windowHours = 24)
+        // Friday through Sunday (3 days = 72h) at a 24h window needs exactly 3 chunks.
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"departures":[],"arrivals":[]}"""))
+        sourceFor(config).search(
+            FlightSearchQuery(from = LocalDate.of(2026, 9, 11), to = LocalDate.of(2026, 9, 13)),
+        )
+
+        assertEquals(3, server.requestCount)
+        val request = server.takeRequest()
+        assertEquals("rapid-key", request.getHeader("X-RapidAPI-Key"))
+        assertEquals(config.apiHost, request.getHeader("X-RapidAPI-Host"))
+        assertTrue(request.path.orEmpty().startsWith("/flights/airports/iata/FRA/"))
+    }
+
+    @Test
+    fun `chunkWindows splits a multi-day range into windowHours-sized pieces`() {
+        val config = configFor(windowHours = 12)
+        val windows = sourceFor(config).chunkWindows(
+            FlightSearchQuery(from = LocalDate.of(2026, 9, 11), to = LocalDate.of(2026, 9, 12)),
+            config,
+        )
+        // Friday..Saturday inclusive = 48h at a 12h window = exactly 4 chunks.
+        assertEquals(4, windows.size)
+        assertEquals(LocalDateTime.of(2026, 9, 11, 0, 0), windows.first().first)
+        assertEquals(LocalDateTime.of(2026, 9, 13, 0, 0), windows.last().second)
+        windows.forEach { (from, to) -> assertEquals(12L, java.time.Duration.between(from, to).toHours()) }
+    }
+
+    @Test
+    fun `windowUrl encodes the local time window without seconds and the with- query flags`() {
+        val config = configFor()
+        val url = sourceFor(config).windowUrl(
+            config,
+            LocalDateTime.of(2026, 9, 11, 0, 0),
+            LocalDateTime.of(2026, 9, 11, 12, 0),
+        )
+        assertEquals(
+            "http://${config.apiHost}/flights/airports/iata/FRA/2026-09-11T00:00/2026-09-11T12:00" +
+                "?withLeg=true&withCancelled=false&withCodeshared=false&withPrivate=false",
+            url,
+        )
+    }
+
+    @Test
+    fun `mapFlights maps a departures entry as an outbound flight from home`() {
+        val config = configFor()
+        val flights = sourceFor(config).mapFlights(oneDeparture, config, Airport.FRANKFURT, airports)
+
+        assertEquals(1, flights.size)
+        val flight = flights[0]
+        assertEquals("FRA", flight.origin.iata)
+        assertEquals("MUC", flight.destination.iata)
+        assertEquals("DE 1234", flight.flightNumber)
+        assertEquals("Condor", flight.airline)
+        assertEquals(Instant.parse("2026-09-11T18:00:00Z"), flight.departure)
+        assertEquals(Instant.parse("2026-09-11T19:05:00Z"), flight.arrival)
+    }
+
+    @Test
+    fun `mapFlights maps an arrivals entry as an inbound flight to home, mirrored`() {
+        val config = configFor()
+        val body = """{"departures":[],"arrivals":[
+            {"departure":{"airport":{"iata":"MUC"},"scheduledTimeUtc":"2026-09-11 18:00Z"},
+             "arrival":{"airport":{"iata":"FRA"},"scheduledTimeUtc":"2026-09-11 19:05Z"},
+             "number":"DE 5678","airline":{"name":"Condor","icao":"CFG"}}
+        ]}"""
+        val flights = sourceFor(config).mapFlights(body, config, Airport.FRANKFURT, airports)
+
+        assertEquals(1, flights.size)
+        assertEquals("MUC", flights[0].origin.iata)
+        assertEquals("FRA", flights[0].destination.iata)
+    }
+
+    @Test
+    fun `mapFlights drops a row whose airline does not match the configured filter`() {
+        val config = configFor()
+        val body = """{"departures":[
+            {"departure":{"airport":{"iata":"FRA"},"scheduledTimeUtc":"2026-09-11 18:00Z"},
+             "arrival":{"airport":{"iata":"MUC"},"scheduledTimeUtc":"2026-09-11 19:05Z"},
+             "number":"LH 100","airline":{"name":"Lufthansa","icao":"DLH"}}
+        ],"arrivals":[]}"""
+        assertTrue(sourceFor(config).mapFlights(body, config, Airport.FRANKFURT, airports).isEmpty())
+    }
+
+    @Test
+    fun `mapFlights keeps every airline when the filter is blank in config`() {
+        val config = configFor().copy(airlineIcaoFilter = "")
+        val body = """{"departures":[
+            {"departure":{"airport":{"iata":"FRA"},"scheduledTimeUtc":"2026-09-11 18:00Z"},
+             "arrival":{"airport":{"iata":"MUC"},"scheduledTimeUtc":"2026-09-11 19:05Z"},
+             "number":"LH 100","airline":{"name":"Lufthansa","icao":"DLH"}}
+        ],"arrivals":[]}"""
+        assertEquals(1, sourceFor(config).mapFlights(body, config, Airport.FRANKFURT, airports).size)
+    }
+
+    @Test
+    fun `mapFlights drops a row whose other airport is not in the catalog rather than guessing`() {
+        val config = configFor()
+        val body = """{"departures":[
+            {"departure":{"airport":{"iata":"FRA"},"scheduledTimeUtc":"2026-09-11 18:00Z"},
+             "arrival":{"airport":{"iata":"ZZZ"},"scheduledTimeUtc":"2026-09-11 19:05Z"},
+             "number":"DE 1234","airline":{"name":"Condor","icao":"CFG"}}
+        ],"arrivals":[]}"""
+        assertTrue(sourceFor(config).mapFlights(body, config, Airport.FRANKFURT, airports).isEmpty())
+    }
+
+    @Test
+    fun `parseAeroDataBoxTime normalises the space-separated UTC quirk`() {
+        val source = sourceFor(configFor())
+        assertEquals(Instant.parse("2026-09-11T18:00:00Z"), source.parseAeroDataBoxTime("2026-09-11 18:00Z"))
+    }
+
+    @Test
+    fun `parseAeroDataBoxTime accepts a real ISO-8601 instant too`() {
+        val source = sourceFor(configFor())
+        assertEquals(Instant.parse("2026-09-11T18:00:00Z"), source.parseAeroDataBoxTime("2026-09-11T18:00:00Z"))
+    }
+
+    @Test
+    fun `parseAeroDataBoxTime gives up rather than guessing on garbage input`() {
+        val source = sourceFor(configFor())
+        assertNull(source.parseAeroDataBoxTime("not a date"))
+    }
+
+    @Test
+    fun `a 401 is reported as denied, not a generic failure`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(401))
+        val config = configFor()
+        val result = sourceFor(config).search(
+            FlightSearchQuery(from = LocalDate.of(2026, 9, 11), to = LocalDate.of(2026, 9, 11)),
+        ) as? FlightSearchResult.Failure ?: error("expected Failure")
+
+        assertEquals(AeroDataBoxFakeStrings().get(com.condorino.weekend.R.string.src_aerodatabox_denied), result.userMessage)
+        assertEquals("HTTP 401", result.technicalDetail)
+    }
+
+    @Test
+    fun `a 429 is reported as rate limited`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(429))
+        val config = configFor()
+        val result = sourceFor(config).search(
+            FlightSearchQuery(from = LocalDate.of(2026, 9, 11), to = LocalDate.of(2026, 9, 11)),
+        ) as? FlightSearchResult.Failure ?: error("expected Failure")
+
+        assertEquals(AeroDataBoxFakeStrings().get(com.condorino.weekend.R.string.src_aerodatabox_rate_limited), result.userMessage)
+    }
+
+    @Test
+    fun `not configured is reported before any request is made`() = runBlocking {
+        val config = AeroDataBoxConfig(enabled = false)
+        val result = sourceFor(config).search(
+            FlightSearchQuery(from = LocalDate.of(2026, 9, 11), to = LocalDate.of(2026, 9, 11)),
+        )
+        assertTrue(result is FlightSearchResult.NotConfigured)
+        assertEquals(0, server.requestCount)
+    }
+
+    @Test
+    fun `no matching flights is reported as a failure naming the airline and airport`() = runBlocking {
+        // A 1-day range at the default 12h window needs 2 chunks (00:00-12:00, 12:00-24:00) — see
+        // `chunkWindows splits a multi-day range into windowHours-sized pieces` above.
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"departures":[],"arrivals":[]}"""))
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"departures":[],"arrivals":[]}"""))
+        val config = configFor()
+        val result = sourceFor(config).search(
+            FlightSearchQuery(from = LocalDate.of(2026, 9, 11), to = LocalDate.of(2026, 9, 11)),
+        ) as? FlightSearchResult.Failure ?: error("expected Failure")
+
+        assertEquals(
+            AeroDataBoxFakeStrings().get(com.condorino.weekend.R.string.src_aerodatabox_no_flights, "CFG", "FRA"),
+            result.userMessage,
+        )
+    }
+}
+
+/** A [SourceStrings] that never touches Android — this test only cares which id/args were chosen. */
+private class AeroDataBoxFakeStrings : SourceStrings(null) {
+    override fun get(id: Int, vararg args: Any?): String = "id=$id;" + args.joinToString(",")
+    override fun plural(id: Int, count: Int, vararg args: Any?): String = "id=$id;count=$count;" + args.joinToString(",")
+}
