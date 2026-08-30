@@ -308,7 +308,14 @@ class PreferencesStore(private val context: Context) {
         val d = TripAdvisorApiConfig()
         TripAdvisorApiConfig(
             enabled = p[Keys.taEnabled] ?: false,
-            apiHost = p[Keys.taApiHost] ?: d.apiHost,
+            // Every field in this config gets persisted verbatim the moment any one of them is
+            // touched (e.g. just flipping the "API active" switch), so an alpha-05 install that
+            // was ever opened here already has the *old* default host written to disk — a plain
+            // `?: d.apiHost` fallback would never see alpha-06's new default for it, since the
+            // stored value is never null. Treat that one specific stale string as "never actually
+            // customized" so the new default reaches upgrading installs too; a host a user typed
+            // in themselves (the new default included) is untouched either way.
+            apiHost = p[Keys.taApiHost]?.takeIf { it.isNotBlank() && it != LEGACY_TRIPADVISOR_HOST } ?: d.apiHost,
             locationSearchPath = p[Keys.taLocationSearchPath] ?: d.locationSearchPath,
             locationQueryParam = p[Keys.taLocationQueryParam] ?: d.locationQueryParam,
             locationItemsPath = p[Keys.taLocationItemsPath] ?: d.locationItemsPath,
@@ -548,6 +555,12 @@ class PreferencesStore(private val context: Context) {
     }
 
     suspend fun currentUpdatePrefs(): UpdatePrefs = updatePrefs.first()
+
+    private companion object {
+        /** [TripAdvisorApiConfig.apiHost]'s default before alpha-06 — see the migration note on
+         *  [tripAdvisorApiConfig]. */
+        const val LEGACY_TRIPADVISOR_HOST = "travel-advisor.p.rapidapi.com"
+    }
 }
 
 /**
