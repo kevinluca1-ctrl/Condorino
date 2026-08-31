@@ -76,7 +76,7 @@ class DefaultUpdateRepository(
                 cachedUpdate = result.update
                 setPhase(UpdateUiState.Phase.Available(result.update))
             }
-            UpdateCheckResult.UpToDate -> setPhase(UpdateUiState.Phase.UpToDate)
+            is UpdateCheckResult.UpToDate -> setPhase(UpdateUiState.Phase.UpToDate(result.tagName))
             is UpdateCheckResult.NotConfigured -> setPhase(UpdateUiState.Phase.NotConfigured(result.reason))
             is UpdateCheckResult.Failure -> setPhase(UpdateUiState.Phase.Failure(result.reason, result.detail))
         }

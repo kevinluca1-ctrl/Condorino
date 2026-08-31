@@ -49,6 +49,8 @@ fun UpdateSection(state: SettingsUiState, viewModel: SettingsViewModel) {
             else R.string.settings_updates_body_dev,
             BuildConfig.VERSION_NAME,
         ),
+        // Unlike the API field-mapping sections, this one is looked at regularly and is short.
+        initiallyExpanded = true,
     ) {
         SwitchRow(
             label = stringResource(R.string.update_auto_check),
@@ -68,8 +70,13 @@ fun UpdateSection(state: SettingsUiState, viewModel: SettingsViewModel) {
                 color = CondorinoColors.TextTertiary,
                 fontSize = 11.sp,
             )
-            TextButton(onClick = viewModel::checkForUpdate, enabled = update.phase != UpdateUiState.Phase.Checking) {
-                Text(stringResource(R.string.update_check_now), color = CondorinoColors.Amber, fontSize = 12.sp)
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                TextButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, changelogUrl().toUri())) }) {
+                    Text(stringResource(R.string.update_changelog), color = CondorinoColors.Amber, fontSize = 12.sp)
+                }
+                TextButton(onClick = viewModel::checkForUpdate, enabled = update.phase != UpdateUiState.Phase.Checking) {
+                    Text(stringResource(R.string.update_check_now), color = CondorinoColors.Amber, fontSize = 12.sp)
+                }
             }
         }
 
@@ -82,10 +89,14 @@ fun UpdateSection(state: SettingsUiState, viewModel: SettingsViewModel) {
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.update_checking), color = CondorinoColors.TextTertiary, fontSize = 12.sp)
             }
-            UpdateUiState.Phase.UpToDate -> Text(
-                stringResource(R.string.update_up_to_date),
+            is UpdateUiState.Phase.UpToDate -> Text(
+                // Naming the release is the whole point: seeing "alpha-09 is the newest version,
+                // and it is already installed" answers the question the check was asked.
+                phase.tagName?.let { stringResource(R.string.update_up_to_date_named, it) }
+                    ?: stringResource(R.string.update_up_to_date),
                 color = CondorinoColors.Mint,
                 fontSize = 12.sp,
+                lineHeight = 16.sp,
             )
             is UpdateUiState.Phase.NotConfigured -> Text(
                 phase.reason,
@@ -118,6 +129,16 @@ fun UpdateSection(state: SettingsUiState, viewModel: SettingsViewModel) {
             }
         }
     }
+}
+
+/**
+ * Where "Changelog" goes: this build's own release page when it is a release build, so the notes
+ * shown are the ones for the version actually running; otherwise the full releases list, which is
+ * the most useful thing a development build can offer.
+ */
+private fun changelogUrl(): String {
+    val base = "https://github.com/${BuildConfig.UPDATE_REPO_OWNER}/${BuildConfig.UPDATE_REPO_NAME}/releases"
+    return if (BuildConfig.RELEASE_TAG.isNotBlank()) "$base/tag/${BuildConfig.RELEASE_TAG}" else base
 }
 
 @Composable

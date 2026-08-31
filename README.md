@@ -64,9 +64,12 @@ six months · destination comparison (up to six side by side) · “Surprise me�
 (random, top 10, under budget, sun destination, city break, best score) · favourites · filters by
 travel days, cabin, price, minimum score and destination type.
 
-**Standby prices.** Enterable per destination, economy/business, outbound and inbound separately,
-either per segment or as a round trip, with optional taxes. The app does **not** query MyID Travel
-and stores **no** credentials.
+**Standby prices.** Enterable per destination *and per airline*, economy/business, outbound and
+inbound separately, either per segment or as a round trip, with optional taxes. The app does **not**
+query MyID Travel and stores **no** credentials. Because these are typed in by hand and exist
+nowhere else, every change is also written to a second local copy, which the app restores from
+automatically if the database is ever emptied — and they can be exported to, and imported from, a
+plain JSON file you keep wherever you like.
 
 **Airport reference.** 6,442 airports from public datasets (OurAirports, OpenFlights, IANA tzdata),
 each with a documented time zone. Airports whose zone could not be established are deliberately
@@ -93,8 +96,8 @@ nothing matched.
 ## Getting the APK
 
 **Release:** the current alpha is under
-[Releases](https://github.com/kevinluca1-ctrl/Condorino/releases) — download
-`condorino-alpha-01.apk` and open it on the phone.
+[Releases](https://github.com/kevinluca1-ctrl/Condorino/releases) — download the
+`condorino-<tag>.apk` from the newest release and open it on the phone.
 
 **Prebuilt from CI:** the `Build APK` workflow builds a debug and a release APK on every push.
 Under *Actions → Build APK → latest run → Artifacts* you will find `condorino-debug-apk` and
@@ -143,7 +146,7 @@ Structure and reasoning: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ### Tests
 
-224 unit tests covering pattern detection, the workday penalty, effective length of stay, counting
+242 unit tests covering pattern detection, the workday penalty, effective length of stay, counting
 nights across midnight, time zones (UK, Madeira, Greece, summer/winter), cost scoring, random
 selection, feed parsing, price-field text handling, airport search ranking, update-release selection,
 standby-price export/import (including per-airline tagging and backward compatibility with exports
@@ -152,9 +155,11 @@ behaviour, the AeroDataBox chunked-window request building and generic JSON fiel
 Google Flights and TripAdvisor URL building and generic JSON field mapping (including TripAdvisor's
 two-step location-then-highlights request chain), Lufthansa Group airline selection and
 filtering, matching a flight to the right standby price across the IATA/ICAO designators that
-different sources report, the scoring engine's piecewise interpolation against out-of-order and duplicate breakpoints, date
-formats (including the guarantee that English never formats month-first) and the ranking cases from
-the brief:
+different sources report, distinguishing a genuine "you're on the latest version" from a false
+update offer caused by build/publish clock skew, the standby-price safety net that restores
+hand-typed prices after the database loses them, the scoring engine's piecewise interpolation
+against out-of-order and duplicate breakpoints, date formats (including the guarantee that English
+never formats month-first) and the ranking cases from the brief:
 
 ```bash
 ./gradlew testDebugUnitTest

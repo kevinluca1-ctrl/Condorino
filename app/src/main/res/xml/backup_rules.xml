@@ -1,5 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  What rides along to a restored or replaced device (Android 11 and below).
+
+  "sharedpref" alone used to be listed here, which quietly backed up nothing: this app keeps its
+  settings in DataStore Preferences, and DataStore writes to files/datastore/, not to the
+  SharedPreferences domain. Both the settings and the standby-price safety net live under the
+  file domain, so that is what has to be named.
+
+  This does mean the stored RapidAPI key travels with the backup. That is the behaviour a user
+  expects of a restored phone — the app simply works again — and Android's backup is encrypted
+  against the device credential. Nothing else sensitive is stored: this app holds no MyID Travel
+  credentials at all (spec 26).
+-->
 <full-backup-content>
     <include domain="database" path="condorino.db" />
+    <include domain="file" path="datastore/" />
+    <include domain="file" path="standby-prices-backup.json" />
     <include domain="sharedpref" path="." />
 </full-backup-content>

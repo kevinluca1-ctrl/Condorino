@@ -1,14 +1,19 @@
 package com.condorino.weekend.ui.settings
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -29,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -46,29 +52,73 @@ import com.condorino.weekend.ui.theme.CondorinoColors
 fun SettingsSection(
     title: String,
     subtitle: String? = null,
+    /**
+     * Sections start closed so this screen opens as a readable list of headings rather than a very
+     * long scroll — there are close to twenty of them, most holding API field mappings that are set
+     * once and never looked at again. A section that is genuinely part of everyday use passes true.
+     */
+    initiallyExpanded: Boolean = false,
     content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
 ) {
+    // Keyed by title so each section keeps its own state, and survives rotation and navigating
+    // away and back. The screen is a plain scrolling Column, not a lazy list, so nothing here is
+    // recycled onto a different section.
+    var expanded by rememberSaveable(title) { mutableStateOf(initiallyExpanded) }
+    val chevronRotation by animateFloatAsState(if (expanded) 180f else 0f, label = "sectionChevron")
+
     Column(Modifier.fillMaxWidth().padding(top = 18.dp)) {
-        Text(
-            title.uppercase(),
-            color = CondorinoColors.TextTertiary,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Black,
-            letterSpacing = 1.2.sp,
-        )
-        subtitle?.let {
-            Text(it, color = CondorinoColors.TextTertiary.copy(alpha = 0.8f), fontSize = 11.sp, lineHeight = 15.sp)
-        }
-        Column(
+        Row(
             Modifier
                 .fillMaxWidth()
-                .padding(top = 8.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(CondorinoColors.Surface)
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            content = content,
-        )
+                .clip(RoundedCornerShape(8.dp))
+                .clickable { expanded = !expanded }
+                // The row's own content is only about 32dp tall; 48dp is the minimum comfortable
+                // touch target, and this one is now the only way into a section.
+                .heightIn(min = 48.dp)
+                .padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    title.uppercase(),
+                    color = CondorinoColors.TextTertiary,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.2.sp,
+                )
+                // Only while open: closed, the heading alone is what makes the list scannable.
+                if (expanded && subtitle != null) {
+                    Text(
+                        subtitle,
+                        color = CondorinoColors.TextTertiary.copy(alpha = 0.8f),
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp,
+                    )
+                }
+            }
+            Icon(
+                // One icon, rotated, so the arrow turns rather than swapping shape mid-animation.
+                imageVector = Icons.Filled.ExpandMore,
+                contentDescription = stringResource(
+                    if (expanded) R.string.action_collapse_section else R.string.action_expand_section,
+                    title,
+                ),
+                tint = CondorinoColors.TextTertiary,
+                modifier = Modifier.rotate(chevronRotation),
+            )
+        }
+        AnimatedVisibility(visible = expanded) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(CondorinoColors.Surface)
+                    .padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                content = content,
+            )
+        }
     }
 }
 

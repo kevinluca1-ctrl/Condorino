@@ -9,7 +9,10 @@ import com.condorino.weekend.domain.model.AppUpdate
  */
 sealed interface UpdateCheckResult {
     data class Available(val update: AppUpdate) : UpdateCheckResult
-    data object UpToDate : UpdateCheckResult
+
+    /** @param tagName the newest release found, so the UI can say *which* version you are on.
+     *   Null only if the check could not name it. */
+    data class UpToDate(val tagName: String? = null) : UpdateCheckResult
 
     /** This build has no baked-in release timestamp, so it cannot honestly say what "newer" means. */
     data class NotConfigured(val reason: String) : UpdateCheckResult

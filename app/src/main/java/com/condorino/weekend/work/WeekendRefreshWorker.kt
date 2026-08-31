@@ -10,6 +10,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.condorino.weekend.CondorinoApp
 import com.condorino.weekend.scoring.WeekendCalendar
+import kotlinx.coroutines.CancellationException
 import java.time.LocalDate
 import java.util.concurrent.TimeUnit
 
@@ -37,6 +38,11 @@ class WeekendRefreshWorker(
             // a dropped connection mid-refresh — earns a retry.
             container.tripRepository.refreshRange(from, to)
             Result.success()
+        } catch (e: CancellationException) {
+            // Cancellation is not a failure: it means the caller went away (a new search
+            // superseded this one, or the screen was left). Reporting it as an error would
+            // put a spurious message on screen and hide the cancellation from the caller.
+            throw e
         } catch (e: Exception) {
             Result.retry()
         }

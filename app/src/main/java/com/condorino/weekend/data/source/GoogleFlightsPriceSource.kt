@@ -5,6 +5,7 @@ import com.condorino.weekend.domain.model.Airport
 import com.condorino.weekend.domain.model.Cabin
 import com.condorino.weekend.domain.model.CommercialPriceQuote
 import com.condorino.weekend.domain.model.Money
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -134,6 +135,11 @@ class GoogleFlightsPriceSource(
             }
         } catch (e: IOException) {
             CommercialPriceResult.Failure(strings.get(R.string.src_google_flights_offline), e.message)
+        } catch (e: CancellationException) {
+            // Cancellation is not a failure: it means the caller went away (a new search
+            // superseded this one, or the screen was left). Reporting it as an error would
+            // put a spurious message on screen and hide the cancellation from the caller.
+            throw e
         } catch (e: Exception) {
             CommercialPriceResult.Failure(strings.get(R.string.src_google_flights_parse_failed), e.message)
         }

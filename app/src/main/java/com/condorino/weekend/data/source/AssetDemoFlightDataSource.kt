@@ -5,6 +5,7 @@ import com.condorino.weekend.R
 import com.condorino.weekend.data.reference.AirportReferenceCatalog
 import com.condorino.weekend.domain.model.DataProvenance
 import com.condorino.weekend.domain.model.Flight
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.time.Instant
@@ -65,6 +66,11 @@ class AssetDemoFlightDataSource(
                     retrievedAt = Instant.now(),
                     note = strings.get(R.string.src_demo_note),
                 )
+            } catch (e: CancellationException) {
+                // Cancellation is not a failure: it means the caller went away (a new search
+                // superseded this one, or the screen was left). Reporting it as an error would
+                // put a spurious message on screen and hide the cancellation from the caller.
+                throw e
             } catch (e: Exception) {
                 FlightSearchResult.Failure(
                     userMessage = strings.get(R.string.src_demo_read_failed),

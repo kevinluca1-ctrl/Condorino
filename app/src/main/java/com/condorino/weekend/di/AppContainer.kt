@@ -2,6 +2,8 @@ package com.condorino.weekend.di
 
 import android.content.Context
 import com.condorino.weekend.BuildConfig
+import com.condorino.weekend.data.backup.StandbyPriceBackup
+import com.condorino.weekend.data.backup.FilePriceBackupStore
 import com.condorino.weekend.data.DefaultFavoriteRepository
 import com.condorino.weekend.data.DefaultStandbyPriceRepository
 import com.condorino.weekend.data.DefaultTripRepository
@@ -68,6 +70,12 @@ class AppContainer(context: Context) {
         OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
+            // An overall ceiling on one call, which connect/read timeouts alone do not give: those
+            // only bound individual socket operations, so a server trickling a byte at a time can
+            // hold a request open indefinitely without ever tripping either. A search that chunks
+            // its requests (AeroDataBox, OpenSky) would otherwise stall the whole screen on one
+            // slow response.
+            .callTimeout(60, TimeUnit.SECONDS)
             .apply {
                 if (BuildConfig.DEBUG) {
                     addInterceptor(
@@ -79,7 +87,10 @@ class AppContainer(context: Context) {
     }
 
     val standbyPriceRepository: StandbyPriceRepository by lazy {
-        DefaultStandbyPriceRepository(database.standbyPriceDao())
+        DefaultStandbyPriceRepository(
+            dao = database.standbyPriceDao(),
+            backup = StandbyPriceBackup(FilePriceBackupStore(appContext)),
+        )
     }
 
     val favoriteRepository: FavoriteRepository by lazy {

@@ -76,7 +76,7 @@ fun StandbyPricesScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var expanded by remember { mutableStateOf(state.focusPriceIata) }
+    var expanded by rememberSaveable { mutableStateOf(state.focusPriceIata) }
     var query by rememberSaveable { mutableStateOf("") }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()

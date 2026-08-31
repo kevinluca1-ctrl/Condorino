@@ -441,7 +441,8 @@
     <string name="src_aerodatabox_no_home_fix">Check both in Settings.</string>
     <string name="src_aerodatabox_home_unknown">Home airport %1$s is not in the airport reference data.</string>
     <string name="src_aerodatabox_denied">AeroDataBox refused access – check the RapidAPI key and your subscription\'s plan for this API.</string>
-    <string name="src_aerodatabox_rate_limited">RapidAPI limit reached. Try again later.</string>
+    <string name="src_aerodatabox_rate_limited">RapidAPI asked to slow down (HTTP 429) — a short-term rate limit, not necessarily your monthly quota; check your RapidAPI dashboard if this keeps happening. Try again in a moment.</string>
+    <string name="src_aerodatabox_rate_limited_retry">RapidAPI asked to slow down (HTTP 429) — a short-term rate limit, not necessarily your monthly quota. Try again in %1$d seconds.</string>
     <string name="src_aerodatabox_http">AeroDataBox responded with HTTP %1$d.</string>
     <string name="src_aerodatabox_offline">AeroDataBox is unreachable – are you offline?</string>
     <string name="src_aerodatabox_parse_failed">The AeroDataBox response could not be processed.</string>
@@ -528,9 +529,11 @@
     <string name="update_check_now">Check now</string>
     <string name="update_checking">Checking…</string>
     <string name="update_up_to_date">You have the latest version.</string>
+    <string name="update_up_to_date_named">%1$s is the newest version, and it is already installed.</string>
     <string name="update_available_title">%1$s available</string>
     <string name="update_download">Download</string>
     <string name="update_view_on_github">View on GitHub</string>
+    <string name="update_changelog">Changelog</string>
     <string name="update_downloading">Downloading %1$s…</string>
     <string name="update_ready_title">%1$s downloaded</string>
     <string name="update_install">Install</string>
@@ -557,6 +560,8 @@
 
     <!-- Password masking -->
     <string name="action_show_secret">Show</string>
+    <string name="action_expand_section">Expand %1$s</string>
+    <string name="action_collapse_section">Collapse %1$s</string>
     <string name="action_hide_secret">Hide</string>
 
     <!-- OpenSky: pointer to the OAuth2 API client -->

@@ -28,7 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,7 +63,7 @@ fun HomeScreen(
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var showFilters by remember { mutableStateOf(false) }
+    var showFilters by rememberSaveable { mutableStateOf(false) }
     val trips = state.trips
 
     Box(modifier.fillMaxSize().background(CondorinoColors.Background)) {

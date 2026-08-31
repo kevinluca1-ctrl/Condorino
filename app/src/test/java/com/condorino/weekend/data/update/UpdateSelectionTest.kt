@@ -3,6 +3,7 @@ package com.condorino.weekend.data.update
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Test
 import java.time.Instant
 
@@ -86,5 +87,45 @@ class UpdateSelectionTest {
         assertNull(UpdateSelection.parseInstant(""))
         assertNull(UpdateSelection.parseInstant("not a date"))
         assertEquals(Instant.parse("2026-08-01T00:00:00Z"), UpdateSelection.parseInstant("2026-08-01T00:00:00Z"))
+    }
+
+    @Test
+    fun `a release with the installed build's own tag is not an update`() {
+        // The bug this prevents: the release workflow bakes RELEASE_PUBLISHED_AT when the build
+        // starts, but GitHub stamps the release when it is created minutes later — so the release
+        // always looked "newer" than the build inside it and was offered to its own users.
+        assertTrue(UpdateSelection.isSameRelease("alpha-09", "alpha-09"))
+    }
+
+    @Test
+    fun `tag matching ignores case and padding`() {
+        assertTrue(UpdateSelection.isSameRelease(" Alpha-09 ", "alpha-09"))
+    }
+
+    @Test
+    fun `a different tag is not the installed release`() {
+        assertFalse(UpdateSelection.isSameRelease("alpha-10", "alpha-09"))
+    }
+
+    @Test
+    fun `a build with no tag of its own can never claim to be a release`() {
+        // A CI or local build has no baked-in tag; identity is unknowable, so the timestamp
+        // comparison is left to decide rather than silently reporting "up to date".
+        assertFalse(UpdateSelection.isSameRelease("alpha-09", ""))
+        assertFalse(UpdateSelection.isSameRelease("alpha-09", null))
+        assertFalse(UpdateSelection.isSameRelease("", ""))
+        assertFalse(UpdateSelection.isSameRelease(null, null))
+    }
+
+    @Test
+    fun `the timestamp skew that caused the bug no longer decides the outcome`() {
+        // Real values from the alpha-08 release: baked at build start, published four minutes on.
+        val bakedAtBuildTime = Instant.parse("2026-08-30T22:05:00Z")
+        val githubPublishedAt = Instant.parse("2026-08-30T22:09:48Z")
+
+        // By timestamp alone this release still looks newer than the build running it...
+        assertTrue(UpdateSelection.isNewer(githubPublishedAt, bakedAtBuildTime))
+        // ...which is exactly why identity is checked first.
+        assertTrue(UpdateSelection.isSameRelease("alpha-08", "alpha-08"))
     }
 }

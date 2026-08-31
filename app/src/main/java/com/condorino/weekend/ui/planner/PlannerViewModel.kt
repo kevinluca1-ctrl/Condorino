@@ -26,6 +26,7 @@ import com.condorino.weekend.scoring.RandomMode
 import com.condorino.weekend.scoring.RejectionReason
 import com.condorino.weekend.scoring.WeekendCalendar
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -252,6 +253,12 @@ class PlannerViewModel(
         searchJob = viewModelScope.launch {
             _state.update { it.copy(friday = friday, isLoading = true) }
             val cached = repository.searchWeekend(friday)
+            // Every weekend change cancels the search before it, and updating a StateFlow is not
+            // a suspending call, so nothing here would stop a superseded search from writing its
+            // result over the weekend the user has already moved to. Today the repository's own
+            // withContext boundary throws first, which is what actually prevents it; this states
+            // the requirement locally rather than resting on that happening to be true.
+            ensureActive()
             _state.update { it.copy(
                 allTrips = cached.trips,
                 rejections = cached.rejections,
@@ -260,6 +267,7 @@ class PlannerViewModel(
             ) }
             if (refresh) {
                 val fresh = repository.refresh(friday)
+                ensureActive()
                 _state.update { it.copy(
                     allTrips = fresh.trips,
                     rejections = fresh.rejections,
