@@ -390,8 +390,14 @@ data class GoogleFlightsApiConfig(
     val adultsParam: String = "adults",
     val currencyParam: String = "currency",
     val travelClassParam: String = "travel_class",
-    val travelClassEconomyValue: String = "1",
-    val travelClassBusinessValue: String = "3",
+    /**
+     * Named, not numbered. These used to default to Google Flights' own numeric codes ("1", "3"),
+     * which this listing rejects outright — it answered, in as many words, *"Travel class must be
+     * one of: ECONOMY, PREMIUM_ECONOMY, BUSINESS, or FIRST"*. That reply is the contract, so it is
+     * what the defaults follow now.
+     */
+    val travelClassEconomyValue: String = "ECONOMY",
+    val travelClassBusinessValue: String = "BUSINESS",
     /** Dotted path to the cheapest itinerary (object) or a list of them, e.g. `data.itineraries.topFlights`. */
     val itemsPath: String = "data.itineraries.topFlights",
     val fieldPrice: String = "price",

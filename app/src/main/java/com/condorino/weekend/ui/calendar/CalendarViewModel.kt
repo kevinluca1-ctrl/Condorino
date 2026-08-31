@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.condorino.weekend.domain.repository.DataStatus
 import com.condorino.weekend.domain.repository.TripRepository
 import com.condorino.weekend.domain.repository.WeekendSearchResult
+import com.condorino.weekend.scoring.DestinationPick
+import com.condorino.weekend.scoring.DestinationRanking
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,16 +30,16 @@ data class CalendarUiState(
     val status: DataStatus = DataStatus.EMPTY,
 ) {
     /**
-     * Weekends that produced at least one trip, best first — the best-weekends list.
-     *
-     * Sample data repeats one weekly pattern, so several weekends often land on the exact same
-     * score; without a tiebreaker the order would depend on incidental floating-point noise (a
-     * DST-boundary week scoring a fraction of a point differently) rather than anything the user
-     * can make sense of. Soonest first among ties is at least a legible rule.
+     * The list the "best" section actually shows: one entry per destination, at its own best
+     * weekend. See [DestinationRanking] for why ranking weekends themselves says nothing useful
+     * when the underlying source is a repeating weekly timetable.
      */
-    val ranked: List<WeekendSearchResult>
-        get() = weekends.filter { it.trips.isNotEmpty() }
-            .sortedWith(compareByDescending<WeekendSearchResult> { it.topScore }.thenBy { it.friday })
+    val bestDestinations: List<DestinationPick>
+        get() = DestinationRanking.bestDestinations(weekends)
+
+    /** True when every weekend in the range offers the same thing — see [DestinationRanking]. */
+    val weekendsAreInterchangeable: Boolean
+        get() = DestinationRanking.weekendsAreInterchangeable(weekends)
 
     val byMonth: Map<String, List<WeekendSearchResult>>
         get() = weekends.groupBy { com.condorino.weekend.core.Formatting.month(it.friday) }

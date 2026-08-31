@@ -59,8 +59,9 @@ comfort and in the effective holiday requirement.
 flight − airport buffer − transfer. For the London example in the brief this yields exactly the
 46 hours quoted there.
 
-**More screens.** Calendar with a star rating per weekend and a best-weekends ranking across up to
-six months · destination comparison (up to six side by side) · “Surprise me” with six modes
+**More screens.** Calendar with a star rating per weekend and a ranking of the destinations you can
+reach across up to six months — by destination rather than by weekend, because a repeating weekly
+timetable makes every weekend score alike · destination comparison (up to six side by side) · “Surprise me” with six modes
 (random, top 10, under budget, sun destination, city break, best score) · favourites · filters by
 travel days, cabin, price, minimum score and destination type.
 
@@ -146,7 +147,7 @@ Structure and reasoning: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ### Tests
 
-252 unit tests covering pattern detection, the workday penalty, effective length of stay, counting
+269 unit tests covering pattern detection, the workday penalty, effective length of stay, counting
 nights across midnight, time zones (UK, Madeira, Greece, summer/winter), cost scoring, random
 selection, feed parsing, price-field text handling, airport search ranking, update-release selection,
 standby-price export/import (including per-airline tagging and backward compatibility with exports

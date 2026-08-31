@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,10 +38,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.annotation.StringRes
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import com.condorino.weekend.R
 import com.condorino.weekend.core.Formatting
 import com.condorino.weekend.domain.repository.WeekendSearchResult
+import com.condorino.weekend.scoring.DestinationPick
 import com.condorino.weekend.ui.components.DataStatusBar
 import com.condorino.weekend.ui.text.label
 import com.condorino.weekend.ui.text.text
@@ -176,13 +179,26 @@ fun CalendarScreen(
                 }
             }
 
-            if (state.ranked.isNotEmpty()) {
+            if (state.bestDestinations.isNotEmpty()) {
                 item { SectionTitle(stringResource(R.string.calendar_best)) }
-                items(state.ranked.take(8), key = { "best-${it.friday}" }) { result ->
-                    BestWeekendRow(
-                        rank = state.ranked.indexOf(result) + 1,
-                        result = result,
-                        onClick = { onSelectWeekend(result.friday) },
+                // When a repeating weekly timetable makes every weekend equivalent, say so once
+                // rather than leaving the reader to infer it from a list of identical scores.
+                if (state.weekendsAreInterchangeable) {
+                    item(key = "interchangeable-note") {
+                        Text(
+                            stringResource(R.string.calendar_weekends_alike),
+                            color = CondorinoColors.TextTertiary,
+                            fontSize = 11.sp,
+                            lineHeight = 15.sp,
+                            modifier = Modifier.padding(bottom = 6.dp),
+                        )
+                    }
+                }
+                itemsIndexed(state.bestDestinations, key = { _, pick -> "dest-${pick.trip.iata}" }) { index, pick ->
+                    BestDestinationRow(
+                        rank = index + 1,
+                        pick = pick,
+                        onClick = { onSelectWeekend(pick.friday) },
                     )
                 }
 
@@ -219,8 +235,8 @@ private fun SectionTitle(text: String) {
 }
 
 @Composable
-private fun BestWeekendRow(rank: Int, result: WeekendSearchResult, onClick: () -> Unit) {
-    val best = result.best ?: return
+private fun BestDestinationRow(rank: Int, pick: DestinationPick, onClick: () -> Unit) {
+    val trip = pick.trip
     Row(
         Modifier
             .fillMaxWidth()
@@ -237,26 +253,37 @@ private fun BestWeekendRow(rank: Int, result: WeekendSearchResult, onClick: () -
             fontWeight = FontWeight.Black,
             modifier = Modifier.width(22.dp),
         )
-        Text(best.destination.airport.flag, fontSize = 22.sp)
+        Text(trip.destination.airport.flag, fontSize = 22.sp)
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text(
-                "${Formatting.shortDate(result.friday)}–${Formatting.shortDate(result.friday.plusDays(2))} " +
-                    best.destination.airport.cityWithCode,
+                trip.destination.airport.cityWithCode,
                 color = CondorinoColors.TextPrimary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                "${best.pattern.label()} · ${Formatting.time(best.outbound.departureLocal)} → " +
-                    Formatting.time(best.inbound.departureLocal),
+                "${trip.pattern.label()} · ${Formatting.time(trip.outbound.departureLocal)} → " +
+                    Formatting.time(trip.inbound.departureLocal),
                 color = CondorinoColors.TextTertiary,
+                fontSize = 11.sp,
+            )
+            // The weekend to open, and how many others would do just as well — the fact a
+            // per-weekend ranking was hiding by repeating itself.
+            Text(
+                pluralStringResource(
+                    R.plurals.calendar_destination_weekends,
+                    pick.weekendCount,
+                    Formatting.shortDate(pick.friday),
+                    pick.weekendCount,
+                ),
+                color = CondorinoColors.TextTertiary.copy(alpha = 0.85f),
                 fontSize = 11.sp,
             )
         }
         Text(
-            "${best.score.total.roundToInt()}",
-            color = CondorinoColors.forScore(best.score.total),
+            "${trip.score.total.roundToInt()}",
+            color = CondorinoColors.forScore(trip.score.total),
             fontSize = 20.sp,
             fontWeight = FontWeight.Black,
         )

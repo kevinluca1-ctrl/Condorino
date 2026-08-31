@@ -292,12 +292,21 @@ class TripAdvisorRecommendationSource(
 data class TripAdvisorApiConfig(
     val enabled: Boolean = false,
     val apiHost: String = "tripadvisor-scraper.p.rapidapi.com",
-    val locationSearchPath: String = "locations/v2/search",
+    /**
+     * Blank on purpose, and the reason is worth stating: this defaulted to `locations/v2/search`,
+     * and the host answers HTTP 404 for it — the guess is *known wrong*, not merely unverified.
+     * A default that is known not to work is worse than none: it makes a configuration step look
+     * like a broken app. Blank instead means the source reports itself as not set up (see
+     * [status]) and asks for the real path, the same way the Condor API does. The app never
+     * guesses endpoints.
+     */
+    val locationSearchPath: String = "",
     val locationQueryParam: String = "query",
     /** Dotted path to the array of location results in the first response, e.g. `data`. */
     val locationItemsPath: String = "data",
     val locationIdField: String = "documentId",
-    val highlightsPath: String = "attractions/list",
+    /** Blank for the same reason as [locationSearchPath]. */
+    val highlightsPath: String = "",
     val highlightsLocationIdParam: String = "location_id",
     /** Dotted path to the array of highlight items in the second response, e.g. `data`. */
     val itemsPath: String = "data",

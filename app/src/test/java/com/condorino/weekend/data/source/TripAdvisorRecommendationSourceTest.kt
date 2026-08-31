@@ -42,10 +42,34 @@ class TripAdvisorRecommendationSourceTest {
     ) = TripAdvisorApiConfig(
         enabled = true,
         apiHost = server.hostName + ":" + server.port,
+        // Stated explicitly rather than taken from the defaults, which are deliberately blank:
+        // this app does not guess endpoints, so a real install asks the user for these. These
+        // tests are about the request mechanism, not about what any particular host calls them.
+        locationSearchPath = "locations/search",
+        highlightsPath = "attractions/list",
         locationItemsPath = locationItemsPath,
         itemsPath = itemsPath,
         fieldCategory = "category",
     )
+
+    @Test
+    fun `with no endpoint paths set the source asks to be configured instead of guessing`() = runBlocking {
+        // The shipped defaults used to be a guess, and the host answers 404 for it — which made a
+        // configuration step look like a broken app. Blank now means "not set up", and no request
+        // is made at all.
+        val config = TripAdvisorApiConfig(enabled = true, apiHost = "example.invalid")
+        val status = sourceFor(config).status()
+
+        assertTrue("expected NotConfigured, got $status", status is SourceStatus.NotConfigured)
+        assertEquals(0, server.requestCount)
+    }
+
+    @Test
+    fun `the shipped defaults carry no endpoint paths`() {
+        val defaults = TripAdvisorApiConfig()
+        assertEquals("", defaults.locationSearchPath)
+        assertEquals("", defaults.highlightsPath)
+    }
 
     private fun sourceFor(config: TripAdvisorApiConfig) = TripAdvisorRecommendationSource(
         client = OkHttpClient(),
@@ -207,4 +231,5 @@ class TripAdvisorRecommendationSourceTest {
 private class TripAdvisorFakeStrings : SourceStrings(null) {
     override fun get(id: Int, vararg args: Any?): String = "id=$id;" + args.joinToString(",")
     override fun plural(id: Int, count: Int, vararg args: Any?): String = "id=$id;count=$count;" + args.joinToString(",")
+
 }
