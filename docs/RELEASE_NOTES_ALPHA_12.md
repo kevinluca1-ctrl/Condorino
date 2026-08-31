@@ -14,12 +14,19 @@ Everything in `alpha-11` still applies — see its
   named classes, and because Settings had already written the numeric ones to disk, a one-time
   migration replaces them — nothing to correct by hand.
 
-* **TripAdvisor: the app was shipping endpoint paths that are known not to work.** `alpha-11` made
-  the 404 name the path it asked for, which confirmed `locations/v2/search` does not exist on that
-  host. Rather than guess a third time, both paths now ship **blank**, and the source reports itself
-  as not set up until you enter the real ones from your own RapidAPI test panel — the same way the
-  Condor API has always behaved. A default that is known to fail is worse than none: it makes a
-  configuration step look like a broken app. (The stored bad paths are migrated away too.)
+* **TripAdvisor now uses the listing's real endpoints instead of a reconstruction.** `alpha-11`
+  made the 404 name the path it asked for, which confirmed `locations/v2/search` does not exist on
+  that host; the published API reference for the Tripadvisor Scraper listing then supplied what
+  does. Attractions are read from `tripadvisor/attractions/list` with the place in `query`, and the
+  review count and link fields carry their documented names. The stored wrong paths are migrated
+  away, so an existing install picks this up without anything to correct by hand.
+
+  The reference also settles something the old two-step chain was paying for: those endpoints
+  "accept a location name, a full TripAdvisor URL, or an entity ID". Resolving a city to
+  TripAdvisor's internal id first was therefore an entire request bought for nothing, and it is now
+  skipped — **one destination costs one call instead of two**, which is the difference between 100
+  and 200 lookups on a free plan that allows 200 a month. The two-step path is still there and
+  still tested; setting a location-search path switches it back on for a host that needs it.
 
 * **AeroDataBox said "no flights found" without saying why.** Three very different things produce
   that: the airport genuinely returned nothing, rows came back that no field mapping could read, or
@@ -43,15 +50,18 @@ Everything in `alpha-11` still applies — see its
   order that carries no information.
 
 14 new unit tests (269 total, was 252), covering the destination ranking (including that it stays
-varied exactly where the weekend ranking collapsed), the AeroDataBox empty-result explanations, and
-TripAdvisor asking to be configured rather than guessing.
+varied exactly where the weekend ranking collapsed), the AeroDataBox empty-result explanations, the
+shipped TripAdvisor defaults matching the published reference, and the single-call lookup alongside
+the two-step chain it replaces.
 
 ## Known limitations
 
-The TripAdvisor endpoint paths are the one thing this app cannot fill in for you: RapidAPI's own
-documentation is not reachable from where this is built, so the app asks rather than guesses. Google
-Flights and AeroDataBox field mappings remain user-editable, and every failure in them now reports
-what it actually saw.
+TripAdvisor's *response envelope* is the one value still inferred rather than read off its
+reference, which documents the parameters exactly but shows a sample body only for a `detail` call.
+The app assumes the attractions response is the array itself; if it turns out to be wrapped, the
+failure names the keys that actually came back and Settings → TripAdvisor is where you correct it.
+Google Flights and AeroDataBox field mappings remain user-editable in the same way, and every
+failure in them now reports what it actually saw.
 
 ## Installing
 

@@ -153,8 +153,9 @@ selection, feed parsing, price-field text handling, airport search ranking, upda
 standby-price export/import (including per-airline tagging and backward compatibility with exports
 written before multi-airline pricing existed), the OpenSky token-refresh and credit-safe chunking
 behaviour, the AeroDataBox chunked-window request building and generic JSON field mapping, the
-Google Flights and TripAdvisor URL building and generic JSON field mapping (including TripAdvisor's
-two-step location-then-highlights request chain), Lufthansa Group airline selection and
+Google Flights and TripAdvisor URL building and generic JSON field mapping (including both
+TripAdvisor's single-call lookup and the optional two-step location-then-highlights chain),
+Lufthansa Group airline selection and
 filtering, matching a flight to the right standby price across the IATA/ICAO designators that
 different sources report, distinguishing a genuine "you're on the latest version" from a false
 update offer caused by build/publish clock skew, the standby-price safety net that restores

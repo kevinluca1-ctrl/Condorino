@@ -24,31 +24,34 @@ import java.time.Instant
 /**
  * ## Status of this data source — read before using
  *
- * This talks to a TripAdvisor-data listing on RapidAPI — specifically the `tripadvisor-scraper`
- * listing by pradeepbardiya13 (host `tripadvisor-scraper.p.rapidapi.com`), which is where
- * [TripAdvisorApiConfig.apiHost] below points. The endpoint paths, parameter names and response
- * field names below actually come from an earlier reconstruction based on the longer-running
- * "Travel Advisor" API by apidojo, since that specific listing's own documentation could not be
- * reached either (blocked by network egress, same as everywhere else in this app) — the two listings
- * are different RapidAPI products but both wrap the same underlying TripAdvisor data in the same
- * two-step shape this source uses: first resolve a free-text place name to TripAdvisor's own
- * internal location id (`locationSearchPath`), then ask for nearby attractions using that id
- * (`highlightsPath`). So **every field name and value below is a best-effort reconstruction, not a
- * verified contract for this specific listing** — the same situation [GoogleFlightsPriceSource] was
- * in, and handled the same way: nothing is hard-coded as fact. [TripAdvisorApiConfig]'s defaults are
- * a working starting point; if your actual response doesn't match, correct the field names in
- * Settings → TripAdvisor from what you see in RapidAPI's own "Test Endpoint" panel — nothing else in
- * the app needs to change (see [mapLocationId] and [mapHighlights], the two places this is
- * interpreted).
+ * This talks to the **Tripadvisor Scraper** listing on RapidAPI (host
+ * `tripadvisor-scraper.p.rapidapi.com`), which is where [TripAdvisorApiConfig.apiHost] points. Its
+ * published API reference is the source of the endpoint path and parameter names below: the
+ * listing exposes `search`, `list` and `detail` endpoints for hotels, restaurants and attractions,
+ * and — this is the part that shapes this class — states that those endpoints "accept a location
+ * name, a full TripAdvisor URL, or an entity ID" in their `query` parameter.
  *
- * The category field in particular had no confirmed example in the researched snippets at all, so
- * its default is blank on purpose: every highlight reports [HighlightCategory.OTHER] until you fill
- * that field name in yourself.
+ * That single sentence removes a whole request. Earlier versions of this source resolved a city
+ * name to TripAdvisor's internal location id first and only then asked for attractions; since the
+ * listing endpoint takes the name directly, [TripAdvisorApiConfig.locationSearchPath] now ships
+ * **blank** and the lookup step is skipped entirely — halving what one destination costs, which
+ * matters on a free plan of 200 requests a month. The two-step path is still implemented and still
+ * tested; filling that field in switches it back on, for a host that genuinely needs it.
+ *
+ * What is *not* settled is the response envelope: the reference documents the parameters exactly
+ * but shows a sample body only for a `detail` call, which has no wrapper at all. So
+ * [TripAdvisorApiConfig.itemsPath] is the one value still inferred rather than read off the
+ * contract, and it defaults to blank — "the response is the array itself". If that turns out to be
+ * wrong, the failure is not silent: [diagnoseHighlights] names the keys that actually came back,
+ * and Settings → TripAdvisor is where you correct it. The same applies to every field name here
+ * ([mapLocationId] and [mapHighlights] are the only two places any of it is interpreted).
+ *
+ * The category field had no documented example at all, so its default is blank on purpose: every
+ * highlight reports [HighlightCategory.OTHER] until you fill that field name in yourself.
  *
  * Queried on demand, one destination at a time — never automatically for every trip or destination
- * on screen, since this is a second metered RapidAPI call per lookup (one for the location search,
- * one for the highlights list) and firing it unprompted would burn through a subscription's quota
- * for a card most of it would never be opened.
+ * on screen, since this is a metered RapidAPI call per lookup and firing it unprompted would burn
+ * through a subscription's quota for a card most of it would never be opened.
  */
 class TripAdvisorRecommendationSource(
     private val client: OkHttpClient,
@@ -77,7 +80,7 @@ class TripAdvisorRecommendationSource(
                 reason = strings.get(R.string.src_tripadvisor_no_key),
                 howToFix = strings.get(R.string.src_tripadvisor_no_key_fix),
             )
-            config.apiHost.isBlank() || config.locationSearchPath.isBlank() || config.highlightsPath.isBlank() ->
+            config.apiHost.isBlank() || config.highlightsPath.isBlank() ->
                 SourceStatus.NotConfigured(
                     reason = strings.get(R.string.src_tripadvisor_no_host),
                     howToFix = strings.get(R.string.src_tripadvisor_no_host_fix),
@@ -97,18 +100,32 @@ class TripAdvisorRecommendationSource(
             val apiKey = apiKeyProvider()
 
             val host = config.apiHost.trim()
-            val locationId = when (val step1 = request(locationSearchUrl(config, destination.city), apiKey, host)) {
-                is StepResult.Body -> mapLocationId(step1.body, config)
-                    ?: return@withContext TravelRecommendationResult.Failure(strings.get(R.string.src_tripadvisor_no_location))
-                is StepResult.Failure -> return@withContext step1.result
+            // The listing accepts a place *name* wherever it accepts an entity id, so the lookup
+            // step is optional — and skipping it halves the requests a destination costs, which
+            // matters on a free plan of 200 a month. It stays available for a host that needs it:
+            // leaving the search path blank means "ask the listing directly".
+            val locationId = if (config.locationSearchPath.isBlank()) {
+                destination.city.ifBlank { destination.name }
+            } else {
+                when (val step1 = request(locationSearchUrl(config, destination.city), apiKey, host)) {
+                    is StepResult.Body -> mapLocationId(step1.body, config)
+                        ?: return@withContext TravelRecommendationResult.Failure(strings.get(R.string.src_tripadvisor_no_location))
+                    is StepResult.Failure -> return@withContext step1.result
+                }
             }
 
-            val highlights = when (val step2 = request(highlightsUrl(config, locationId), apiKey, host)) {
-                is StepResult.Body -> mapHighlights(step2.body, config)
+            val highlightsBody = when (val step2 = request(highlightsUrl(config, locationId), apiKey, host)) {
+                is StepResult.Body -> step2.body
                 is StepResult.Failure -> return@withContext step2.result
             }
+            val highlights = mapHighlights(highlightsBody, config)
             if (highlights.isEmpty()) {
-                return@withContext TravelRecommendationResult.Failure(strings.get(R.string.src_tripadvisor_unmapped))
+                return@withContext TravelRecommendationResult.Failure(
+                    strings.get(R.string.src_tripadvisor_unmapped),
+                    // Which of the mapping settings is wrong, rather than leaving the user to
+                    // guess — the same treatment the other two RapidAPI sources got.
+                    diagnoseHighlights(highlightsBody, config),
+                )
             }
 
             TravelRecommendationResult.Success(
@@ -229,6 +246,39 @@ class TripAdvisorRecommendationSource(
      * shown blank; every other field is optional and simply reported as "not available" when it
      * doesn't resolve.
      */
+    /**
+     * Why a listing response produced nothing usable, in one sentence.
+     *
+     * Two settings can be wrong here and they fail identically: the path to the array, and the
+     * field holding each entry's name. Naming what the response actually contained separates them
+     * — a wrapper key that is not the configured items path shows up immediately, and so does an
+     * array of objects whose keys do not include the configured name field.
+     */
+    internal fun diagnoseHighlights(body: String, config: TripAdvisorApiConfig): String? {
+        val root = runCatching { json.parseToJsonElement(body) }.getOrNull()
+            ?: return "the response was not valid JSON"
+
+        val array = when {
+            config.itemsPath.isBlank() -> root as? JsonArray
+            else -> resolvePath(root, config.itemsPath) as? JsonArray
+        }
+        if (array == null) {
+            val keys = (root as? JsonObject)?.keys
+            return when {
+                keys == null -> "the response is neither a list nor an object"
+                config.itemsPath.isBlank() ->
+                    "the response is an object, not a list; its keys are: ${keys.joinToString(", ")}" +
+                        " — set the list path to whichever holds the attractions"
+                else -> "no list at \"${config.itemsPath}\"; the keys present are: ${keys.joinToString(", ")}"
+            }
+        }
+        if (array.isEmpty()) return "the list came back empty for this place"
+        val firstKeys = (array.first() as? JsonObject)?.keys
+            ?: return "the list holds values rather than objects"
+        return "${array.size} entries came back, but none has a \"${config.fieldName}\" field; " +
+            "the keys present are: ${firstKeys.joinToString(", ")}"
+    }
+
     internal fun mapHighlights(body: String, config: TripAdvisorApiConfig): List<TravelHighlight> {
         val root = json.parseToJsonElement(body)
         val array: JsonArray = when {
@@ -293,27 +343,34 @@ data class TripAdvisorApiConfig(
     val enabled: Boolean = false,
     val apiHost: String = "tripadvisor-scraper.p.rapidapi.com",
     /**
-     * Blank on purpose, and the reason is worth stating: this defaulted to `locations/v2/search`,
-     * and the host answers HTTP 404 for it — the guess is *known wrong*, not merely unverified.
-     * A default that is known not to work is worse than none: it makes a configuration step look
-     * like a broken app. Blank instead means the source reports itself as not set up (see
-     * [status]) and asks for the real path, the same way the Condor API does. The app never
-     * guesses endpoints.
+     * Blank by default, and deliberately so: this listing's `…/list` endpoint takes a place name
+     * directly, so resolving one to an entity id first is an extra request bought for nothing —
+     * and the free plan allows 200 a month. Fill this in only for a host that genuinely requires
+     * a two-step lookup; blank means "ask the listing endpoint directly".
      */
     val locationSearchPath: String = "",
     val locationQueryParam: String = "query",
     /** Dotted path to the array of location results in the first response, e.g. `data`. */
     val locationItemsPath: String = "data",
     val locationIdField: String = "documentId",
-    /** Blank for the same reason as [locationSearchPath]. */
-    val highlightsPath: String = "",
-    val highlightsLocationIdParam: String = "location_id",
-    /** Dotted path to the array of highlight items in the second response, e.g. `data`. */
-    val itemsPath: String = "data",
+    /** From the listing's published API reference: attractions for a place, 30 per page. */
+    val highlightsPath: String = "tripadvisor/attractions/list",
+    /** The listing names this `query`, and accepts a place name, a URL or an entity id in it. */
+    val highlightsLocationIdParam: String = "query",
+    /**
+     * Dotted path to the array of attractions in the listing response.
+     *
+     * The published reference documents the parameters exactly but shows a sample body only for a
+     * *detail* call, which has no wrapper at all — so this is the one value still inferred rather
+     * than read off the contract. Blank means "the response is the array itself", which is the
+     * shape that reference implies. If it turns out to be wrapped, the failure message now names
+     * the keys that actually came back, and this field is where you correct it.
+     */
+    val itemsPath: String = "",
     val fieldName: String = "name",
     val fieldRating: String = "rating",
-    val fieldReviewCount: String = "num_reviews",
-    val fieldUrl: String = "web_url",
+    val fieldReviewCount: String = "reviews",
+    val fieldUrl: String = "link",
     val fieldAddress: String = "address",
     /** Left blank on purpose — see the class doc. */
     val fieldCategory: String = "",

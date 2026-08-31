@@ -53,11 +53,10 @@ class TripAdvisorRecommendationSourceTest {
     )
 
     @Test
-    fun `with no endpoint paths set the source asks to be configured instead of guessing`() = runBlocking {
-        // The shipped defaults used to be a guess, and the host answers 404 for it — which made a
-        // configuration step look like a broken app. Blank now means "not set up", and no request
-        // is made at all.
-        val config = TripAdvisorApiConfig(enabled = true, apiHost = "example.invalid")
+    fun `with no listing path set the source asks to be configured instead of guessing`() = runBlocking {
+        // The listing path is the one setting the source cannot work without; blanking it must
+        // read as "not set up" rather than producing a request that cannot succeed.
+        val config = TripAdvisorApiConfig(enabled = true, apiHost = "example.invalid", highlightsPath = "")
         val status = sourceFor(config).status()
 
         assertTrue("expected NotConfigured, got $status", status is SourceStatus.NotConfigured)
@@ -65,10 +64,16 @@ class TripAdvisorRecommendationSourceTest {
     }
 
     @Test
-    fun `the shipped defaults carry no endpoint paths`() {
+    fun `the shipped defaults follow the published API reference`() {
         val defaults = TripAdvisorApiConfig()
+        assertEquals("tripadvisor/attractions/list", defaults.highlightsPath)
+        // The listing takes a place name in the same parameter it takes an entity id, so the
+        // lookup step is skipped by default — one request per destination instead of two, which
+        // matters on a plan of 200 a month.
+        assertEquals("query", defaults.highlightsLocationIdParam)
         assertEquals("", defaults.locationSearchPath)
-        assertEquals("", defaults.highlightsPath)
+        assertEquals("reviews", defaults.fieldReviewCount)
+        assertEquals("link", defaults.fieldUrl)
     }
 
     private fun sourceFor(config: TripAdvisorApiConfig) = TripAdvisorRecommendationSource(
@@ -91,7 +96,7 @@ class TripAdvisorRecommendationSourceTest {
 
     private val oneLocation = """{"data":[{"documentId":"loc-42"}]}"""
     private val oneHighlight =
-        """{"data":[{"name":"Marienplatz","rating":4.6,"num_reviews":12000,"web_url":"https://example.com/mp","address":"Munich","category":"attraction"}]}"""
+        """{"data":[{"name":"Marienplatz","rating":4.6,"reviews":12000,"link":"https://example.com/mp","address":"Munich","category":"attraction"}]}"""
 
     @Test
     fun `highlights queries location search first, then highlights for the resolved id`() = runBlocking {
