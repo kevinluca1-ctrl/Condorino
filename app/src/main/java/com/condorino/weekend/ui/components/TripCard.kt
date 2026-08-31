@@ -167,6 +167,9 @@ fun TripCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Pill(stringResource(R.string.card_time_on_site, trip.effectiveHoursText))
+            // Which airline this trip is on decides which standby price applies to it, so it
+            // belongs on the card rather than only in the detail view.
+            AirlineTag(trip.outbound.airlineCode, trip.outbound.airline)
             trip.economyPrice?.let {
                 Pill(stringResource(R.string.card_economy, it.format()), color = CondorinoColors.Mint)
             }

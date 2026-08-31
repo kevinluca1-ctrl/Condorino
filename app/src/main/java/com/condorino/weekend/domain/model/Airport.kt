@@ -28,6 +28,17 @@ data class Airport(
         }.getOrNull()?.takeIf { it.isNotBlank() && !it.equals(countryCode, ignoreCase = true) }
             ?: country.ifBlank { countryCode }
 
+    /**
+     * "London (LHR)" — the city with its airport code, which is the only form that stays unique.
+     *
+     * A city name on its own is genuinely ambiguous in this dataset: London appears four times
+     * (Heathrow, Gatwick, Stansted, City), Milan and Rome twice, and the reference data names some
+     * airports after the village they sit in rather than the city they serve, so several entries
+     * are unrecognisable without the code. Anywhere a destination is offered as a choice, this is
+     * the label to use.
+     */
+    val cityWithCode: String get() = "${city.ifBlank { name }.trim()} ($iata)"
+
     /** Unicode regional-indicator flag derived from the ISO-3166 alpha-2 country code. */
     val flag: String
         get() {

@@ -237,6 +237,9 @@ class AeroDataBoxFlightDataSourceTest {
         // The bug this covers: this used to read "RapidAPI limit reached", implying the monthly
         // quota was exhausted — reported even at 5% usage, because a Basic plan's own gateway
         // throttles per second, entirely separate from that quota.
+        // Two: the first 429 is retried once (a per-second gate usually clears), so it is the
+        // second that gets reported.
+        server.enqueue(MockResponse().setResponseCode(429))
         server.enqueue(MockResponse().setResponseCode(429))
         val config = configFor()
         val result = sourceFor(config).search(
@@ -250,12 +253,17 @@ class AeroDataBoxFlightDataSourceTest {
     @Test
     fun `a 429 with a Retry-After header uses the message that names the wait`() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(429).setHeader("Retry-After", "7"))
+        server.enqueue(MockResponse().setResponseCode(429).setHeader("Retry-After", "7"))
         val config = configFor()
         val result = sourceFor(config).search(
             FlightSearchQuery(from = LocalDate.now(), to = LocalDate.now().plusDays(1)),
         ) as? FlightSearchResult.Failure ?: error("expected Failure")
 
-        assertEquals(AeroDataBoxFakeStrings().get(R.string.src_aerodatabox_rate_limited_retry, 7L), result.userMessage)
+        // The wait is shown the way a person reads it, not as a raw second count.
+        assertEquals(
+            AeroDataBoxFakeStrings().get(R.string.src_aerodatabox_rate_limited_retry, "7 s"),
+            result.userMessage,
+        )
     }
 
     @Test
@@ -277,6 +285,8 @@ class AeroDataBoxFlightDataSourceTest {
 
     @Test
     fun `a 429 is reported as rate limited`() = runBlocking {
+        // The first is retried once; the second is the one reported.
+        server.enqueue(MockResponse().setResponseCode(429))
         server.enqueue(MockResponse().setResponseCode(429))
         val config = configFor()
         val result = sourceFor(config).search(
@@ -350,6 +360,23 @@ class AeroDataBoxFlightDataSourceTest {
              "number":"LH 100","airline":{"name":"Lufthansa","icao":"DLH"}}
         ],"arrivals":[]}"""
         assertTrue(sourceFor(config).mapFlights(body, config, Airport.FRANKFURT, airports, setOf("CFG")).isEmpty())
+    }
+
+
+    @Test
+    fun `a single 429 is retried and the search still succeeds`() = runBlocking {
+        // The whole point of the retry: a per-second gate clears in about a second, so the user
+        // should get their flights rather than an error telling them to try again themselves.
+        server.enqueue(MockResponse().setResponseCode(429).setHeader("Retry-After", "1"))
+        server.enqueue(MockResponse().setResponseCode(200).setBody(oneDeparture))
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"departures":[],"arrivals":[]}"""))
+
+        val config = configFor(windowHours = 24)
+        val result = sourceFor(config).search(
+            FlightSearchQuery(from = LocalDate.of(2026, 9, 11), to = LocalDate.of(2026, 9, 11)),
+        )
+
+        assertTrue("expected a Success after the retry, got $result", result is FlightSearchResult.Success)
     }
 
 }

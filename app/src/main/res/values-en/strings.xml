@@ -230,6 +230,10 @@
     <string name="empty_filters">No connection matches your current filters.</string>
     <string name="settings_title">Settings</string>
     <string name="settings_appearance">Appearance</string>
+    <string name="settings_group_app">App</string>
+    <string name="settings_group_flight_data">Flight data</string>
+    <string name="settings_group_your_trips">Your trips</string>
+    <string name="settings_group_about">Privacy and about</string>
     <string name="settings_theme">Theme</string>
     <string name="theme_system">Follow system</string>
     <string name="theme_light">Light</string>
@@ -410,7 +414,7 @@
     <string name="src_opensky_test_nodata">OpenSky reachable (%1$s), but it has no data for this period.</string>
     <string name="src_opensky_test_denied">OpenSky refused access (HTTP %1$d) — check the client ID and secret.</string>
     <string name="src_opensky_rate_limited">OpenSky rate limit reached. Try again later.</string>
-    <string name="src_opensky_rate_limited_retry">OpenSky rate limit reached. Try again in %1$d seconds.</string>
+    <string name="src_opensky_rate_limited_retry">OpenSky rate limit reached. Try again in %1$s.</string>
     <string name="src_test_unreachable">Unreachable: %1$s</string>
     <string name="src_network_error">network error</string>
     <string name="src_test_failed">Test failed: %1$s</string>
@@ -442,7 +446,7 @@
     <string name="src_aerodatabox_home_unknown">Home airport %1$s is not in the airport reference data.</string>
     <string name="src_aerodatabox_denied">AeroDataBox refused access – check the RapidAPI key and your subscription\'s plan for this API.</string>
     <string name="src_aerodatabox_rate_limited">RapidAPI asked to slow down (HTTP 429) — a short-term rate limit, not necessarily your monthly quota; check your RapidAPI dashboard if this keeps happening. Try again in a moment.</string>
-    <string name="src_aerodatabox_rate_limited_retry">RapidAPI asked to slow down (HTTP 429) — a short-term rate limit, not necessarily your monthly quota. Try again in %1$d seconds.</string>
+    <string name="src_aerodatabox_rate_limited_retry">RapidAPI asked to slow down (HTTP 429) — a short-term rate limit, not necessarily your monthly quota. Try again in %1$s.</string>
     <string name="src_aerodatabox_http">AeroDataBox responded with HTTP %1$d.</string>
     <string name="src_aerodatabox_offline">AeroDataBox is unreachable – are you offline?</string>
     <string name="src_aerodatabox_parse_failed">The AeroDataBox response could not be processed.</string>
@@ -479,6 +483,7 @@
     <string name="src_tripadvisor_denied">TripAdvisor refused access – check the RapidAPI key.</string>
     <string name="src_tripadvisor_rate_limited">RapidAPI limit reached. Try again later.</string>
     <string name="src_tripadvisor_http">TripAdvisor responded with HTTP %1$d.</string>
+    <string name="src_tripadvisor_not_found">This RapidAPI host has no such endpoint (HTTP 404). Correct the endpoint paths under Settings → TripAdvisor, using the Test Endpoint panel of your own RapidAPI account.</string>
     <string name="src_tripadvisor_empty">TripAdvisor returned an empty response.</string>
     <string name="src_tripadvisor_unmapped">The response contained no usable highlights. Check the field mapping in Settings.</string>
     <string name="src_tripadvisor_offline">TripAdvisor is unreachable – are you offline?</string>
