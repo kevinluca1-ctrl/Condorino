@@ -482,8 +482,8 @@
     <string name="src_tripadvisor_disabled_fix">Enable it under Settings → TripAdvisor; enter the RapidAPI key in the RapidAPI section above.</string>
     <string name="src_tripadvisor_no_key">No RapidAPI key is stored.</string>
     <string name="src_tripadvisor_no_key_fix">Enter your RapidAPI key in the RapidAPI section of Settings (used by every RapidAPI source).</string>
-    <string name="src_tripadvisor_no_host">The two endpoint paths are not set.</string>
-    <string name="src_tripadvisor_no_host_fix">This app does not guess endpoints: enter both paths under Settings → TripAdvisor, taking them from the Test Endpoint panel of your own RapidAPI account.</string>
+    <string name="src_tripadvisor_no_host">The host or the endpoint path is not set.</string>
+    <string name="src_tripadvisor_no_host_fix">Both ship filled in, matching the listing\'s published API reference. If you cleared one, enter the host and path again under Settings → TripAdvisor — they are shown in the Test Endpoint panel of your own RapidAPI account.</string>
     <string name="src_tripadvisor_no_location">Could not resolve a TripAdvisor place id for this destination.</string>
     <string name="src_tripadvisor_denied">TripAdvisor refused access – check the RapidAPI key.</string>
     <string name="src_tripadvisor_rate_limited">RapidAPI limit reached. Try again later.</string>
