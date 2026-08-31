@@ -127,6 +127,11 @@ class AeroDataBoxFlightDataSource(
             val selected = selectedAirlinesProvider()
             val windows = chunkWindows(query, config)
             val flights = mutableListOf<Flight>()
+            // Kept only to explain an empty result — see ResponseSurvey.
+            var lastBody: String? = null
+            var totalRows = 0
+            val airlineCodesSeen = linkedSetOf<String>()
+            var totalMapped = 0
 
             windows.forEachIndexed { index, (windowFrom, windowTo) ->
                 // A modest pace between chunks, not on the first request. A search can fire up to
@@ -184,6 +189,11 @@ class AeroDataBoxFlightDataSource(
                                     val body = response.body?.string().orEmpty()
                                     if (body.isNotBlank()) {
                                         flights += mapFlights(body, config, home, airports, selected)
+                                        lastBody = body
+                                        val survey = surveyResponse(body, config, home, airports)
+                                        totalRows += survey.rows
+                                        totalMapped += survey.mapped
+                                        airlineCodesSeen += survey.airlineCodesSeen
                                     }
                                     null
                                 }
@@ -216,6 +226,8 @@ class AeroDataBoxFlightDataSource(
             if (filtered.isEmpty()) {
                 FlightSearchResult.Failure(
                     strings.get(R.string.src_aerodatabox_no_flights, selectedNames, config.homeIata),
+                    // Which of the three possible causes this actually was — see ResponseSurvey.
+                    explainEmptyResult(lastBody, totalRows, totalMapped, airlineCodesSeen),
                 )
             } else {
                 FlightSearchResult.Success(
@@ -284,6 +296,68 @@ class AeroDataBoxFlightDataSource(
         departures.forEach { toFlight(it, config, home, airports, selectedAirlines, outbound = true)?.let(out::add) }
         arrivals.forEach { toFlight(it, config, home, airports, selectedAirlines, outbound = false)?.let(out::add) }
         return out
+    }
+
+    /**
+     * What a response actually contained, for when it maps to nothing.
+     *
+     * "No flights found at FRA" is indistinguishable between three very different causes: the
+     * airport genuinely returned nothing, the rows came back but no field mapping matched them, or
+     * they mapped fine and every one belonged to an airline that is not selected. Only the first
+     * is really about the *window*; the other two are settings the user can correct — but only if
+     * told which. So the counts are kept, and reported when the result is empty.
+     */
+    internal data class ResponseSurvey(
+        val rows: Int,
+        val airlineCodesSeen: Set<String>,
+        val mapped: Int,
+    )
+
+    /**
+     * Turns the survey counts into the one sentence that says which cause it was: nothing came
+     * back at all, rows came back that no field mapping could read, or they read fine and simply
+     * belonged to other airlines. The third case names the codes actually seen, which is also how
+     * a wrong `fieldAirlineIcao` shows itself — the codes come out looking nothing like ICAO.
+     */
+    internal fun explainEmptyResult(
+        lastBody: String?,
+        rows: Int,
+        mapped: Int,
+        airlineCodesSeen: Set<String>,
+    ): String? = when {
+        lastBody == null -> null
+        rows == 0 -> "the airport returned no flights at all for this window"
+        mapped == 0 -> "$rows flights came back, but none could be read with the current field " +
+            "mapping — check the field names below against a real response"
+        airlineCodesSeen.isNotEmpty() -> "$rows flights came back and $mapped could be read, but " +
+            "none are from a selected airline; the codes present were: " +
+            airlineCodesSeen.joinToString(", ")
+        else -> "$rows flights came back and $mapped could be read, but none matched the selection"
+    }
+
+    /** [ResponseSurvey] for one response body, ignoring the airline selection entirely. */
+    internal fun surveyResponse(
+        body: String,
+        config: AeroDataBoxConfig,
+        home: Airport,
+        airports: Map<String, Airport>,
+    ): ResponseSurvey {
+        val root = runCatching { json.parseToJsonElement(body) }.getOrNull() as? JsonObject
+            ?: return ResponseSurvey(0, emptySet(), 0)
+        val departures = resolvePath(root, config.departuresItemsPath) as? JsonArray ?: JsonArray(emptyList())
+        val arrivals = resolvePath(root, config.arrivalsItemsPath) as? JsonArray ?: JsonArray(emptyList())
+
+        val codes = linkedSetOf<String>()
+        (departures + arrivals).forEach { element ->
+            (element as? JsonObject)?.str(config.fieldAirlineIcao)
+                ?.trim()?.uppercase()?.takeIf { it.isNotBlank() }
+                ?.let { if (codes.size < MAX_SURVEYED_AIRLINES) codes += it }
+        }
+        // Mapped ignoring the selection, so "mapped 0" isolates a field-mapping problem from an
+        // airline-selection one.
+        val everyAirline = codes + Airlines.ALL.map { it.icaoCode }
+        val mapped = mapFlights(body, config, home, airports, everyAirline).size
+        return ResponseSurvey(rows = departures.size + arrivals.size, airlineCodesSeen = codes, mapped = mapped)
     }
 
     private fun toFlight(
@@ -386,6 +460,9 @@ class AeroDataBoxFlightDataSource(
         /** A longer Retry-After than this is not the per-second gate, and waiting it out in the
          *  foreground would just hang the screen. */
         const val MAX_RETRY_WAIT_MILLIS = 3_000L
+
+        /** Enough distinct codes to recognise the pattern without turning a message into a list. */
+        const val MAX_SURVEYED_AIRLINES = 8
     }
 }
 

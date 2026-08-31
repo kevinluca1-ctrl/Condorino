@@ -98,9 +98,14 @@
     <string name="filter_min_score">Minimum score: %1$d</string>
     <string name="filter_destination_type">Destination type</string>
     <string name="filter_favorites_only">Favourites only</string>
-    <string name="calendar_title">Which weekends are good?</string>
+    <string name="calendar_title">Where can you go?</string>
     <string name="calendar_range">%1$s – %2$s</string>
-    <string name="calendar_best">Best weekends</string>
+    <string name="calendar_best">Best destinations</string>
+    <string name="calendar_weekends_alike">Every weekend in this range offers the same flights, so ranking the weekends themselves would say nothing. These are the destinations you can reach, best first.</string>
+    <plurals name="calendar_destination_weekends">
+        <item quantity="one">Best on %1$s · the only weekend it flies</item>
+        <item quantity="other">Best on %1$s · flies on %2$d weekends</item>
+    </plurals>
     <string name="calendar_all">All weekends</string>
     <string name="calendar_no_connection">no connection</string>
     <string name="calendar_empty_title">No scored weekends</string>
@@ -477,8 +482,8 @@
     <string name="src_tripadvisor_disabled_fix">Enable it under Settings → TripAdvisor; enter the RapidAPI key in the RapidAPI section above.</string>
     <string name="src_tripadvisor_no_key">No RapidAPI key is stored.</string>
     <string name="src_tripadvisor_no_key_fix">Enter your RapidAPI key in the RapidAPI section of Settings (used by every RapidAPI source).</string>
-    <string name="src_tripadvisor_no_host">The API host or an endpoint path is missing.</string>
-    <string name="src_tripadvisor_no_host_fix">Check all three in Settings (the defaults are an unverified starting point).</string>
+    <string name="src_tripadvisor_no_host">The host or the endpoint path is not set.</string>
+    <string name="src_tripadvisor_no_host_fix">Both ship filled in, matching the listing\'s published API reference. If you cleared one, enter the host and path again under Settings → TripAdvisor — they are shown in the Test Endpoint panel of your own RapidAPI account.</string>
     <string name="src_tripadvisor_no_location">Could not resolve a TripAdvisor place id for this destination.</string>
     <string name="src_tripadvisor_denied">TripAdvisor refused access – check the RapidAPI key.</string>
     <string name="src_tripadvisor_rate_limited">RapidAPI limit reached. Try again later.</string>

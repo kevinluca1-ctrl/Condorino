@@ -68,8 +68,10 @@ fun String.withDetail(detail: String?): String =
 
 /** Outcome of [FlightDataSource.selfTest], shown verbatim under the source in Settings. */
 sealed interface SourceTestResult {
-    data class Ok(val message: String) : SourceTestResult
-    data class Problem(val message: String) : SourceTestResult
+    val message: String
+
+    data class Ok(override val message: String) : SourceTestResult
+    data class Problem(override val message: String) : SourceTestResult
 }
 
 data class FlightSearchQuery(

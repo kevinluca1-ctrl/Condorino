@@ -59,8 +59,9 @@ comfort and in the effective holiday requirement.
 flight − airport buffer − transfer. For the London example in the brief this yields exactly the
 46 hours quoted there.
 
-**More screens.** Calendar with a star rating per weekend and a best-weekends ranking across up to
-six months · destination comparison (up to six side by side) · “Surprise me” with six modes
+**More screens.** Calendar with a star rating per weekend and a ranking of the destinations you can
+reach across up to six months — by destination rather than by weekend, because a repeating weekly
+timetable makes every weekend score alike · destination comparison (up to six side by side) · “Surprise me” with six modes
 (random, top 10, under budget, sun destination, city break, best score) · favourites · filters by
 travel days, cabin, price, minimum score and destination type.
 
@@ -146,14 +147,15 @@ Structure and reasoning: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ### Tests
 
-252 unit tests covering pattern detection, the workday penalty, effective length of stay, counting
+269 unit tests covering pattern detection, the workday penalty, effective length of stay, counting
 nights across midnight, time zones (UK, Madeira, Greece, summer/winter), cost scoring, random
 selection, feed parsing, price-field text handling, airport search ranking, update-release selection,
 standby-price export/import (including per-airline tagging and backward compatibility with exports
 written before multi-airline pricing existed), the OpenSky token-refresh and credit-safe chunking
 behaviour, the AeroDataBox chunked-window request building and generic JSON field mapping, the
-Google Flights and TripAdvisor URL building and generic JSON field mapping (including TripAdvisor's
-two-step location-then-highlights request chain), Lufthansa Group airline selection and
+Google Flights and TripAdvisor URL building and generic JSON field mapping (including both
+TripAdvisor's single-call lookup and the optional two-step location-then-highlights chain),
+Lufthansa Group airline selection and
 filtering, matching a flight to the right standby price across the IATA/ICAO designators that
 different sources report, distinguishing a genuine "you're on the latest version" from a false
 update offer caused by build/publish clock skew, the standby-price safety net that restores

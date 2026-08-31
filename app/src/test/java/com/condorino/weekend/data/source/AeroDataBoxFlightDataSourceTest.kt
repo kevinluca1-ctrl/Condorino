@@ -379,6 +379,49 @@ class AeroDataBoxFlightDataSourceTest {
         assertTrue("expected a Success after the retry, got $result", result is FlightSearchResult.Success)
     }
 
+
+    @Test
+    fun `an empty result says the airport returned nothing when it truly did`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"departures":[],"arrivals":[]}"""))
+        val config = configFor(windowHours = 24)
+        val result = sourceFor(config).search(
+            FlightSearchQuery(from = LocalDate.of(2026, 9, 11), to = LocalDate.of(2026, 9, 11)),
+        ) as? FlightSearchResult.Failure ?: error("expected Failure")
+
+        assertTrue(result.technicalDetail.orEmpty().contains("no flights at all"))
+    }
+
+    @Test
+    fun `an empty result blames the field mapping when rows came back unreadable`() {
+        // Rows present, but nothing the configured field names can read.
+        val body = """{"departures":[{"nothing":"useful"},{"also":"unhelpful"}],"arrivals":[]}"""
+        val source = sourceFor(configFor())
+        val survey = source.surveyResponse(body, configFor(), Airport.FRANKFURT, airports)
+
+        assertEquals(2, survey.rows)
+        assertEquals(0, survey.mapped)
+        assertTrue(
+            source.explainEmptyResult(body, survey.rows, survey.mapped, survey.airlineCodesSeen)
+                .orEmpty().contains("field mapping"),
+        )
+    }
+
+    @Test
+    fun `an empty result names the airlines that were actually there`() {
+        // The common real case: the response is fine, the airport simply had other carriers —
+        // and if the airline field were mapped wrongly, these codes would look nothing like ICAO.
+        val body = """{"departures":[
+            {"departure":{"airport":{"iata":"FRA"},"scheduledTimeUtc":"2026-09-11 18:00Z"},
+             "arrival":{"airport":{"iata":"MUC"},"scheduledTimeUtc":"2026-09-11 19:05Z"},
+             "number":"AB 1","airline":{"name":"Some Airline","icao":"XXX"}}
+        ],"arrivals":[]}"""
+        val source = sourceFor(configFor())
+        val survey = source.surveyResponse(body, configFor(), Airport.FRANKFURT, airports)
+
+        val detail = source.explainEmptyResult(body, survey.rows, survey.mapped, survey.airlineCodesSeen)
+        assertTrue("expected the seen codes, got: $detail", detail.orEmpty().contains("XXX"))
+    }
+
 }
 
 /** A [SourceStrings] that never touches Android — this test only cares which id/args were chosen. */

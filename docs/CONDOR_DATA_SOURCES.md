@@ -167,21 +167,29 @@ doesn't search a timetable or price a trip — it answers "now that I've picked 
 worth seeing?", for the one destination the trip detail screen is already showing, via a compact
 "Nearby" card. See `TravelRecommendationSource` for the interface.
 
-It talks to the `tripadvisor-scraper` listing on RapidAPI (by pradeepbardiya13; host
-`tripadvisor-scraper.p.rapidapi.com`) in **two chained requests**: first resolve the destination's
-city name to TripAdvisor's own internal location id, then ask for nearby attractions using that id.
-Neither that listing's playground page nor its docs could be reached from the environment this was
-built in (blocked by network egress), so the endpoint paths and field names in `TripAdvisorApiConfig`
-below are instead a reconstruction from an earlier, longer-running "Travel Advisor" API by apidojo,
-which wraps the same underlying TripAdvisor data in the same two-step shape — **a best-effort
-reconstruction, not a verified contract for this specific listing**. Nothing is hard-coded as fact:
-*Settings → TripAdvisor* exposes every one of those names for you to correct once you have real
-RapidAPI access, and `TripAdvisorRecommendationSource.mapLocationId()` / `.mapHighlights()` are the
-only two places that interpret them.
+It talks to the **Tripadvisor Scraper** listing on RapidAPI (host
+`tripadvisor-scraper.p.rapidapi.com`). The endpoint path and parameter names in
+`TripAdvisorApiConfig` come from that listing's published API reference: attractions for a place are
+read from `tripadvisor/attractions/list`, 30 per page, with the place passed in `query`.
 
-The category field in particular had no confirmed example anywhere in the researched snippets, so
-its default ships blank on purpose — until you fill it in, every highlight is shown as "Other"
-rather than guessing what kind of place it is.
+That reference also states that the `search`, `list`, `detail` and `reviews` endpoints accept **a
+location name, a full TripAdvisor URL, or an entity ID** in `query` — which is why this source makes
+**one request per destination, not two**. Earlier versions resolved the city name to TripAdvisor's
+internal location id first; since the listing takes the name directly, `locationSearchPath` ships
+blank and that step is skipped. On a free plan of 200 requests a month that is the difference between
+100 and 200 destination lookups. The two-step chain is still implemented and still covered by tests —
+filling `locationSearchPath` in switches it back on for a host that genuinely requires it.
+
+One value is still inferred rather than read off the contract: the response **envelope**. The
+reference documents the parameters exactly but shows a sample body only for a `detail` call, which
+has no wrapper — so `itemsPath` defaults to blank, meaning "the response is the array itself". If
+that is wrong, the failure is not silent: the error names the keys that actually came back.
+*Settings → TripAdvisor* exposes every path and field name for you to correct, and
+`TripAdvisorRecommendationSource.mapLocationId()` / `.mapHighlights()` are the only two places that
+interpret them.
+
+The category field had no documented example at all, so its default ships blank on purpose — until
+you fill it in, every highlight is shown as "Other" rather than guessing what kind of place it is.
 
 Queried strictly on demand — one destination, one tap — for the same quota reason as Google Flights.
 Also not wired into cost or destination scoring: purely informational, shown next to the standby and

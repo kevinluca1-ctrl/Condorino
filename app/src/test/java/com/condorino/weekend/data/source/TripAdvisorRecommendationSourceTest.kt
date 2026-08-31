@@ -42,10 +42,39 @@ class TripAdvisorRecommendationSourceTest {
     ) = TripAdvisorApiConfig(
         enabled = true,
         apiHost = server.hostName + ":" + server.port,
+        // Stated explicitly rather than taken from the defaults, which are deliberately blank:
+        // this app does not guess endpoints, so a real install asks the user for these. These
+        // tests are about the request mechanism, not about what any particular host calls them.
+        locationSearchPath = "locations/search",
+        highlightsPath = "attractions/list",
         locationItemsPath = locationItemsPath,
         itemsPath = itemsPath,
         fieldCategory = "category",
     )
+
+    @Test
+    fun `with no listing path set the source asks to be configured instead of guessing`() = runBlocking {
+        // The listing path is the one setting the source cannot work without; blanking it must
+        // read as "not set up" rather than producing a request that cannot succeed.
+        val config = TripAdvisorApiConfig(enabled = true, apiHost = "example.invalid", highlightsPath = "")
+        val status = sourceFor(config).status()
+
+        assertTrue("expected NotConfigured, got $status", status is SourceStatus.NotConfigured)
+        assertEquals(0, server.requestCount)
+    }
+
+    @Test
+    fun `the shipped defaults follow the published API reference`() {
+        val defaults = TripAdvisorApiConfig()
+        assertEquals("tripadvisor/attractions/list", defaults.highlightsPath)
+        // The listing takes a place name in the same parameter it takes an entity id, so the
+        // lookup step is skipped by default — one request per destination instead of two, which
+        // matters on a plan of 200 a month.
+        assertEquals("query", defaults.highlightsLocationIdParam)
+        assertEquals("", defaults.locationSearchPath)
+        assertEquals("reviews", defaults.fieldReviewCount)
+        assertEquals("link", defaults.fieldUrl)
+    }
 
     private fun sourceFor(config: TripAdvisorApiConfig) = TripAdvisorRecommendationSource(
         client = OkHttpClient(),
@@ -67,7 +96,7 @@ class TripAdvisorRecommendationSourceTest {
 
     private val oneLocation = """{"data":[{"documentId":"loc-42"}]}"""
     private val oneHighlight =
-        """{"data":[{"name":"Marienplatz","rating":4.6,"num_reviews":12000,"web_url":"https://example.com/mp","address":"Munich","category":"attraction"}]}"""
+        """{"data":[{"name":"Marienplatz","rating":4.6,"reviews":12000,"link":"https://example.com/mp","address":"Munich","category":"attraction"}]}"""
 
     @Test
     fun `highlights queries location search first, then highlights for the resolved id`() = runBlocking {
@@ -207,4 +236,5 @@ class TripAdvisorRecommendationSourceTest {
 private class TripAdvisorFakeStrings : SourceStrings(null) {
     override fun get(id: Int, vararg args: Any?): String = "id=$id;" + args.joinToString(",")
     override fun plural(id: Int, count: Int, vararg args: Any?): String = "id=$id;count=$count;" + args.joinToString(",")
+
 }

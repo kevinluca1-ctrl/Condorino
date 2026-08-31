@@ -148,12 +148,13 @@ fun SettingsScreen(
                 ) {
                     Column(Modifier.weight(1f)) {
                         Text(source.name, color = CondorinoColors.TextPrimary, fontSize = 13.sp)
+                        val statusText = when (val s = source.status) {
+                            is SourceStatus.Ready -> stringResource(R.string.settings_source_ready)
+                            is SourceStatus.NotConfigured -> "${s.reason} ${s.howToFix}"
+                            is SourceStatus.Unavailable -> s.reason
+                        }
                         Text(
-                            when (val s = source.status) {
-                                is SourceStatus.Ready -> stringResource(R.string.settings_source_ready)
-                                is SourceStatus.NotConfigured -> "${s.reason} ${s.howToFix}"
-                                is SourceStatus.Unavailable -> s.reason
-                            },
+                            statusText,
                             color = when (source.status) {
                                 is SourceStatus.Ready -> CondorinoColors.Mint
                                 else -> CondorinoColors.TextTertiary
@@ -163,7 +164,12 @@ fun SettingsScreen(
                         )
                         // The self-test is the honest answer to "are my credentials working?":
                         // it calls the real endpoint and repeats what came back, verbatim.
-                        state.sourceTests[source.id]?.let { result ->
+                        //
+                        // Testing a source that is merely switched off can only report the same
+                        // sentence the status line above already shows, so printing it again just
+                        // said everything twice — the identical text is dropped rather than
+                        // suppressing test output generally.
+                        state.sourceTests[source.id]?.takeIf { it.message != statusText }?.let { result ->
                             Text(
                                 when (result) {
                                     is SourceTestResult.Ok -> result.message

@@ -300,8 +300,15 @@ class PreferencesStore(private val context: Context) {
             adultsParam = p[Keys.gfAdultsParam] ?: d.adultsParam,
             currencyParam = p[Keys.gfCurrencyParam] ?: d.currencyParam,
             travelClassParam = p[Keys.gfTravelClassParam] ?: d.travelClassParam,
-            travelClassEconomyValue = p[Keys.gfTravelClassEconomyValue] ?: d.travelClassEconomyValue,
-            travelClassBusinessValue = p[Keys.gfTravelClassBusinessValue] ?: d.travelClassBusinessValue,
+            // Same one-time migration as the TripAdvisor host below: Settings writes every field
+            // of this config the moment any one of them is touched, so a corrected *default* never
+            // reaches an install that had already opened this screen. These two shipped as Google
+            // Flights' numeric class codes, which this listing rejects outright ("Travel class
+            // must be one of: ECONOMY, …"), so the stale numbers count as "never customized".
+            travelClassEconomyValue = p[Keys.gfTravelClassEconomyValue]
+                ?.takeIf { it.isNotBlank() && it != LEGACY_GF_ECONOMY_CLASS } ?: d.travelClassEconomyValue,
+            travelClassBusinessValue = p[Keys.gfTravelClassBusinessValue]
+                ?.takeIf { it.isNotBlank() && it != LEGACY_GF_BUSINESS_CLASS } ?: d.travelClassBusinessValue,
             itemsPath = p[Keys.gfItemsPath] ?: d.itemsPath,
             fieldPrice = p[Keys.gfFieldPrice] ?: d.fieldPrice,
             fieldAirline = p[Keys.gfFieldAirline] ?: d.fieldAirline,
@@ -322,11 +329,16 @@ class PreferencesStore(private val context: Context) {
             // customized" so the new default reaches upgrading installs too; a host a user typed
             // in themselves (the new default included) is untouched either way.
             apiHost = p[Keys.taApiHost]?.takeIf { it.isNotBlank() && it != LEGACY_TRIPADVISOR_HOST } ?: d.apiHost,
-            locationSearchPath = p[Keys.taLocationSearchPath] ?: d.locationSearchPath,
+            // Same one-time migration as the host above: these two shipped as paths this host
+            // answers 404 for, so a stored copy of the known-bad guess counts as "never
+            // customized" and gives way to the blank default that asks for the real one.
+            locationSearchPath = p[Keys.taLocationSearchPath]
+                ?.takeIf { it != LEGACY_TA_LOCATION_PATH } ?: d.locationSearchPath,
             locationQueryParam = p[Keys.taLocationQueryParam] ?: d.locationQueryParam,
             locationItemsPath = p[Keys.taLocationItemsPath] ?: d.locationItemsPath,
             locationIdField = p[Keys.taLocationIdField] ?: d.locationIdField,
-            highlightsPath = p[Keys.taHighlightsPath] ?: d.highlightsPath,
+            highlightsPath = p[Keys.taHighlightsPath]
+                ?.takeIf { it != LEGACY_TA_HIGHLIGHTS_PATH } ?: d.highlightsPath,
             highlightsLocationIdParam = p[Keys.taHighlightsLocationIdParam] ?: d.highlightsLocationIdParam,
             itemsPath = p[Keys.taItemsPath] ?: d.itemsPath,
             fieldName = p[Keys.taFieldName] ?: d.fieldName,
@@ -581,6 +593,16 @@ class PreferencesStore(private val context: Context) {
         /** [TripAdvisorApiConfig.apiHost]'s default before alpha-06 — see the migration note on
          *  [tripAdvisorApiConfig]. */
         const val LEGACY_TRIPADVISOR_HOST = "travel-advisor.p.rapidapi.com"
+
+        /** [TripAdvisorApiConfig]'s endpoint paths before alpha-12 — the host answers 404 for
+         *  both. See the migration note on [tripAdvisorApiConfig]. */
+        const val LEGACY_TA_LOCATION_PATH = "locations/v2/search"
+        const val LEGACY_TA_HIGHLIGHTS_PATH = "attractions/list"
+
+        /** [GoogleFlightsApiConfig]'s travel-class defaults before alpha-12 — numeric codes the
+         *  API rejects. See the migration note on [googleFlightsApiConfig]. */
+        const val LEGACY_GF_ECONOMY_CLASS = "1"
+        const val LEGACY_GF_BUSINESS_CLASS = "3"
     }
 }
 
