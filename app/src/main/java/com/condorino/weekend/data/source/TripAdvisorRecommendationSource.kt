@@ -129,7 +129,7 @@ class TripAdvisorRecommendationSource(
             )
             is TravelRecommendationResult.NotConfigured -> SourceTestResult.Problem("${result.reason} ${result.howToFix}")
             is TravelRecommendationResult.Failure -> SourceTestResult.Problem(
-                result.userMessage + (result.technicalDetail?.let { " ($it)" } ?: ""),
+                result.userMessage.withDetail(result.technicalDetail),
             )
         }
     }
@@ -155,6 +155,16 @@ class TripAdvisorRecommendationSource(
                     )
                     response.code == 429 -> StepResult.Failure(
                         TravelRecommendationResult.Failure(strings.get(R.string.src_tripadvisor_rate_limited), "HTTP 429"),
+                    )
+                    // A 404 here is not "the place wasn't found" — it means this host has no such
+                    // endpoint, i.e. the configured path is wrong for the RapidAPI listing in use.
+                    // The paths are an unverified reconstruction (see the class doc), so saying
+                    // which path was asked for is the one thing that makes this fixable.
+                    response.code == 404 -> StepResult.Failure(
+                        TravelRecommendationResult.Failure(
+                            strings.get(R.string.src_tripadvisor_not_found),
+                            request.url.encodedPath.trimStart('/'),
+                        ),
                     )
                     !response.isSuccessful -> StepResult.Failure(
                         TravelRecommendationResult.Failure(strings.get(R.string.src_tripadvisor_http, response.code), response.message),

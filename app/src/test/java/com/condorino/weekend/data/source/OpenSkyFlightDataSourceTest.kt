@@ -250,7 +250,7 @@ class OpenSkyFlightDataSourceTest {
             .selfTest() as? SourceTestResult.Problem
             ?: error("expected Problem")
 
-        assertEquals(FakeStrings().get(R.string.src_opensky_rate_limited_retry, 42L), result.message)
+        assertEquals(FakeStrings().get(R.string.src_opensky_rate_limited_retry, "42 s"), result.message)
     }
 
     @Test

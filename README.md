@@ -146,7 +146,7 @@ Structure and reasoning: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ### Tests
 
-242 unit tests covering pattern detection, the workday penalty, effective length of stay, counting
+252 unit tests covering pattern detection, the workday penalty, effective length of stay, counting
 nights across midnight, time zones (UK, Madeira, Greece, summer/winter), cost scoring, random
 selection, feed parsing, price-field text handling, airport search ranking, update-release selection,
 standby-price export/import (including per-airline tagging and backward compatibility with exports

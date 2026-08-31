@@ -242,7 +242,7 @@ private fun BestWeekendRow(rank: Int, result: WeekendSearchResult, onClick: () -
         Column(Modifier.weight(1f)) {
             Text(
                 "${Formatting.shortDate(result.friday)}–${Formatting.shortDate(result.friday.plusDays(2))} " +
-                    best.destination.airport.city,
+                    best.destination.airport.cityWithCode,
                 color = CondorinoColors.TextPrimary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
@@ -292,7 +292,7 @@ private fun WeekendRow(result: WeekendSearchResult, onClick: () -> Unit) {
             Text(stars(best.score.total), color = CondorinoColors.Amber, fontSize = 13.sp)
             Spacer(Modifier.width(8.dp))
             Text(
-                "${best.destination.airport.flag} ${best.destination.airport.city}",
+                "${best.destination.airport.flag} ${best.destination.airport.cityWithCode}",
                 color = CondorinoColors.TextPrimary,
                 fontSize = 13.sp,
                 modifier = Modifier.weight(1f),

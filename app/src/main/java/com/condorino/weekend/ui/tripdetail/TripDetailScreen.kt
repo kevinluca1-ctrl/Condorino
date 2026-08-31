@@ -36,6 +36,7 @@ import com.condorino.weekend.R
 import com.condorino.weekend.core.Formatting
 import com.condorino.weekend.domain.model.WeekendTrip
 import com.condorino.weekend.scoring.TimeCompatibilityCalculator
+import com.condorino.weekend.ui.components.AirlineTag
 import com.condorino.weekend.ui.components.EmptyState
 import com.condorino.weekend.ui.components.Pill
 import com.condorino.weekend.ui.components.ProvenancePill
@@ -498,6 +499,9 @@ private fun LegBlock(title: String, trip: WeekendTrip, outbound: Boolean) {
                 flight.flightNumber?.let {
                     Pill(it, color = CondorinoColors.Amber)
                 }
+                Spacer(Modifier.width(6.dp))
+                // Tap to spell the code out — see AirlineTag.
+                AirlineTag(flight.airlineCode, flight.airline)
                 Spacer(Modifier.weight(1f))
                 Pill(
                     stringResource(if (flight.isDirect) R.string.detail_nonstop else R.string.detail_connecting),
@@ -506,10 +510,8 @@ private fun LegBlock(title: String, trip: WeekendTrip, outbound: Boolean) {
             }
             Spacer(Modifier.height(4.dp))
             Text(
-                // Shown alongside the date rather than folded into the flight-number pill above:
-                // now that more than Condor can appear in results (Settings → Airlines), this is
-                // the one place on the card that says outright which airline a leg is actually on.
-                "${Formatting.longDate(flight.departureLocal.toLocalDate())} · ${flight.airline}",
+                // The airline itself now sits in the tag above, which names it on tap.
+                Formatting.longDate(flight.departureLocal.toLocalDate()),
                 color = CondorinoColors.TextTertiary,
                 fontSize = 11.sp,
             )

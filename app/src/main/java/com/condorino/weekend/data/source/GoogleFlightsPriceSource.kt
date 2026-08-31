@@ -160,7 +160,7 @@ class GoogleFlightsPriceSource(
             )
             is CommercialPriceResult.NotConfigured -> SourceTestResult.Problem("${result.reason} ${result.howToFix}")
             is CommercialPriceResult.Failure -> SourceTestResult.Problem(
-                result.userMessage + (result.technicalDetail?.let { " ($it)" } ?: ""),
+                result.userMessage.withDetail(result.technicalDetail),
             )
         }
     }
@@ -284,12 +284,27 @@ class GoogleFlightsPriceSource(
      */
     internal fun apiErrorMessage(body: String): String? {
         val root = runCatching { json.parseToJsonElement(body) }.getOrNull() as? JsonObject ?: return null
-        // "status": false alone says a request failed but not why; the message field carries the why.
-        val message = ERROR_MESSAGE_KEYS.firstNotNullOfOrNull { key ->
-            (root[key] as? JsonPrimitive)?.contentOrNull?.trim()?.takeIf { it.isNotBlank() && it != "null" }
-        } ?: return null
-        // Guard against a "message": "ok"-style field on a response that simply mapped badly.
-        return message.takeIf { it.length > 2 && !it.equals("ok", ignoreCase = true) }
+        val message = ERROR_MESSAGE_KEYS.firstNotNullOfOrNull { key -> flattenMessage(root[key]) }
+            ?: return null
+        // A body that says "ok" is not explaining a failure — it mapped badly for some other
+        // reason, and the field-mapping diagnosis is the more useful answer there.
+        return message.takeIf { it.lowercase() !in SUCCESS_WORDS }
+    }
+
+    /**
+     * Pulls readable text out of whatever shape an error field takes. A plain string is the common
+     * case, but validation errors arrive as a list, and some gateways nest the sentence one level
+     * down ({"message": {"detail": "..."}}) — reading only a string meant those responses fell
+     * through to a field-mapping diagnosis that described the wrong problem entirely.
+     */
+    private fun flattenMessage(element: JsonElement?): String? = when (element) {
+        null -> null
+        is JsonPrimitive -> element.contentOrNull?.trim()?.takeIf { it.isNotBlank() && it != "null" }
+        is JsonArray -> element.mapNotNull { flattenMessage(it) }.joinToString("; ").takeIf { it.isNotBlank() }
+        is JsonObject -> ERROR_MESSAGE_KEYS.firstNotNullOfOrNull { flattenMessage(element[it]) }
+            // Nothing under a name we know: take the first readable value rather than give up,
+            // since any sentence the API sent beats none at all.
+            ?: element.values.firstNotNullOfOrNull { child -> (child as? JsonPrimitive)?.let { flattenMessage(it) } }
     }
 
     private fun JsonObject.at(key: String): JsonElement? {
@@ -335,7 +350,10 @@ class GoogleFlightsPriceSource(
 
     private companion object {
         /** Where an API-level error envelope tends to put its explanation, most specific first. */
-        val ERROR_MESSAGE_KEYS = listOf("message", "error", "detail", "errorMessage")
+        val ERROR_MESSAGE_KEYS = listOf("message", "error", "detail", "errors", "errorMessage", "description")
+
+        /** Words that mean "this worked", so they never get reported to the user as a failure. */
+        val SUCCESS_WORDS = setOf("ok", "success", "successful", "true", "done")
 
         /** First run of digits (thousands separators stripped) — for a formatted price string. */
         val PRICE_DIGITS = Regex("""\d+(?:\.\d+)?""")

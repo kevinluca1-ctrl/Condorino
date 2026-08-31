@@ -72,6 +72,19 @@ fun CompareScreen(
         }
     }
 
+    // Country heading carries the flag, so the chips themselves do not have to repeat it. Sorted
+    // by the country *name* the reader sees, not by its code or flag codepoint.
+    val byCountry = remember(matches) {
+        matches
+            .groupBy { it.destination.airport.displayCountry }
+            .toList()
+            .sortedBy { (country, _) -> country.lowercase() }
+            .map { (country, trips) ->
+                val flag = trips.first().destination.airport.flag
+                "$flag  $country" to trips.sortedBy { it.destination.airport.cityWithCode.lowercase() }
+            }
+    }
+
     Column(
         modifier
             .fillMaxSize()
@@ -132,25 +145,35 @@ fun CompareScreen(
                 modifier = Modifier.padding(vertical = 12.dp),
             )
         } else {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                matches.forEach { trip ->
-                    val isSelected = trip.iata in state.compareSelection
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { viewModel.toggleCompare(trip.iata) },
-                        label = {
-                            Text(
-                                "${trip.destination.airport.flag} ${trip.destination.airport.city}",
-                                fontSize = 12.sp,
-                            )
-                        },
-                        colors = FilterChipDefaults.filterChipColors(
-                            containerColor = CondorinoColors.SurfaceElevated,
-                            labelColor = CondorinoColors.TextSecondary,
-                            selectedContainerColor = CondorinoColors.Amber,
-                            selectedLabelColor = CondorinoColors.Background,
-                        ),
-                    )
+            // One flat run of chips put four indistinguishable "London"s next to each other and
+            // read as a wall. Grouping under the country, and labelling every chip with its
+            // airport code, makes the list both scannable and unambiguous.
+            byCountry.forEach { (country, trips) ->
+                Text(
+                    country,
+                    color = CondorinoColors.TextTertiary,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.padding(top = 10.dp, bottom = 4.dp),
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    trips.forEach { trip ->
+                        val isSelected = trip.iata in state.compareSelection
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { viewModel.toggleCompare(trip.iata) },
+                            label = {
+                                Text(trip.destination.airport.cityWithCode, fontSize = 12.sp)
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                containerColor = CondorinoColors.SurfaceElevated,
+                                labelColor = CondorinoColors.TextSecondary,
+                                selectedContainerColor = CondorinoColors.Amber,
+                                selectedLabelColor = CondorinoColors.Background,
+                            ),
+                        )
+                    }
                 }
             }
         }
@@ -201,7 +224,7 @@ private fun ComparisonTable(trips: List<WeekendTrip>) {
                         contentAlignment = Alignment.CenterStart,
                     ) {
                         Text(
-                            "${trip.destination.airport.flag} ${trip.destination.airport.city}",
+                            "${trip.destination.airport.flag} ${trip.destination.airport.cityWithCode}",
                             color = CondorinoColors.TextPrimary,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,

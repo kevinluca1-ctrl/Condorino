@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.condorino.weekend.data.prefs.PreferencesStore
+import com.condorino.weekend.data.source.withDetail
 import com.condorino.weekend.data.source.CommercialPriceResult
 import com.condorino.weekend.data.source.CommercialPriceSource
 import com.condorino.weekend.data.source.TravelRecommendationResult
@@ -325,7 +326,7 @@ class PlannerViewModel(
                 is CommercialPriceResult.Success -> CommercialPriceUiState.Success(result.quote)
                 is CommercialPriceResult.NotConfigured -> CommercialPriceUiState.NotConfigured(result.reason, result.howToFix)
                 is CommercialPriceResult.Failure -> CommercialPriceUiState.Failure(
-                    result.userMessage + (result.technicalDetail?.let { " ($it)" } ?: ""),
+                    result.userMessage.withDetail(result.technicalDetail),
                 )
             }
             _state.update { it.copy(commercialPrices = it.commercialPrices + (tripId to next)) }
@@ -350,7 +351,7 @@ class PlannerViewModel(
                 is TravelRecommendationResult.Success -> TravelHighlightsUiState.Success(result.highlights)
                 is TravelRecommendationResult.NotConfigured -> TravelHighlightsUiState.NotConfigured(result.reason, result.howToFix)
                 is TravelRecommendationResult.Failure -> TravelHighlightsUiState.Failure(
-                    result.userMessage + (result.technicalDetail?.let { " ($it)" } ?: ""),
+                    result.userMessage.withDetail(result.technicalDetail),
                 )
             }
             _state.update { it.copy(travelHighlights = it.travelHighlights + (iata to next)) }

@@ -1,5 +1,6 @@
 package com.condorino.weekend.data.source
 
+import com.condorino.weekend.core.Formatting
 import com.condorino.weekend.R
 import com.condorino.weekend.data.reference.AirportReferenceCatalog
 import com.condorino.weekend.domain.model.Airlines
@@ -239,7 +240,7 @@ class OpenSkyFlightDataSource(
                     if (failedCode != null) {
                         val message = when {
                             failedCode == 429 && retryAfter != null ->
-                                strings.get(R.string.src_opensky_rate_limited_retry, retryAfter)
+                                strings.get(R.string.src_opensky_rate_limited_retry, Formatting.retryDelay(retryAfter))
                             failedCode == 429 -> strings.get(R.string.src_opensky_rate_limited)
                             failedCode == 401 || failedCode == 403 -> strings.get(R.string.src_opensky_denied, failedCode)
                             else -> strings.get(R.string.src_opensky_http, failedCode)
@@ -707,7 +708,7 @@ class OpenSkyFlightDataSource(
                         val retryAfter = response.header("X-Rate-Limit-Retry-After-Seconds")?.toLongOrNull()
                         SourceTestResult.Problem(
                             if (retryAfter != null) {
-                                strings.get(R.string.src_opensky_rate_limited_retry, retryAfter)
+                                strings.get(R.string.src_opensky_rate_limited_retry, Formatting.retryDelay(retryAfter))
                             } else {
                                 strings.get(R.string.src_opensky_rate_limited)
                             },

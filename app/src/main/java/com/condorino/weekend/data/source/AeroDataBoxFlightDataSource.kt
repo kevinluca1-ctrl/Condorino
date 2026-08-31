@@ -1,5 +1,6 @@
 package com.condorino.weekend.data.source
 
+import com.condorino.weekend.core.Formatting
 import com.condorino.weekend.R
 import com.condorino.weekend.domain.model.Airlines
 import com.condorino.weekend.domain.model.Airport
@@ -142,46 +143,66 @@ class AeroDataBoxFlightDataSource(
                     .addHeader("X-RapidAPI-Host", config.apiHost.trim())
                     .build()
 
-                try {
-                    client.newCall(request).execute().use { response ->
-                        when {
-                            response.code == 401 || response.code == 403 -> return@withContext FlightSearchResult.Failure(
-                                strings.get(R.string.src_aerodatabox_denied),
-                                "HTTP ${response.code}",
-                            )
-                            response.code == 429 -> return@withContext FlightSearchResult.Failure(
-                                // This is very often the RapidAPI *gateway's* own per-second/minute
-                                // throttle on the free plan tripping — not the monthly quota shown
-                                // in the RapidAPI dashboard, which can (and does) sit in single
-                                // digits when this fires, since a search can send up to MAX_CHUNKS
-                                // requests back to back with no pacing between them. Standard
-                                // Retry-After is read when the gateway sends it, so the message
-                                // says something concrete rather than implying the account is out
-                                // of quota.
-                                response.header("Retry-After")?.toLongOrNull()?.let {
-                                    strings.get(R.string.src_aerodatabox_rate_limited_retry, it)
-                                } ?: strings.get(R.string.src_aerodatabox_rate_limited),
-                                "HTTP 429",
-                            )
-                            !response.isSuccessful -> return@withContext FlightSearchResult.Failure(
-                                strings.get(R.string.src_aerodatabox_http, response.code),
-                                response.message,
-                            )
+                // A 429 from this gateway is usually the per-second gate rather than a spent
+                // quota, so it clears within a second or two. Waiting once and asking again turns
+                // most of them into a successful search instead of an error the user has to act
+                // on; a second 429 is reported, since by then it is unlikely to be transient.
+                var attempt = 0
+                while (true) {
+                    val retryAfterMillis: Long? = try {
+                        client.newCall(request).execute().use { response ->
+                            when {
+                                response.code == 401 || response.code == 403 ->
+                                    return@withContext FlightSearchResult.Failure(
+                                        strings.get(R.string.src_aerodatabox_denied),
+                                        "HTTP ${response.code}",
+                                    )
+
+                                response.code == 429 && attempt < RATE_LIMIT_RETRIES ->
+                                    (response.header("Retry-After")?.toLongOrNull()?.times(1_000)
+                                        ?: (CHUNK_PACING_MILLIS * 2))
+                                        .coerceAtMost(MAX_RETRY_WAIT_MILLIS)
+
+                                response.code == 429 -> return@withContext FlightSearchResult.Failure(
+                                    // Very often the RapidAPI *gateway's* own per-second throttle
+                                    // rather than the monthly quota shown in the dashboard, which
+                                    // can (and does) sit in single digits when this fires. The
+                                    // standard Retry-After is read when sent, so the message says
+                                    // something concrete instead of implying a spent account.
+                                    response.header("Retry-After")?.toLongOrNull()?.let {
+                                        strings.get(R.string.src_aerodatabox_rate_limited_retry, Formatting.retryDelay(it))
+                                    } ?: strings.get(R.string.src_aerodatabox_rate_limited),
+                                    "HTTP 429",
+                                )
+
+                                !response.isSuccessful -> return@withContext FlightSearchResult.Failure(
+                                    strings.get(R.string.src_aerodatabox_http, response.code),
+                                    response.message,
+                                )
+
+                                else -> {
+                                    val body = response.body?.string().orEmpty()
+                                    if (body.isNotBlank()) {
+                                        flights += mapFlights(body, config, home, airports, selected)
+                                    }
+                                    null
+                                }
+                            }
                         }
-                        val body = response.body?.string().orEmpty()
-                        if (body.isNotBlank()) {
-                            flights += mapFlights(body, config, home, airports, selected)
-                        }
+                    } catch (e: IOException) {
+                        return@withContext FlightSearchResult.Failure(strings.get(R.string.src_aerodatabox_offline), e.message)
+                    } catch (e: CancellationException) {
+                        // Cancellation is not a failure: it means the caller went away (a new
+                        // search superseded this one, or the screen was left). Reporting it as an
+                        // error would put a spurious message on screen and hide the cancellation.
+                        throw e
+                    } catch (e: Exception) {
+                        return@withContext FlightSearchResult.Failure(strings.get(R.string.src_aerodatabox_parse_failed), e.message)
                     }
-                } catch (e: IOException) {
-                    return@withContext FlightSearchResult.Failure(strings.get(R.string.src_aerodatabox_offline), e.message)
-                } catch (e: CancellationException) {
-                    // Cancellation is not a failure: it means the caller went away (a new search
-                    // superseded this one, or the screen was left). Reporting it as an error would
-                    // put a spurious message on screen and hide the cancellation from the caller.
-                    throw e
-                } catch (e: Exception) {
-                    return@withContext FlightSearchResult.Failure(strings.get(R.string.src_aerodatabox_parse_failed), e.message)
+
+                    if (retryAfterMillis == null) break
+                    attempt++
+                    delay(retryAfterMillis)
                 }
             }
 
@@ -357,7 +378,14 @@ class AeroDataBoxFlightDataSource(
         const val MAX_CHUNKS = 16
 
         /** Between chunk requests within one search — see the pacing comment above. */
-        const val CHUNK_PACING_MILLIS = 150L
+        const val CHUNK_PACING_MILLIS = 400L
+
+        /** One retry after a 429 — see the retry loop for why once, and why the wait is bounded. */
+        const val RATE_LIMIT_RETRIES = 1
+
+        /** A longer Retry-After than this is not the per-second gate, and waiting it out in the
+         *  foreground would just hang the screen. */
+        const val MAX_RETRY_WAIT_MILLIS = 3_000L
     }
 }
 

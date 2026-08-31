@@ -53,9 +53,9 @@ fun SettingsSection(
     title: String,
     subtitle: String? = null,
     /**
-     * Sections start closed so this screen opens as a readable list of headings rather than a very
-     * long scroll — there are close to twenty of them, most holding API field mappings that are set
-     * once and never looked at again. A section that is genuinely part of everyday use passes true.
+     * Sections start closed so this screen opens as a readable list rather than a very long
+     * scroll — there are close to twenty of them, most holding an API field mapping set once and
+     * never looked at again. A section that is genuinely part of everyday use passes true.
      */
     initiallyExpanded: Boolean = false,
     content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
@@ -66,33 +66,45 @@ fun SettingsSection(
     var expanded by rememberSaveable(title) { mutableStateOf(initiallyExpanded) }
     val chevronRotation by animateFloatAsState(if (expanded) 180f else 0f, label = "sectionChevron")
 
-    Column(Modifier.fillMaxWidth().padding(top = 18.dp)) {
+    Column(Modifier.fillMaxWidth().padding(top = 10.dp)) {
         Row(
             Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(8.dp))
+                // A filled row, not bare text: closed, the header *is* the control, and it has to
+                // look like one. Squared off at the bottom while open so it reads as one piece
+                // with the panel it opens.
+                .clip(
+                    if (expanded) RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp)
+                    else RoundedCornerShape(14.dp),
+                )
+                .background(if (expanded) CondorinoColors.SurfaceElevated else CondorinoColors.Surface)
                 .clickable { expanded = !expanded }
-                // The row's own content is only about 32dp tall; 48dp is the minimum comfortable
-                // touch target, and this one is now the only way into a section.
-                .heightIn(min = 48.dp)
-                .padding(vertical = 4.dp),
+                // 48dp is the minimum comfortable touch target, and this is the only way in.
+                .heightIn(min = 56.dp)
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    title.uppercase(),
-                    color = CondorinoColors.TextTertiary,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 1.2.sp,
+                    // Sentence case at a readable size, in the primary text colour. The old
+                    // 10sp tertiary all-caps label was the quietest thing on a screen where it
+                    // had become the only navigation.
+                    title,
+                    color = CondorinoColors.TextPrimary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
                 )
-                // Only while open: closed, the heading alone is what makes the list scannable.
-                if (expanded && subtitle != null) {
+                // Kept visible while closed too: one line saying what a section is for is what
+                // makes a list of twenty headings answerable without opening each one.
+                subtitle?.let {
                     Text(
-                        subtitle,
-                        color = CondorinoColors.TextTertiary.copy(alpha = 0.8f),
+                        it,
+                        color = CondorinoColors.TextTertiary,
                         fontSize = 11.sp,
                         lineHeight = 15.sp,
+                        maxLines = if (expanded) Int.MAX_VALUE else 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 2.dp),
                     )
                 }
             }
@@ -103,7 +115,7 @@ fun SettingsSection(
                     if (expanded) R.string.action_collapse_section else R.string.action_expand_section,
                     title,
                 ),
-                tint = CondorinoColors.TextTertiary,
+                tint = CondorinoColors.TextSecondary,
                 modifier = Modifier.rotate(chevronRotation),
             )
         }
@@ -111,8 +123,7 @@ fun SettingsSection(
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp)
-                    .clip(RoundedCornerShape(14.dp))
+                    .clip(RoundedCornerShape(bottomStart = 14.dp, bottomEnd = 14.dp))
                     .background(CondorinoColors.Surface)
                     .padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -120,6 +131,25 @@ fun SettingsSection(
             )
         }
     }
+}
+
+/**
+ * A heading over a run of [SettingsSection]s.
+ *
+ * Twenty sections in one undifferentiated column is a list you have to read end to end to use.
+ * Three or four named groups turn it into one you can skim: the API plumbing sits together and
+ * out of the way of the handful of settings actually adjusted day to day.
+ */
+@Composable
+fun SettingsGroupHeader(title: String) {
+    Text(
+        title.uppercase(),
+        color = CondorinoColors.Amber,
+        fontSize = 10.sp,
+        fontWeight = FontWeight.Black,
+        letterSpacing = 1.4.sp,
+        modifier = Modifier.padding(top = 26.dp, bottom = 2.dp, start = 2.dp),
+    )
 }
 
 /**

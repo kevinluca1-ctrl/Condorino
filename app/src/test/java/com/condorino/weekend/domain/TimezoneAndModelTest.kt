@@ -158,4 +158,21 @@ class StandbyPriceTest {
         assertEquals("€90", Money(9_000).format(us))
         assertEquals("€76.50", Money(7_650).format(us))
     }
+
+    @Test
+    fun `a destination label always carries its airport code`() {
+        // Four Londons exist in the reference data; the city alone cannot tell them apart.
+        val heathrow = Airport("LHR", "Heathrow", "London", "United Kingdom", "GB", "Europe/London")
+        val gatwick = Airport("LGW", "Gatwick", "London", "United Kingdom", "GB", "Europe/London")
+
+        assertEquals("London (LHR)", heathrow.cityWithCode)
+        assertEquals("London (LGW)", gatwick.cityWithCode)
+        assertNotEquals(heathrow.cityWithCode, gatwick.cityWithCode)
+    }
+
+    @Test
+    fun `a label falls back to the airport name when the city is missing`() {
+        val nameless = Airport("XYZ", "Some Airfield", "  ", "Nowhere", "NO", "UTC")
+        assertEquals("Some Airfield (XYZ)", nameless.cityWithCode)
+    }
 }

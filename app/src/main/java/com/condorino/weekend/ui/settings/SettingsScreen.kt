@@ -84,6 +84,7 @@ fun SettingsScreen(
             letterSpacing = (-1).sp,
         )
 
+        SettingsGroupHeader(stringResource(R.string.settings_group_app))
         // ---------------------------------------------------------------- updates
         UpdateSection(state, viewModel)
 
@@ -134,6 +135,7 @@ fun SettingsScreen(
             }
         }
 
+        SettingsGroupHeader(stringResource(R.string.settings_group_flight_data))
         // ---------------------------------------------------------------- data sources
         SettingsSection(
             stringResource(R.string.settings_sources),
@@ -628,6 +630,7 @@ fun SettingsScreen(
             )
         }
 
+        SettingsGroupHeader(stringResource(R.string.settings_group_your_trips))
         // ---------------------------------------------------------------- work / travel times
         SettingsSection(
             stringResource(R.string.settings_work),
@@ -826,6 +829,7 @@ fun SettingsScreen(
             )
         }
 
+        SettingsGroupHeader(stringResource(R.string.settings_group_about))
         // ---------------------------------------------------------------- general
         SettingsSection(stringResource(R.string.settings_general)) {
             Text(

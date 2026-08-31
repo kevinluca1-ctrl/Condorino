@@ -296,6 +296,49 @@ class GoogleFlightsPriceSourceTest {
         assertTrue(result.userMessage.contains("You are not subscribed to this API."))
     }
 
+
+    @Test
+    fun `an error message given as a list is relayed rather than ignored`() {
+        // Validation errors commonly arrive as an array; reading only a string sent these
+        // responses down the field-mapping path, which described the wrong problem entirely.
+        val source = sourceFor(configFor())
+        assertEquals(
+            "departure_id is required; outbound_date is invalid",
+            source.apiErrorMessage("""{"status":false,"message":["departure_id is required","outbound_date is invalid"]}"""),
+        )
+    }
+
+    @Test
+    fun `an error message nested one level down is still found`() {
+        val source = sourceFor(configFor())
+        assertEquals(
+            "You are not subscribed to this API.",
+            source.apiErrorMessage("""{"status":false,"message":{"detail":"You are not subscribed to this API."}}"""),
+        )
+    }
+
+    @Test
+    fun `a nested error object with no familiar key still yields its sentence`() {
+        val source = sourceFor(configFor())
+        assertEquals(
+            "Endpoint disabled for this plan",
+            source.apiErrorMessage("""{"status":false,"error":{"reason":"Endpoint disabled for this plan"}}"""),
+        )
+    }
+
+    @Test
+    fun `a short genuine message is no longer discarded`() {
+        assertEquals("No", sourceFor(configFor()).apiErrorMessage("""{"message":"No"}"""))
+    }
+
+    @Test
+    fun `words meaning success are not reported as failures`() {
+        val source = sourceFor(configFor())
+        assertNull(source.apiErrorMessage("""{"message":"Success"}"""))
+        assertNull(source.apiErrorMessage("""{"message":"OK"}"""))
+        assertNull(source.apiErrorMessage("""{"message":"done"}"""))
+    }
+
 }
 
 /** A [SourceStrings] that never touches Android — this test only cares which id/args were chosen. */

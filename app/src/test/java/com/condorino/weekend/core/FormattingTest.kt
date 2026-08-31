@@ -56,4 +56,21 @@ class FormattingTest {
     fun `a negative duration never renders as negative`() {
         assertEquals("0 min", Formatting.duration(Duration.ofMinutes(-30)))
     }
+
+    @Test
+    fun `a retry wait is shown in the largest unit that still means something`() {
+        // "try again in 83337 seconds" is exact and useless — nobody reads that as "tomorrow".
+        assertEquals("45 s", Formatting.retryDelay(45))
+        assertEquals("12 min", Formatting.retryDelay(12 * 60))
+        assertEquals("2 h 15 min", Formatting.retryDelay(2 * 3600 + 15 * 60))
+        assertEquals("2 h", Formatting.retryDelay(2 * 3600))
+        assertEquals("23 h 8 min", Formatting.retryDelay(83_337))
+        assertEquals("1 d 4 h", Formatting.retryDelay(86_400 + 4 * 3600))
+        assertEquals("2 d", Formatting.retryDelay(2 * 86_400))
+    }
+
+    @Test
+    fun `a nonsensical retry wait never renders as a negative`() {
+        assertEquals("0 s", Formatting.retryDelay(-5))
+    }
 }

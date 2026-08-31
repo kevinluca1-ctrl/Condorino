@@ -83,6 +83,33 @@ object Formatting {
 
     fun minutes(value: Long): String = duration(Duration.ofMinutes(value))
 
+    /**
+     * A wait, in the largest unit that stays meaningful: "45 s", "12 min", "2 h 15 min", "23 h",
+     * "1 d 4 h".
+     *
+     * Servers express a retry delay in seconds, and relaying that number as-is produces things
+     * like "try again in 83337 seconds" — technically exact and useless, since nobody reads that
+     * as "tomorrow". Rounded once it passes an hour, because a wait that long does not need its
+     * minutes.
+     */
+    fun retryDelay(seconds: Long): String {
+        val s = seconds.coerceAtLeast(0)
+        return when {
+            s < 60 -> "$s s"
+            s < 3_600 -> "${s / 60} min"
+            s < 86_400 -> {
+                val h = s / 3_600
+                val m = (s % 3_600) / 60
+                if (m == 0L) "$h h" else "$h h $m min"
+            }
+            else -> {
+                val d = s / 86_400
+                val h = (s % 86_400) / 3_600
+                if (h == 0L) "$d d" else "$d d $h h"
+            }
+        }
+    }
+
     /** Whole minutes between now and [instant]; the wording lives in the string resources. */
     fun minutesSince(instant: Instant): Long = Duration.between(instant, Instant.now()).toMinutes()
 

@@ -50,11 +50,21 @@ interface FlightDataSource {
             )
             is FlightSearchResult.NotConfigured -> SourceTestResult.Problem("${result.reason} ${result.howToFix}")
             is FlightSearchResult.Failure -> SourceTestResult.Problem(
-                result.userMessage + (result.technicalDetail?.let { " ($it)" } ?: ""),
+                result.userMessage.withDetail(result.technicalDetail),
             )
         }
     }
 }
+
+/**
+ * Appends a technical detail to a user-facing message, in parentheses — but only when there is one.
+ *
+ * A blank detail is common: some servers send an empty HTTP reason phrase, so `response.message` is
+ * "" rather than null, and a plain null check let that through as a bare "… (​)" hanging off the
+ * end of the sentence. Checking for null was never enough; blank has to count as absent too.
+ */
+fun String.withDetail(detail: String?): String =
+    if (detail.isNullOrBlank()) this else "$this ($detail)"
 
 /** Outcome of [FlightDataSource.selfTest], shown verbatim under the source in Settings. */
 sealed interface SourceTestResult {
