@@ -5,6 +5,7 @@ import com.condorino.weekend.domain.model.Airlines
 import com.condorino.weekend.domain.model.Airport
 import com.condorino.weekend.domain.model.DataProvenance
 import com.condorino.weekend.domain.model.Flight
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -174,6 +175,11 @@ class AeroDataBoxFlightDataSource(
                     }
                 } catch (e: IOException) {
                     return@withContext FlightSearchResult.Failure(strings.get(R.string.src_aerodatabox_offline), e.message)
+                } catch (e: CancellationException) {
+                    // Cancellation is not a failure: it means the caller went away (a new search
+                    // superseded this one, or the screen was left). Reporting it as an error would
+                    // put a spurious message on screen and hide the cancellation from the caller.
+                    throw e
                 } catch (e: Exception) {
                     return@withContext FlightSearchResult.Failure(strings.get(R.string.src_aerodatabox_parse_failed), e.message)
                 }

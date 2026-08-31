@@ -83,6 +83,15 @@ interface StandbyPriceRepository {
     suspend fun current(): Map<String, StandbyPrice>
     suspend fun save(price: StandbyPrice)
     suspend fun delete(iata: String, airlineIcao: String)
+
+    /**
+     * Recovers prices from the local safety copy when the database has lost all of them (a
+     * destructive schema upgrade, cleared storage, corruption). A no-op whenever any price is
+     * still present, so it can be called unconditionally at startup.
+     *
+     * @return how many prices were restored.
+     */
+    suspend fun restoreFromBackupIfEmpty(): Int = 0
 }
 
 interface FavoriteRepository {

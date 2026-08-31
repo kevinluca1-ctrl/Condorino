@@ -2,8 +2,8 @@
 
 Tenth alpha: two more bugs fixed — the update checker offering every release to the users already
 running it, and AeroDataBox reporting a RapidAPI throttle as if the account had run out of quota —
-plus Settings UI improvements: a named changelog button and collapsible sections. Everything in
-`alpha-09` still applies — see its
+plus a named changelog button, collapsible Settings sections, and the results of a full pass over
+the app for data safety and Android correctness. Everything in `alpha-09` still applies — see its
 [release notes](https://github.com/kevinluca1-ctrl/Condorino/releases/tag/alpha-09).
 
 ## Fixed
@@ -31,6 +31,25 @@ plus Settings UI improvements: a named changelog button and collapsible sections
 
 ## Added
 
+* **Your standby prices can no longer be lost.** They are the one thing in this app that cannot be
+  fetched again — every other table is a cache, but these are typed in by hand from MyID Travel and
+  exist nowhere else. Until now the database was their only home, and that database is opened with
+  `fallbackToDestructiveMigration`: any future schema change drops every row, as would clearing the
+  app's storage or a rare corruption. Each price is now also written to a plain JSON copy beside
+  the database, in exactly the same format the export button produces, and the app restores from it
+  automatically on launch **if and only if** the database has no prices at all. It can therefore
+  only ever put back prices that were lost — never overwrite, duplicate or resurrect one you still
+  have, including one you deliberately deleted. Nothing to switch on, and nothing changes if you
+  never lose anything.
+
+* **Settings and prices now actually survive moving to a new phone.** The backup rules named the
+  `sharedpref` domain, which quietly backed up nothing at all: this app keeps its settings in
+  DataStore, and DataStore does not write there. The rules now name the file domain that DataStore
+  and the new price copy really use, so a restored device brings your configuration and prices with
+  it. (This does mean the stored RapidAPI key travels with the backup, which is what a restored
+  phone is expected to do; Android encrypts that backup against the device credential, and the app
+  holds no MyID Travel credentials at all.)
+
 * **Changelog button** in Settings → Updates, next to "Check now" — opens this build's own release
   notes on GitHub directly, rather than the generic releases list.
 * **Collapsible Settings sections.** With close to twenty sections — most holding an API field
@@ -39,9 +58,26 @@ plus Settings UI improvements: a named changelog button and collapsible sections
   scroll. Updates stays open by default, since it is the one section actually used regularly. Each
   section remembers its own open/closed state across navigating away and rotation.
 
-7 new unit tests (232 total, was 224), including one confirming a release matching the installed
-build's own tag is never offered as an update regardless of the timestamp skew that caused the bug,
-and coverage for the reworded AeroDataBox rate-limit message and its request pacing.
+## Also hardened
+
+Findings from a full pass over the app, none of them user-visible on their own:
+
+* Every broad `catch` around suspending work now rethrows `CancellationException` first. Nothing
+  reaches those clauses today, but `CancellationException` *is* an `Exception`: the day a suspending
+  call moves inside one of those blocks, a cancelled search would silently be reported as a failed
+  one instead. The planner also states the same requirement where it writes results, so a search
+  the user has already moved on from can never paint over the weekend they moved to.
+* An overall 60-second ceiling per HTTP call. Connect and read timeouts only bound individual
+  socket operations, so a server trickling one byte at a time could previously hold a request — and
+  the screen waiting on it — open indefinitely without tripping either.
+* Filter, date-range and price-card selections now survive rotation and being backgrounded, rather
+  than resetting.
+* The new collapsible section headers meet the 48dp minimum touch target.
+
+17 new unit tests (242 total, was 224), covering the update-tag identity check, the AeroDataBox
+rate-limit rewording and request pacing, and the price safety net — including that it restores after
+total loss, stays out of the way whenever any price survives, and never resurrects a price deleted
+on purpose.
 
 ## Known limitations
 

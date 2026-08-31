@@ -183,6 +183,31 @@ messages are diagnostics full of HTTP codes and counts, so they resolve strings 
 Airport names come from the bundled public reference, and country names are derived from the ISO
 code at render time, so they follow the device language rather than being frozen into a data file.
 
+## Data the user cannot get back
+
+Every table in the database is a cache that can be refetched — with one exception. Standby prices
+are typed in by hand from MyID Travel, exist nowhere else, and represent real work. That asymmetry
+is worth being explicit about, because the database is *not* a safe enough single home for them:
+
+* it is opened with `fallbackToDestructiveMigration`, which is right for the caches (a schema change
+  may simply drop them) and wrong for the prices, since it drops those too;
+* clearing the app's storage, or an uninstall, takes it with them;
+* corruption is rare but total.
+
+So `DefaultStandbyPriceRepository` writes a second copy on every change (`StandbyPriceBackup`), in
+exactly the format `PriceExport` already produces for the user-facing export — one format, so the
+safety net and the export file cannot drift apart. `CondorinoApp` calls `restoreFromBackupIfEmpty()`
+on each launch.
+
+The restore condition is the whole safeguard against this fighting the user: it acts **only** when
+the database holds no prices at all. It can therefore add back prices that were lost, and can never
+overwrite, duplicate or resurrect one that still exists — including one deliberately deleted, since
+deleting the last price rewrites the backup as empty too.
+
+Android's backup rules name the `file` domain explicitly, which is where both DataStore and this
+copy actually live. (The rules previously named only `sharedpref`, which backed up nothing at all:
+DataStore does not write there.)
+
 ## Extensibility
 
 `FlightDataSource` does not know the word “Condor”. Adding another airline means: write an

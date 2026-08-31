@@ -2,6 +2,7 @@ package com.condorino.weekend.data
 
 import android.content.Context
 import com.condorino.weekend.domain.model.DestinationProfile
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
@@ -59,6 +60,11 @@ class DestinationCatalog(
                         note = dto.note,
                     )
                 }
+            } catch (e: CancellationException) {
+                // Cancellation is not a failure: it means the caller went away (a new search
+                // superseded this one, or the screen was left). Reporting it as an error would
+                // put a spurious message on screen and hide the cancellation from the caller.
+                throw e
             } catch (e: Exception) {
                 // Missing or broken metadata must never break the flight search.
                 emptyMap()

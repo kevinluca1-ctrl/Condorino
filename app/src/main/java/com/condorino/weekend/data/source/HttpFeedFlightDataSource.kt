@@ -3,6 +3,7 @@ package com.condorino.weekend.data.source
 import com.condorino.weekend.R
 import com.condorino.weekend.data.reference.AirportReferenceCatalog
 import com.condorino.weekend.domain.model.DataProvenance
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -107,6 +108,11 @@ class HttpFeedFlightDataSource(
                 }
             } catch (e: IOException) {
                 FlightSearchResult.Failure(strings.get(R.string.src_feed_offline), e.message)
+            } catch (e: CancellationException) {
+                // Cancellation is not a failure: it means the caller went away (a new search
+                // superseded this one, or the screen was left). Reporting it as an error would
+                // put a spurious message on screen and hide the cancellation from the caller.
+                throw e
             } catch (e: Exception) {
                 FlightSearchResult.Failure(strings.get(R.string.src_feed_parse_failed), e.message)
             }

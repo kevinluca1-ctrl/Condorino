@@ -2,6 +2,7 @@ package com.condorino.weekend.data.reference
 
 import android.content.Context
 import com.condorino.weekend.domain.model.Airport
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -109,6 +110,11 @@ class AirportReferenceCatalog(
 
             byIcao = icaoMap
             iataMap
+        } catch (e: CancellationException) {
+            // Cancellation is not a failure: it means the caller went away (a new search
+            // superseded this one, or the screen was left). Reporting it as an error would
+            // put a spurious message on screen and hide the cancellation from the caller.
+            throw e
         } catch (e: Exception) {
             // The reference file is an optimisation, not a hard dependency: without it the app
             // still works for any source that declares its own airports.

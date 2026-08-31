@@ -33,6 +33,10 @@ class CondorinoApp : Application() {
         runCatching { UpdateCheckWorker.schedule(this) }
         runCatching { container.updateNotifier.ensureChannel() }
         runCatching { appScope.launch { container.updateRepository.initialize() } }
+        // If the database lost the user's hand-typed standby prices — a destructive schema
+        // upgrade, cleared storage, corruption — put them back from the local safety copy. Does
+        // nothing whenever any price is still there, so it is safe to run on every launch.
+        runCatching { appScope.launch { container.standbyPriceRepository.restoreFromBackupIfEmpty() } }
 
         // DownloadManager's own provider process delivers this broadcast, not this app, so it must
         // be registered EXPORTED — NOT_EXPORTED would silently never receive it. The download id it

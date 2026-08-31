@@ -4,6 +4,7 @@ import com.condorino.weekend.BuildConfig
 import com.condorino.weekend.R
 import com.condorino.weekend.data.source.SourceStrings
 import com.condorino.weekend.domain.model.AppUpdate
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.ListSerializer
@@ -103,6 +104,11 @@ class GitHubReleaseUpdateSource(
             }
         } catch (e: IOException) {
             UpdateCheckResult.Failure(strings.get(R.string.update_offline), e.message)
+        } catch (e: CancellationException) {
+            // Cancellation is not a failure: it means the caller went away (a new search
+            // superseded this one, or the screen was left). Reporting it as an error would
+            // put a spurious message on screen and hide the cancellation from the caller.
+            throw e
         } catch (e: Exception) {
             UpdateCheckResult.Failure(strings.get(R.string.update_parse_failed), e.message)
         }

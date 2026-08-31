@@ -1,5 +1,6 @@
 package com.condorino.weekend.data
 
+import com.condorino.weekend.data.backup.StandbyPriceBackup
 import com.condorino.weekend.data.local.FavoriteDao
 import com.condorino.weekend.data.local.FavoriteEntity
 import com.condorino.weekend.data.local.StandbyPriceDao
@@ -21,6 +22,9 @@ import java.time.Instant
  */
 class DefaultStandbyPriceRepository(
     private val dao: StandbyPriceDao,
+    /** Shadow copy of every price, so hand-typed work survives losing the database — see
+     *  [StandbyPriceBackup]. Null disables the safety net (used by tests). */
+    private val backup: StandbyPriceBackup? = null,
 ) : StandbyPriceRepository {
 
     override val prices: Flow<Map<String, StandbyPrice>> =
@@ -38,9 +42,30 @@ class DefaultStandbyPriceRepository(
             updatedAtEpochMillis = Instant.now().toEpochMilli(),
         )
         dao.upsert(normalised.toEntity())
+        refreshBackup()
     }
 
-    override suspend fun delete(iata: String, airlineIcao: String) = dao.delete(iata, airlineIcao)
+    override suspend fun delete(iata: String, airlineIcao: String) {
+        dao.delete(iata, airlineIcao)
+        refreshBackup()
+    }
+
+    /**
+     * Puts the prices back if the database has lost them all and a backup survives — the whole
+     * point of the safety net. Restoring writes through [save], so a recovered price is normalised
+     * and re-backed-up exactly like a typed one; running it when nothing was lost does nothing.
+     *
+     * @return how many prices were restored, for the caller to report.
+     */
+    override suspend fun restoreFromBackupIfEmpty(): Int {
+        val recovered = backup?.restoreIfEmpty(current()).orEmpty()
+        recovered.forEach { save(it) }
+        return recovered.size
+    }
+
+    private suspend fun refreshBackup() {
+        backup?.backup(dao.all().map { it.toDomain() })
+    }
 }
 
 class DefaultFavoriteRepository(
